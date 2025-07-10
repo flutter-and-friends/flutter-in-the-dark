@@ -3,11 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:confetti/confetti.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:fitd25/challenges/final.dart';
-import 'package:fitd25/challenges/first.dart';
-import 'package:fitd25/challenges/fourth.dart';
-import 'package:fitd25/challenges/second.dart';
-import 'package:fitd25/challenges/third.dart';
+import 'package:fitd25/dart_pad/dart_pad_widget.dart';
 import 'package:fitd25/firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:timeago_flutter/timeago_flutter.dart'
@@ -170,14 +166,20 @@ class _AutoToggleState extends State<AutoToggle> {
                 ),
             },
           ),
-          body: switch (_currentPath) {
-            'first' => const First(),
-            'second' => const Second(),
-            'third' => const Third(),
-            'fourth' => const Fourth(),
-            'finals' => const Final(),
-            _ => const HomeScreen(),
-          },
+          // body: switch (_currentPath) {
+          //   'first' => const First(),
+          //   'second' => const Second(),
+          //   'third' => const Third(),
+          //   'fourth' => const Fourth(),
+          //   'finals' => const Final(),
+          //   _ => const HomeScreen(),
+          // },
+          body: DartPad(
+            key: Key('Example1'),
+            width: 1000,
+            height: 1000,
+            code: 'void main() => print("Hello DartPad Widget");',
+          ),
         ),
         ConfettiWidget(
           confettiController: confettiController,
