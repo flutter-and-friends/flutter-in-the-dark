@@ -174,11 +174,15 @@ class _AutoToggleState extends State<AutoToggle> {
           //   'finals' => const Final(),
           //   _ => const HomeScreen(),
           // },
-          body: DartPad(
-            key: Key('Example1'),
-            width: 1000,
-            height: 1000,
-            code: 'void main() => print("Hello DartPad Widget");',
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              return DartPad(
+                key: Key('Example1'),
+                width: constraints.maxWidth/2,
+                height: constraints.maxHeight,
+                code: 'void main() => print("Hello DartPad Widget");',
+              );
+            }
           ),
         ),
         ConfettiWidget(

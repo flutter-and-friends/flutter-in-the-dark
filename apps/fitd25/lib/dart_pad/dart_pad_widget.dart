@@ -133,6 +133,17 @@ class _DartPadState extends State<DartPad> {
     };
 
   @override
+  void didUpdateWidget(DartPad oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.width != oldWidget.width || widget.height != oldWidget.height) {
+      iframe.style.width = widget.width.toInt().toString();
+      iframe.style.height = widget.height.toInt().toString();
+    }
+    iframe.attributes['style'] = widget.iframeStyle;
+  }
+
+  @override
   void initState() {
     super.initState();
 
@@ -144,9 +155,8 @@ class _DartPadState extends State<DartPad> {
         .registerViewFactory('dartpad${widget.key}', (int viewId) => iframe);
     html.window.addEventListener('message', (e) {
       if (e is html.MessageEvent && e.data['type'] == 'ready') {
-        // print(e);
         var m = {'sourceCode': widget.sourceCodeFileMap, 'type': 'sourceCode'};
-        iframe.contentWindow!.postMessage(m, '*');
+        iframe.contentWindow?.postMessage(m, '*');
       }
     });
   }
