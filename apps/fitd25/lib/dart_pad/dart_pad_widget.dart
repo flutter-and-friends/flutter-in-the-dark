@@ -1,10 +1,12 @@
 // Copyright (c) 2020, Tim Whiting. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-import 'dart:html' as html;
+// import 'dart:html' as html;
+import 'dart:js_interop';
 import 'dart:ui_web' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:web/web.dart' as web;
 
 import 'constants.dart';
 
@@ -111,10 +113,6 @@ class DartPad extends StatefulWidget {
     return uri.toString();
   }
 
-  String get iframeStyle {
-    return "width:${width}px;height:${height}px;";
-  }
-
   Map<String, String> get sourceCodeFileMap {
     return {
       'main.dart': code,
@@ -126,29 +124,79 @@ class DartPad extends StatefulWidget {
 }
 
 class _DartPadState extends State<DartPad> {
-  late html.IFrameElement iframe = html.IFrameElement()
-    ..attributes = {
-      'src': widget.iframeSrc,
-      'style': widget.iframeStyle,
-    };
+  late web.HTMLIFrameElement iframe;
+
+  final String _targetOrigin = 'https://dartpad.dev';
 
   @override
   void initState() {
     super.initState();
 
+    iframe = web.document.createElement('iframe') as web.HTMLIFrameElement
+      ..src = widget.iframeSrc
+      ..style.border = 'none'
+      ..style.width = '${widget.width}px'
+      ..style.height = '${widget.height}px';
+
     iframe.style.width = widget.width.toInt().toString();
     iframe.style.height = widget.height.toInt().toString();
 
+    // Register the iframe with Flutter's view registry
     // ignore: undefined_prefixed_name
     ui.platformViewRegistry
         .registerViewFactory('dartpad${widget.key}', (int viewId) => iframe);
-    html.window.addEventListener('message', (e) {
-      if (e is html.MessageEvent && e.data['type'] == 'ready') {
-        // print(e);
-        var m = {'sourceCode': widget.sourceCodeFileMap, 'type': 'sourceCode'};
-        iframe.contentWindow!.postMessage(m, '*');
-      }
-    });
+
+    // **Listen for the 'ready' message from the iframe**
+    web.window.addEventListener(
+        'message',
+        (web.MessageEvent event) {
+          // Ensure the the origin is correct
+          // if (event.origin == _targetOrigin) {
+            final data = event.data.dartify() as Map;
+
+            // DartPad sends a JS object with a 'type' property
+            // When DartPad is ready, send the source code
+            if (data['type'] == 'ready') {
+              print('DartPad is ready. Sending source code...');
+              final message = {
+                'sourceCode': widget.sourceCodeFileMap,
+                'type': 'sourceCode',
+              };
+              // iframe.contentWindow
+              //     ?.postMessage(message.jsify(), _targetOrigin.toJS);
+              iframe.contentWindow
+                  ?.postMessage(message.jsify(), '*'.toJS);
+            }
+          // }
+        }.toJS);
+
+    // web.window.addEventListener(
+    //     'message',
+    //     (web.MessageEvent e) {
+    //       final responseData = e.data.dartify() as Map;
+    //
+    //       if (responseData['type'] == 'ready') {
+    //         var message = {
+    //           'sourceCode': widget.sourceCodeFileMap,
+    //           'type': 'sourceCode'
+    //         };
+    //         final contentWindow = iframe.contentWindow;
+    //         contentWindow!.postMessage(message.jsify(), '*'.toJS);
+    //       }
+    //       // if (e is web.MessageEvent && e.data?['type'] == 'ready') {
+    //       //   var m = {'sourceCode': widget.sourceCodeFileMap, 'type': 'sourceCode'};
+    //       //   iframe.contentWindow!.postMessage(m, '*');
+    //       // }
+    //     }.toJS);
+
+    // ui.platformViewRegistry
+    //     .registerViewFactory('dartpad${widget.key}', (int viewId) => iframe);
+    // html.window.addEventListener('message', (e) {
+    //   if (e is html.MessageEvent && e.data['type'] == 'ready') {
+    // var m = {'sourceCode': widget.sourceCodeFileMap, 'type': 'sourceCode'};
+    // iframe.contentWindow!.postMessage(m, '*');
+    // }
+    // });
   }
 
   @override
