@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:confetti/confetti.dart';
+import 'package:devtools_app_shared/ui.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:fitd25/challenges/first.dart';
 import 'package:fitd25/dart_pad/dart_pad_widget.dart';
 import 'package:fitd25/firebase_options.dart';
 import 'package:flutter/material.dart';
@@ -174,15 +176,22 @@ class _AutoToggleState extends State<AutoToggle> {
           //   'finals' => const Final(),
           //   _ => const HomeScreen(),
           // },
-          body: LayoutBuilder(
-            builder: (context, constraints) {
-              return DartPad(
-                key: Key('Example1'),
-                width: constraints.maxWidth/2,
-                height: constraints.maxHeight,
-                code: 'void main() => print("Hello DartPad Widget");',
-              );
-            }
+          body: SplitPane(
+            axis: Axis.horizontal,
+            initialFractions: [0.5, 0.5],
+            children: [
+              First(),
+              LayoutBuilder(builder: (context, constraints) {
+                return DartPad(
+                  key: Key('Example1'),
+                  width: constraints.maxWidth,
+                  height: constraints.maxHeight,
+                  embeddingChoice: EmbeddingChoice.flutter,
+                  split: 100,
+                  code: counter,
+                );
+              }),
+            ],
           ),
         ),
         ConfettiWidget(
@@ -218,3 +227,66 @@ class OverrideEnTimeAgo extends EnMessages {
   @override
   String lessThanOneMinute(int seconds) => '$seconds seconds';
 }
+
+final counter = r'''
+import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Demo',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(colorSchemeSeed: Colors.blue),
+      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+    );
+  }
+}
+
+class MyHomePage extends StatefulWidget {
+  final String title;
+
+  const MyHomePage({super.key, required this.title});
+
+  @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  int _counter = 0;
+
+  void _incrementCounter() {
+    setState(() {
+      _counter++;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.title)),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('You have pushed the button this many times:'),
+            Text(
+              '$_counter',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _incrementCounter,
+        tooltip: 'Increment',
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+''';

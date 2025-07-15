@@ -94,7 +94,7 @@ class DartPad extends StatefulWidget {
   final int? split;
 
   @override
-  _DartPadState createState() => _DartPadState();
+  State<DartPad> createState() => _DartPadState();
 
   String get iframeSrc {
     Uri uri = Uri.https(
@@ -128,7 +128,8 @@ class DartPad extends StatefulWidget {
 class _DartPadState extends State<DartPad> {
   late html.IFrameElement iframe = html.IFrameElement()
     ..attributes = {
-      'src': widget.iframeSrc,
+      // 'src': widget.iframeSrc,
+      'src': 'https://dartpad.dev/?id=9b77961754d5e5ce20dceb732e3b4a93?theme=light&split=80',
       'style': widget.iframeStyle,
     };
 
