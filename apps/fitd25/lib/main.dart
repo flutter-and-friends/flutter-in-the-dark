@@ -186,9 +186,7 @@ class _AutoToggleState extends State<AutoToggle> {
                   key: Key('Example1'),
                   width: constraints.maxWidth,
                   height: constraints.maxHeight,
-                  embeddingChoice: EmbeddingChoice.flutter,
                   split: 100,
-                  code: counter,
                 );
               }),
             ],
