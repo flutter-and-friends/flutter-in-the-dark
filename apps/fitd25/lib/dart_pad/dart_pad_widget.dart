@@ -14,9 +14,13 @@ class DartPad extends StatefulWidget {
     this.height = 600,
     this.darkMode = true,
     this.runImmediately = false,
+    required this.gistId,
     this.split,
-  })  : assert(split == null || (split <= 100 && split >= 0)),
-        super(key: key);
+  }) : assert(split == null || (split <= 100 && split >= 0)),
+       super(key: key);
+
+  /// The ID of the DartPad gist to display.
+  final String gistId;
 
   /// The desired width of the dart pad widget.
   final double width;
@@ -40,16 +44,12 @@ class DartPad extends StatefulWidget {
   State<DartPad> createState() => _DartPadState();
 
   String get iframeSrc {
-    Uri uri = Uri.https(
-      'dartpad.dev',
-      '',
-      <String, String>{
-        'id': '9b77961754d5e5ce20dceb732e3b4a93',
-        'theme': darkMode ? 'dark' : 'light',
-        'run': runImmediately.toString(),
-        if (split != null) 'split': split.toString(),
-      },
-    );
+    Uri uri = Uri.https('dartpad.dev', '', <String, String>{
+      'id': gistId,
+      'theme': darkMode ? 'dark' : 'light',
+      'run': runImmediately.toString(),
+      if (split != null) 'split': split.toString(),
+    });
     return uri.toString();
   }
 
@@ -87,8 +87,10 @@ class _DartPadState extends State<DartPad> {
 
     // Register the iframe with Flutter's view registry
     // ignore: undefined_prefixed_name
-    ui.platformViewRegistry
-        .registerViewFactory('dartpad${widget.key}', (int viewId) => iframe);
+    ui.platformViewRegistry.registerViewFactory(
+      'dartpad${widget.key}',
+      (int viewId) => iframe,
+    );
   }
 
   @override
