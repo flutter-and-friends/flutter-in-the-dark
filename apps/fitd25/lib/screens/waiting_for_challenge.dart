@@ -5,10 +5,7 @@ import 'package:timeago_flutter/timeago_flutter.dart';
 class WaitingForChallenge extends StatelessWidget {
   final Challenge challenge;
 
-  const WaitingForChallenge({
-    super.key,
-    required this.challenge,
-  });
+  const WaitingForChallenge({super.key, required this.challenge});
 
   @override
   Widget build(BuildContext context) {
@@ -18,8 +15,11 @@ class WaitingForChallenge extends StatelessWidget {
         date: challenge.startTime,
         allowFromNow: true,
         builder: (context, time) {
-          return Text(
-            'Starting ${challenge.name} challenge in $time',
+          return Center(
+            child: Text(
+              'Starting ${challenge.name} in $time',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
           );
         },
       ),

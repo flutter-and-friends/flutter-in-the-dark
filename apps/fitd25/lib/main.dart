@@ -66,15 +66,17 @@ class _AutoToggleState extends State<AutoToggle> {
           final data = value.data();
           switch (data) {
             case {
-              'path': final String path,
+              'name': final String name,
               'startTime': final Timestamp startTime,
               'endTime': final Timestamp endTime,
+              'dartPadId': final String dartPadId,
+              'challengeId': final String challengeId,
             }:
               setState(() {
                 challenge = Challenge(
-                  name: path,
-                  dartPadId: '9b77961754d5e5ce20dceb732e3b4a93',
-                  challengeId: '',
+                  name: name,
+                  dartPadId: dartPadId,
+                  challengeId: challengeId,
                   startTime: startTime.toDate(),
                   endTime: endTime.toDate(),
                 );
@@ -83,7 +85,7 @@ class _AutoToggleState extends State<AutoToggle> {
               });
               break;
             default:
-              debugPrint('The map does not contain the key "path"');
+              debugPrint('The challenge data is not in the expected format.');
           }
         });
     super.initState();
