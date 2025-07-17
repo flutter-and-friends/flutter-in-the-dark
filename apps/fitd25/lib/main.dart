@@ -47,17 +47,17 @@ class AutoToggle extends StatefulWidget {
 }
 
 class _AutoToggleState extends State<AutoToggle> {
-  late final StreamSubscription subscription;
+  late final StreamSubscription _subscription;
   Challenge? challenge;
   Timer? startTime;
-  Timer? finishTimer;
+  Timer? _finishTimer;
   final confettiController = ConfettiController(
     duration: const Duration(seconds: 5),
   );
 
   @override
   void initState() {
-    subscription = FirebaseFirestore.instance
+    _subscription = FirebaseFirestore.instance
         .collection('fitd25')
         .doc('state')
         .snapshots()
@@ -106,16 +106,16 @@ class _AutoToggleState extends State<AutoToggle> {
   }
 
   void countFinish(DateTime endTime) {
-    finishTimer?.cancel();
-    finishTimer = null;
+    _finishTimer?.cancel();
+    _finishTimer = null;
 
     // If the end time is in the past, we don't need to set a timer
     if (DateTime.now().isAfter(endTime)) return;
 
-    finishTimer = Timer(endTime.difference(DateTime.now()), () {
+    _finishTimer = Timer(endTime.difference(DateTime.now()), () {
       setState(() {
-        finishTimer?.cancel();
-        finishTimer = null;
+        _finishTimer?.cancel();
+        _finishTimer = null;
       });
       confettiController.play();
     });
@@ -123,10 +123,10 @@ class _AutoToggleState extends State<AutoToggle> {
 
   @override
   void dispose() {
-    subscription.cancel();
+    _subscription.cancel();
     confettiController.dispose();
     startTime?.cancel();
-    finishTimer?.cancel();
+    _finishTimer?.cancel();
     super.dispose();
   }
 

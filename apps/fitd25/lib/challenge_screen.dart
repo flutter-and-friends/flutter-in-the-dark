@@ -38,7 +38,7 @@ class ChallengeScreen extends StatelessWidget {
                   if (DateTime.now().isAfter(endTime)) {
                     return const Text('Time over!');
                   }
-                  return Text(time);
+                  return Text('${challenge.name} ends in $time');
                 },
               ),
             },
