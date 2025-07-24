@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:confetti/confetti.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:fitd25/challenge_screen.dart';
 import 'package:fitd25/firebase_options.dart';
+import 'package:fitd25/screens/challenge_screen.dart';
 import 'package:fitd25/screens/home_screen.dart';
 import 'package:fitd25/screens/waiting_for_challenge.dart';
 import 'package:flutter/material.dart';
@@ -116,8 +116,8 @@ class _AutoToggleState extends State<AutoToggle> {
       setState(() {
         _finishTimer?.cancel();
         _finishTimer = null;
+        confettiController.play();
       });
-      confettiController.play();
     });
   }
 
@@ -145,6 +145,7 @@ class _AutoToggleState extends State<AutoToggle> {
     }
 
     return ChallengeScreen(
+      key: ValueKey(challenge),
       challenge: challenge,
       confettiController: confettiController,
     );
