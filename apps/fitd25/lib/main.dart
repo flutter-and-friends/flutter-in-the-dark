@@ -4,23 +4,24 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:confetti/confetti.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:fitd25/firebase_options.dart';
+import 'package:fitd25/screens/admin_screen.dart';
 import 'package:fitd25/screens/challenge_screen.dart';
 import 'package:fitd25/screens/home_screen.dart';
 import 'package:fitd25/screens/waiting_for_challenge.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:timeago_flutter/timeago_flutter.dart'
-    as timeago
     show setLocaleMessages, setDefaultLocale;
-import 'package:timeago_flutter/timeago_flutter.dart'
-    hide setLocaleMessages, setDefaultLocale;
 
 import 'data/challenge.dart';
+import 'override_en_timeago.dart';
 
 Future<void> main() async {
+  usePathUrlStrategy();
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  timeago.setLocaleMessages('en', OverrideEnTimeAgo());
-  timeago.setDefaultLocale('en');
+  setLocaleMessages('en', OverrideEnTimeAgo());
+  setDefaultLocale('en');
   runApp(const MainApp());
 }
 
@@ -32,7 +33,16 @@ class MainApp extends StatelessWidget {
     return MaterialApp(
       themeMode: ThemeMode.dark,
       darkTheme: ThemeData.dark(),
-      home: const AutoToggle(child: HomeScreen()),
+      onGenerateRoute: (settings) {
+        switch (settings.name) {
+          case '/admin':
+            return MaterialPageRoute(builder: (context) => const AdminScreen());
+          default:
+            return MaterialPageRoute(
+              builder: (context) => const AutoToggle(child: HomeScreen()),
+            );
+        }
+      },
     );
   }
 }
@@ -58,7 +68,7 @@ class _AutoToggleState extends State<AutoToggle> {
   @override
   void initState() {
     _subscription = FirebaseFirestore.instance
-        .collection('fitd25')
+        .collection('fitd')
         .doc('state')
         .snapshots()
         .listen((value) {
@@ -154,15 +164,4 @@ class _AutoToggleState extends State<AutoToggle> {
       confettiController: confettiController,
     );
   }
-}
-
-class OverrideEnTimeAgo extends EnMessages {
-  @override
-  String suffixFromNow() => '';
-
-  @override
-  String suffixAgo() => '';
-
-  @override
-  String lessThanOneMinute(int seconds) => '$seconds seconds';
 }
