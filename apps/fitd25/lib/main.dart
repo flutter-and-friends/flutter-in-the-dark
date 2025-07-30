@@ -144,6 +144,8 @@ class _AutoToggleState extends State<AutoToggle> {
       return WaitingForChallenge(challenge: challenge);
     }
 
+    // return ExportExamplePage();
+
     return ChallengeScreen(
       key: ValueKey(challenge),
       challenge: challenge,
