@@ -9,10 +9,10 @@ import 'package:fitd25/screens/home_screen.dart';
 import 'package:fitd25/screens/waiting_for_challenge.dart';
 import 'package:flutter/material.dart';
 import 'package:timeago_flutter/timeago_flutter.dart'
-    hide setLocaleMessages, setDefaultLocale;
-import 'package:timeago_flutter/timeago_flutter.dart'
     as timeago
     show setLocaleMessages, setDefaultLocale;
+import 'package:timeago_flutter/timeago_flutter.dart'
+    hide setLocaleMessages, setDefaultLocale;
 
 import 'data/challenge.dart';
 
@@ -70,6 +70,7 @@ class _AutoToggleState extends State<AutoToggle> {
               'endTime': final Timestamp endTime,
               'dartPadId': final String dartPadId,
               'challengeId': final String challengeId,
+              'imageUrls': final List<dynamic>? imageUrls,
             }:
               setState(() {
                 challenge = Challenge(
@@ -78,6 +79,7 @@ class _AutoToggleState extends State<AutoToggle> {
                   challengeId: challengeId,
                   startTime: startTime.toDate(),
                   endTime: endTime.toDate(),
+                  imageUrls: imageUrls?.cast() ?? const [],
                 );
                 countDown(startTime.toDate());
                 countFinish(endTime.toDate());

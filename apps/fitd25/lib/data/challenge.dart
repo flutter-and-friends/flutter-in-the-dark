@@ -4,6 +4,7 @@ class Challenge {
   final String name;
   final String dartPadId;
   final String challengeId;
+  final List<String> imageUrls;
 
   Challenge({
     required this.name,
@@ -11,6 +12,7 @@ class Challenge {
     required this.endTime,
     required this.dartPadId,
     required this.challengeId,
+    required this.imageUrls,
   });
 
   @override
