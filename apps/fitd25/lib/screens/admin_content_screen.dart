@@ -37,70 +37,69 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
           )
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Welcome, ${widget.user.displayName}!'),
-            Text(widget.user.email!),
-            const SizedBox(height: 20),
-            StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-              stream: _fitdStateStream,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Text('Error: ${snapshot.error}');
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const CircularProgressIndicator();
-                }
-                final data = snapshot.data!.data();
-                if (data == null) {
-                  return const Text('No data');
-                }
-                return Text(
-                  'Firestore Data: ${const JsonEncoder.withIndent('  ').convert(_jsonEncodable(data))}',
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            const Text('Challenges:'),
-            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _challengesStream,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Text('Error: ${snapshot.error}');
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const CircularProgressIndicator();
-                }
-                final challenges = snapshot.data!.docs
-                    .map((doc) => ChallengeBase(
-                          name: doc.data()['name'] ?? '',
-                          dartPadId: doc.data()['dartPadId'] ?? '',
-                          challengeId: doc.id,
-                          imageUrls: List<String>.from(doc.data()['imageUrls'] ?? []),
-                          widgetJson: doc.data()['widgetJson'] as Map<String, dynamic>? ?? {},
-                        ))
-                    .toList();
-                return Expanded(
-                  child: ListView.builder(
-                    itemCount: challenges.length,
-                    itemBuilder: (context, index) {
-                      final challenge = challenges[index];
-                      return ListTile(
-                        title: Text(challenge.name),
-                        trailing: ElevatedButton(
-                          onPressed: () => _showSetChallengeDialog(challenge),
-                          child: const Text('Set as current'),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
+      body: ListView(
+        padding: const EdgeInsets.all(16.0),
+        children: [
+          Center(child: Text('Welcome, ${widget.user.displayName}!')),
+          Center(child: Text(widget.user.email!)),
+          const SizedBox(height: 20),
+          const Center(child: Text('Challenges:')),
+          const SizedBox(height: 10),
+          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: _challengesStream,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Text('Error: ${snapshot.error}');
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final challenges = snapshot.data!.docs
+                  .map((doc) => ChallengeBase(
+                        name: doc.data()['name'] ?? '',
+                        dartPadId: doc.data()['dartPadId'] ?? '',
+                        challengeId: doc.id,
+                        imageUrls: List<String>.from(doc.data()['imageUrls'] ?? []),
+                        widgetJson: doc.data()['widgetJson'] as Map<String, dynamic>? ?? {},
+                      ))
+                  .toList();
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: challenges.length,
+                itemBuilder: (context, index) {
+                  final challenge = challenges[index];
+                  return ListTile(
+                    title: Text(challenge.name),
+                    trailing: ElevatedButton(
+                      onPressed: () => _showSetChallengeDialog(challenge),
+                      child: const Text('Set as current'),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+          const SizedBox(height: 20),
+          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: _fitdStateStream,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Text('Error: ${snapshot.error}');
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final data = snapshot.data!.data();
+              if (data == null) {
+                return const Text('No data');
+              }
+              return Text(
+                'Firestore Data: ${const JsonEncoder.withIndent('  ').convert(_jsonEncodable(data))}',
+              );
+            },
+          ),
+        ],
       ),
     );
   }
