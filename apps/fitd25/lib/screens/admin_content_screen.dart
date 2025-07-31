@@ -1,8 +1,11 @@
 import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitd25/data/challenge.dart';
 import 'package:flutter/material.dart';
+
+import 'admin/set_challenge_dialog.dart';
 
 class AdminContentScreen extends StatefulWidget {
   const AdminContentScreen({super.key, required this.user});
@@ -20,9 +23,12 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
   @override
   void initState() {
     super.initState();
-    _fitdStateStream = FirebaseFirestore.instance.doc('/fitd/state').snapshots();
-    _challengesStream =
-        FirebaseFirestore.instance.collection('/fitd/state/challenges').snapshots();
+    _fitdStateStream = FirebaseFirestore.instance
+        .doc('/fitd/state')
+        .snapshots();
+    _challengesStream = FirebaseFirestore.instance
+        .collection('/fitd/state/challenges')
+        .snapshots();
   }
 
   @override
@@ -34,7 +40,7 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => FirebaseAuth.instance.signOut(),
-          )
+          ),
         ],
       ),
       body: ListView(
@@ -55,13 +61,19 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
               final challenges = snapshot.data!.docs
-                  .map((doc) => ChallengeBase(
-                        name: doc.data()['name'] ?? '',
-                        dartPadId: doc.data()['dartPadId'] ?? '',
-                        challengeId: doc.id,
-                        imageUrls: List<String>.from(doc.data()['imageUrls'] ?? []),
-                        widgetJson: doc.data()['widgetJson'] as Map<String, dynamic>? ?? {},
-                      ))
+                  .map(
+                    (doc) => ChallengeBase(
+                      name: doc.data()['name'] ?? '',
+                      dartPadId: doc.data()['dartPadId'] ?? '',
+                      challengeId: doc.id,
+                      imageUrls: List<String>.from(
+                        doc.data()['imageUrls'] ?? [],
+                      ),
+                      widgetJson:
+                          doc.data()['widgetJson'] as Map<String, dynamic>? ??
+                          {},
+                    ),
+                  )
                   .toList();
               return ListView.builder(
                 shrinkWrap: true,
@@ -107,22 +119,13 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
   Future<void> _showSetChallengeDialog(ChallengeBase challenge) async {
     final now = DateTime.now();
     if (!mounted) return;
-    final startTime = await showDatePicker(
-      context: context,
-      initialDate: now,
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 365)),
-    );
-    if (startTime == null) return;
 
-    if (!mounted) return;
-    final endTime = await showDatePicker(
+    final result = await showDialog<Map<String, DateTime>>(
       context: context,
-      initialDate: startTime,
-      firstDate: startTime,
-      lastDate: startTime.add(const Duration(days: 365)),
+      builder: (context) => SetChallengeDialog(initialDate: now),
     );
-    if (endTime == null) return;
+
+    if (result == null) return;
 
     final timedChallenge = Challenge(
       name: challenge.name,
@@ -130,8 +133,8 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
       challengeId: challenge.challengeId,
       imageUrls: challenge.imageUrls,
       widgetJson: challenge.widgetJson,
-      startTime: startTime,
-      endTime: endTime,
+      startTime: result['startTime']!,
+      endTime: result['endTime']!,
     );
 
     await FirebaseFirestore.instance
@@ -143,7 +146,9 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
     final newMap = <String, dynamic>{};
     for (final entry in map.entries) {
       if (entry.value is Timestamp) {
-        newMap[entry.key] = (entry.value as Timestamp).toDate().toIso8601String();
+        newMap[entry.key] = (entry.value as Timestamp)
+            .toDate()
+            .toIso8601String();
       } else {
         newMap[entry.key] = entry.value;
       }
