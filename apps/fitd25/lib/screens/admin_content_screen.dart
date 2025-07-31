@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fitd25/data/challenge.dart';
 import 'package:flutter/material.dart';
 
 class AdminContentScreen extends StatefulWidget {
@@ -14,11 +15,14 @@ class AdminContentScreen extends StatefulWidget {
 
 class _AdminContentScreenState extends State<AdminContentScreen> {
   late final Stream<DocumentSnapshot<Map<String, dynamic>>> _fitdStateStream;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _challengesStream;
 
   @override
   void initState() {
     super.initState();
     _fitdStateStream = FirebaseFirestore.instance.doc('/fitd/state').snapshots();
+    _challengesStream =
+        FirebaseFirestore.instance.collection('/fitd/state/challenges').snapshots();
   }
 
   @override
@@ -55,6 +59,38 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
                 }
                 return Text(
                   'Firestore Data: ${const JsonEncoder.withIndent('  ').convert(_jsonEncodable(data))}',
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            const Text('Challenges:'),
+            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _challengesStream,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Text('Error: ${snapshot.error}');
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const CircularProgressIndicator();
+                }
+                final challenges = snapshot.data!.docs
+                    .map((doc) => ChallengeBase(
+                          name: doc.data()['name'] ?? '',
+                          dartPadId: doc.data()['dartPadId'] ?? '',
+                          challengeId: doc.id,
+                          imageUrls: List<String>.from(doc.data()['imageUrls'] ?? []),
+                        ))
+                    .toList();
+                return Expanded(
+                  child: ListView.builder(
+                    itemCount: challenges.length,
+                    itemBuilder: (context, index) {
+                      final challenge = challenges[index];
+                      return ListTile(
+                        title: Text(challenge.name),
+                      );
+                    },
+                  ),
                 );
               },
             ),

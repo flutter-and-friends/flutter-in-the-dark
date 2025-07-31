@@ -1,15 +1,11 @@
-class Challenge {
-  final DateTime startTime;
-  final DateTime endTime;
+class ChallengeBase {
   final String name;
   final String dartPadId;
   final String challengeId;
   final List<String> imageUrls;
 
-  Challenge({
+  ChallengeBase({
     required this.name,
-    required this.startTime,
-    required this.endTime,
     required this.dartPadId,
     required this.challengeId,
     required this.imageUrls,
@@ -18,15 +14,40 @@ class Challenge {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Challenge &&
+      other is ChallengeBase &&
           runtimeType == other.runtimeType &&
-          startTime == other.startTime &&
-          endTime == other.endTime &&
           name == other.name &&
           dartPadId == other.dartPadId &&
           challengeId == other.challengeId;
 
   @override
-  int get hashCode =>
-      Object.hash(startTime, endTime, name, dartPadId, challengeId);
+  int get hashCode => Object.hash(name, dartPadId, challengeId);
+}
+
+class Challenge extends ChallengeBase {
+  final DateTime startTime;
+  final DateTime endTime;
+
+  Challenge({
+    required super.name,
+    required super.dartPadId,
+    required super.challengeId,
+    required super.imageUrls,
+    required this.startTime,
+    required this.endTime,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      // Let the super class check its fields.
+      super == other &&
+          other is Challenge &&
+          runtimeType == other.runtimeType &&
+          startTime == other.startTime &&
+          endTime == other.endTime;
+
+  @override
+  // Let the super class compute its hash code and combine it with the new fields.
+  int get hashCode => Object.hash(super.hashCode, startTime, endTime);
 }
