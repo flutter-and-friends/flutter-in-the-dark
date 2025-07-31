@@ -19,6 +19,7 @@ dependencies:
   web: ^1.1.1
   json_dynamic_widget: ^10.0.1
   firebase_auth: ^6.0.0
+  collection: ^1.19.1
 
 dev_dependencies:
   flutter_test:

@@ -79,6 +79,7 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
                           dartPadId: doc.data()['dartPadId'] ?? '',
                           challengeId: doc.id,
                           imageUrls: List<String>.from(doc.data()['imageUrls'] ?? []),
+                          widgetJson: doc.data()['widgetJson'] as Map<String, dynamic>? ?? {},
                         ))
                     .toList();
                 return Expanded(
@@ -88,6 +89,14 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
                       final challenge = challenges[index];
                       return ListTile(
                         title: Text(challenge.name),
+                        trailing: ElevatedButton(
+                          onPressed: () {
+                            FirebaseFirestore.instance
+                                .doc('/fitd/state')
+                                .set({'widgetJson': challenge.widgetJson});
+                          },
+                          child: const Text('Set as current'),
+                        ),
                       );
                     },
                   ),

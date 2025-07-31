@@ -1,14 +1,18 @@
+import 'package:collection/collection.dart';
+
 class ChallengeBase {
   final String name;
   final String dartPadId;
   final String challengeId;
   final List<String> imageUrls;
+  final Map<String, dynamic> widgetJson;
 
   ChallengeBase({
     required this.name,
     required this.dartPadId,
     required this.challengeId,
     required this.imageUrls,
+    required this.widgetJson,
   });
 
   @override
@@ -18,10 +22,12 @@ class ChallengeBase {
           runtimeType == other.runtimeType &&
           name == other.name &&
           dartPadId == other.dartPadId &&
-          challengeId == other.challengeId;
+          challengeId == other.challengeId &&
+          const DeepCollectionEquality().equals(widgetJson, other.widgetJson);
 
   @override
-  int get hashCode => Object.hash(name, dartPadId, challengeId);
+  int get hashCode =>
+      Object.hash(name, dartPadId, challengeId, widgetJson);
 }
 
 class Challenge extends ChallengeBase {
@@ -33,6 +39,7 @@ class Challenge extends ChallengeBase {
     required super.dartPadId,
     required super.challengeId,
     required super.imageUrls,
+    required super.widgetJson,
     required this.startTime,
     required this.endTime,
   });

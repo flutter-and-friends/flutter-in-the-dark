@@ -80,6 +80,7 @@ class _AutoToggleState extends State<AutoToggle> {
               'endTime': final Timestamp endTime,
               'dartPadId': final String dartPadId,
               'challengeId': final String challengeId,
+              'widgetJson': final Map<String, dynamic> widgetJson,
               'imageUrls': final List<dynamic>? imageUrls,
             }:
               setState(() {
@@ -90,6 +91,7 @@ class _AutoToggleState extends State<AutoToggle> {
                   startTime: startTime.toDate(),
                   endTime: endTime.toDate(),
                   imageUrls: imageUrls?.cast() ?? const [],
+                  widgetJson: widgetJson,
                 );
                 countDown(startTime.toDate());
                 countFinish(endTime.toDate());
