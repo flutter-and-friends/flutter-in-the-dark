@@ -15,6 +15,14 @@ class ChallengeBase {
     required this.widgetJson,
   });
 
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'dartPadId': dartPadId,
+        'challengeId': challengeId,
+        'imageUrls': imageUrls,
+        'widgetJson': widgetJson,
+      };
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -43,6 +51,13 @@ class Challenge extends ChallengeBase {
     required this.startTime,
     required this.endTime,
   });
+
+  @override
+  Map<String, dynamic> toJson() => {
+        ...super.toJson(),
+        'startTime': startTime,
+        'endTime': endTime,
+      };
 
   @override
   bool operator ==(Object other) =>

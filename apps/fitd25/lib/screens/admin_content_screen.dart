@@ -90,11 +90,7 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
                       return ListTile(
                         title: Text(challenge.name),
                         trailing: ElevatedButton(
-                          onPressed: () {
-                            FirebaseFirestore.instance
-                                .doc('/fitd/state')
-                                .set({'widgetJson': challenge.widgetJson});
-                          },
+                          onPressed: () => _showSetChallengeDialog(challenge),
                           child: const Text('Set as current'),
                         ),
                       );
@@ -107,6 +103,41 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _showSetChallengeDialog(ChallengeBase challenge) async {
+    final now = DateTime.now();
+    if (!mounted) return;
+    final startTime = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (startTime == null) return;
+
+    if (!mounted) return;
+    final endTime = await showDatePicker(
+      context: context,
+      initialDate: startTime,
+      firstDate: startTime,
+      lastDate: startTime.add(const Duration(days: 365)),
+    );
+    if (endTime == null) return;
+
+    final timedChallenge = Challenge(
+      name: challenge.name,
+      dartPadId: challenge.dartPadId,
+      challengeId: challenge.challengeId,
+      imageUrls: challenge.imageUrls,
+      widgetJson: challenge.widgetJson,
+      startTime: startTime,
+      endTime: endTime,
+    );
+
+    await FirebaseFirestore.instance
+        .doc('/fitd/state')
+        .set(timedChallenge.toJson());
   }
 
   Map<String, dynamic> _jsonEncodable(Map<String, dynamic> map) {
