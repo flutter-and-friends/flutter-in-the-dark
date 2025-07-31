@@ -55,7 +55,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '593790140169',
     projectId: 'flutter-in-the-dark-f8570',
     authDomain: 'flutter-in-the-dark-f8570.firebaseapp.com',
-    storageBucket: 'flutter-in-the-dark-f8570.appspot.com',
+    storageBucket: 'flutter-in-the-dark-f8570.firebasestorage.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -63,7 +63,9 @@ class DefaultFirebaseOptions {
     appId: '1:593790140169:ios:6d51120cbad83ab0cd9dd8',
     messagingSenderId: '593790140169',
     projectId: 'flutter-in-the-dark-f8570',
-    storageBucket: 'flutter-in-the-dark-f8570.appspot.com',
+    storageBucket: 'flutter-in-the-dark-f8570.firebasestorage.app',
+    iosClientId: '593790140169-3f85peap0j72uojugj5cepcpl4cqfcrc.apps.googleusercontent.com',
     iosBundleId: 'dev.flutterfriends.fitd25',
   );
+
 }
