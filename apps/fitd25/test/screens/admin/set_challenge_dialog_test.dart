@@ -1,5 +1,4 @@
 import 'package:clock/clock.dart';
-import 'package:fake_async/fake_async.dart';
 import 'package:fitd25/screens/admin/set_challenge_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,7 +17,8 @@ void main() {
                 onPressed: () async {
                   result = await showDialog(
                     context: context,
-                    builder: (context) => SetChallengeDialog(initialDate: initialDate),
+                    builder: (context) =>
+                        SetChallengeDialog(initialDate: initialDate),
                   );
                 },
                 child: const Text('Show Dialog'),
@@ -36,7 +36,10 @@ void main() {
       await pumpDialog(tester);
 
       // Verify initial state
-      expect(find.text('Start: ${initialDate.toIso8601String()}'), findsOneWidget);
+      expect(
+        find.text('Start: ${initialDate.toIso8601String()}'),
+        findsOneWidget,
+      );
       expect(find.text('Duration: 5 minutes'), findsOneWidget);
 
       // Test duration buttons
@@ -53,7 +56,10 @@ void main() {
         // Test "In 10 seconds" button
         await tester.tap(find.text('In 10 seconds'));
         await tester.pumpAndSettle();
-        expect(find.text('Starts 10 seconds after pressing OK'), findsOneWidget);
+        expect(
+          find.text('Starts 10 seconds after pressing OK'),
+          findsOneWidget,
+        );
 
         // Test OK button with "In 10 seconds"
         await tester.tap(find.text('OK'));
@@ -74,17 +80,30 @@ void main() {
 
       // Date picker
       expect(find.byType(DatePickerDialog), findsOneWidget);
-      await tester.tap(find.descendant(of: find.byType(DatePickerDialog), matching: find.text('OK')));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(DatePickerDialog),
+          matching: find.text('OK'),
+        ),
+      );
       await tester.pumpAndSettle();
 
       // Time picker
       expect(find.byType(TimePickerDialog), findsOneWidget);
-      await tester.tap(find.descendant(of: find.byType(TimePickerDialog), matching: find.text('OK')));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(TimePickerDialog),
+          matching: find.text('OK'),
+        ),
+      );
       await tester.pumpAndSettle();
 
       // Back in the main dialog
       expect(find.byType(SetChallengeDialog), findsOneWidget);
-      expect(find.text('Start: ${initialDate.toIso8601String()}'), findsOneWidget);
+      expect(
+        find.text('Start: ${initialDate.toIso8601String()}'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('returns values when OK is pressed', (tester) async {

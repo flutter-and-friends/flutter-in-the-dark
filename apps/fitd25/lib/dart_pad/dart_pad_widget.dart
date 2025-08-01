@@ -61,8 +61,6 @@ class DartPad extends StatefulWidget {
 class _DartPadState extends State<DartPad> {
   late web.HTMLIFrameElement iframe;
 
-  final String _targetOrigin = 'https://dartpad.dev';
-
   @override
   void didUpdateWidget(DartPad oldWidget) {
     super.didUpdateWidget(oldWidget);
