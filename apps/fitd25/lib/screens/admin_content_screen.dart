@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitd25/data/challenge.dart';
+import 'package:fitd25/screens/admin/edit_challenge_screen.dart';
 import 'package:flutter/material.dart';
 
 import 'admin/set_challenge_dialog.dart';
@@ -38,9 +39,41 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
         title: const Text('Admin'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const EditChallengeScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.clear),
             onPressed: () {
-              FirebaseFirestore.instance.doc('/fitd/state').set({});
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Clear State'),
+                  content: const Text(
+                    'Are you sure you want to clear the current state?'
+                    ' This will not delete the challenges, only the current state.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        FirebaseFirestore.instance.doc('/fitd/state').set({});
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text('Clear'),
+                    ),
+                  ],
+                ),
+              );
             },
           ),
           IconButton(
@@ -77,7 +110,7 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
                       ),
                       widgetJson:
                           doc.data()['widgetJson'] as Map<String, dynamic>? ??
-                          {},
+                              {},
                     ),
                   )
                   .toList();
@@ -89,9 +122,25 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
                   final challenge = challenges[index];
                   return ListTile(
                     title: Text(challenge.name),
-                    trailing: ElevatedButton(
-                      onPressed: () => _showSetChallengeDialog(challenge),
-                      child: const Text('Set as current'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () => _showSetChallengeDialog(challenge),
+                          child: const Text('Set as current'),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    EditChallengeScreen(challenge: challenge),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   );
                 },
