@@ -60,6 +60,14 @@ class _SetChallengeDialogState extends State<SetChallengeDialog> {
                 },
                 child: const Text('In 10 seconds'),
               ),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _startFromNowDuration = Duration.zero;
+                  });
+                },
+                child: const Text('Now'),
+              ),
             ],
           ),
           const SizedBox(height: 20),

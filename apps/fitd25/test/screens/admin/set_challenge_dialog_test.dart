@@ -73,13 +73,15 @@ void main() {
     });
 
     testWidgets('can manually set date and time', (tester) async {
-      await pumpDialog(tester);
+      final newDate = DateTime(2025, 1, 2, 14, 30);
+      final getResult = await pumpDialog(tester);
 
       await tester.tap(find.text('Manual'));
       await tester.pumpAndSettle();
 
       // Date picker
       expect(find.byType(DatePickerDialog), findsOneWidget);
+      await tester.tap(find.text('2'));
       await tester.tap(
         find.descendant(
           of: find.byType(DatePickerDialog),
@@ -100,10 +102,35 @@ void main() {
 
       // Back in the main dialog
       expect(find.byType(SetChallengeDialog), findsOneWidget);
+      final expectedDate = DateTime(
+        newDate.year,
+        newDate.month,
+        newDate.day,
+        initialDate.hour,
+        initialDate.minute,
+      );
       expect(
-        find.text('Start: ${initialDate.toIso8601String()}'),
+        find.text('Start: ${expectedDate.toIso8601String()}'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('can set time to now', (tester) async {
+      final now = DateTime(2025, 1, 1, 12, 0, 0);
+      await withClock(Clock.fixed(now), () async {
+        final getResult = await pumpDialog(tester);
+
+        await tester.tap(find.text('Now'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Starts 0 seconds after pressing OK'), findsOneWidget);
+
+        await tester.tap(find.text('OK'));
+        await tester.pumpAndSettle();
+
+        final result = getResult();
+        expect(result['startTime'], now);
+      });
     });
 
     testWidgets('returns values when OK is pressed', (tester) async {
