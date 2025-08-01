@@ -38,6 +38,12 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
         title: const Text('Admin'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.clear),
+            onPressed: () {
+              FirebaseFirestore.instance.doc('/fitd/state').set({});
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => FirebaseAuth.instance.signOut(),
           ),

@@ -17,7 +17,7 @@ class WaitingForChallenge extends StatelessWidget {
         builder: (context, time) {
           return Center(
             child: Text(
-              'Starting ${challenge.name} in $time',
+              'Starting "${challenge.name}" in $time',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
           );

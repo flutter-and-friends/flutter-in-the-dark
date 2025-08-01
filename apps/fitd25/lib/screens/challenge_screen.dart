@@ -49,7 +49,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                   if (DateTime.now().isAfter(endTime)) {
                     return const Text('Time over!');
                   }
-                  return Text('${widget.challenge.name} ends in $time');
+                  return Text('"${widget.challenge.name}" ends in $time');
                 },
               ),
             },
