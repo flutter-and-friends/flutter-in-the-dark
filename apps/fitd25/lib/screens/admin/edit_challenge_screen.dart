@@ -18,6 +18,7 @@ class _EditChallengeScreenState extends State<EditChallengeScreen> {
   late TextEditingController _nameController;
   late TextEditingController _dartPadIdController;
   late TextEditingController _widgetJsonController;
+  late TextEditingController _challengeIdController;
   late List<String> _imageUrls;
 
   @override
@@ -33,6 +34,9 @@ class _EditChallengeScreenState extends State<EditChallengeScreen> {
               '  ',
             ).convert(widget.challenge!.widgetJson)
           : '',
+    );
+    _challengeIdController = TextEditingController(
+      text: widget.challenge?.challengeId ?? '',
     );
     _imageUrls = List<String>.from(widget.challenge?.imageUrls ?? []);
   }
@@ -51,6 +55,17 @@ class _EditChallengeScreenState extends State<EditChallengeScreen> {
           key: _formKey,
           child: ListView(
             children: [
+              TextFormField(
+                controller: _challengeIdController,
+                decoration: const InputDecoration(labelText: 'Challenge ID'),
+                readOnly: widget.challenge != null,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a challenge ID';
+                  }
+                  return null;
+                },
+              ),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Name'),
@@ -120,20 +135,14 @@ class _EditChallengeScreenState extends State<EditChallengeScreen> {
       final challenge = ChallengeBase(
         name: _nameController.text,
         dartPadId: _dartPadIdController.text,
-        challengeId: widget.challenge?.challengeId ?? '',
+        challengeId: _challengeIdController.text,
         imageUrls: _imageUrls,
         widgetJson: jsonDecode(_widgetJsonController.text),
       );
 
-      if (widget.challenge case final challenge?) {
-        await FirebaseFirestore.instance
-            .doc('/fitd/state/challenges/${challenge.challengeId}')
-            .update(challenge.toJson());
-      } else {
-        await FirebaseFirestore.instance
-            .collection('/fitd/state/challenges')
-            .add(challenge.toJson());
-      }
+      await FirebaseFirestore.instance
+          .doc('/fitd/state/challenges/${challenge.challengeId}')
+          .set(challenge.toJson());
 
       if (mounted) {
         Navigator.of(context).pop();
