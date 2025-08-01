@@ -1,4 +1,5 @@
 import 'package:clock/clock.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:fitd25/screens/admin/set_challenge_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -155,6 +156,58 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(getResult(), isNull);
+    });
+
+    testWidgets('elapse time with fake_async', (tester) async {
+      final now = DateTime(2025, 1, 1, 12, 0, 0);
+      dynamic result;
+
+      await fakeAsync((async) async {
+        await withClock(Clock.fixed(now), () async {
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: Builder(
+                  builder: (context) => ElevatedButton(
+                    onPressed: () async {
+                      result = await showDialog(
+                        context: context,
+                        builder: (context) =>
+                            SetChallengeDialog(initialDate: initialDate),
+                      );
+                    },
+                    child: const Text('Show Dialog'),
+                  ),
+                ),
+              ),
+            ),
+          );
+
+          await tester.tap(find.text('Show Dialog'));
+          await tester.pumpAndSettle();
+
+          // Test "In 10 seconds" button
+          await tester.tap(find.text('In 10 seconds'));
+          await tester.pumpAndSettle();
+
+          expect(
+            find.text('Starts 10 seconds after pressing OK'),
+            findsOneWidget,
+          );
+
+          // Simulate a 5-second delay
+          async.elapse(const Duration(seconds: 5));
+
+          // Test OK button with "In 10 seconds"
+          await tester.tap(find.text('OK'));
+          await tester.pumpAndSettle();
+        });
+      });
+
+      expect(find.byType(SetChallengeDialog), findsNothing);
+      expect(result, isA<Map<String, DateTime>>());
+      // The clock is advanced by 5s inside fakeAsync, so the final time should be 15s after now.
+      expect(result['startTime'], now.add(const Duration(seconds: 15)));
     });
   });
 }

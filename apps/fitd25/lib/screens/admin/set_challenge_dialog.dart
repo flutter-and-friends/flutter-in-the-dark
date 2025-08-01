@@ -1,5 +1,6 @@
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class SetChallengeDialog extends StatefulWidget {
   const SetChallengeDialog({super.key, required this.initialDate});
@@ -30,9 +31,13 @@ class _SetChallengeDialogState extends State<SetChallengeDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (_startFromNowDuration != null)
-            Text('Starts ${_startFromNowDuration!.inSeconds} seconds after pressing OK')
+            Text(
+              'Starts ${_startFromNowDuration!.inSeconds} seconds after pressing OK',
+            )
           else
-            Text('Start: ${_startTime.toIso8601String()}'),
+            Text(
+              'Start: ${DateFormat.yMd(Localizations.localeOf(context).languageCode).add_jm().format(_startTime)}',
+            ),
           const SizedBox(height: 10),
           Text('Duration: ${_duration.inMinutes} minutes'),
           const SizedBox(height: 20),
@@ -76,16 +81,19 @@ class _SetChallengeDialogState extends State<SetChallengeDialog> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               ElevatedButton(
-                onPressed: () => setState(() => _duration = const Duration(minutes: 5)),
+                onPressed: () =>
+                    setState(() => _duration = const Duration(minutes: 5)),
                 child: const Text('5 min'),
               ),
               ElevatedButton(
-                onPressed: () => setState(() => _duration = const Duration(minutes: 15)),
-                child: const Text('15 min'),
+                onPressed: () =>
+                    setState(() => _duration = const Duration(minutes: 10)),
+                child: const Text('10 min'),
               ),
               ElevatedButton(
-                onPressed: () => setState(() => _duration = const Duration(minutes: 30)),
-                child: const Text('30 min'),
+                onPressed: () =>
+                    setState(() => _duration = const Duration(minutes: 15)),
+                child: const Text('15 min'),
               ),
             ],
           ),

@@ -25,7 +25,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
 
   @override
   void initState() {
-    jsonWidgetData = JsonWidgetData.fromDynamic(jsonWidget);
+    jsonWidgetData = JsonWidgetData.fromDynamic(widget.challenge.widgetJson);
     super.initState();
   }
 
@@ -72,7 +72,10 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
               ),
               Column(
                 children: [
-                  Text('Images for challenge', style: Theme.of(context).textTheme.headlineSmall,),
+                  Text(
+                    'Images for challenge',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
                   if (widget.challenge.imageUrls.isEmpty)
                     const Center(child: Text('No images for this challenge'))
                   else
@@ -88,7 +91,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                       ),
                     ),
                 ],
-              )
+              ),
             ],
           ),
         ),
@@ -101,60 +104,3 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
     );
   }
 }
-
-final jsonWidget = {
-  "type": "scaffold",
-  "args": {
-    "appBar": {
-      "type": "app_bar",
-      "args": {
-        "title": {
-          "type": "text",
-          "args": {
-            "text": "Example"
-          }
-        }
-      }
-    },
-    "body": {
-      "type": "list_view",
-      "args": {
-        "children": [
-          {
-            "type": "list_tile",
-            "args": {
-              "subtitle": {
-                "type": "text",
-                "args": {
-                  "text": "HEJ", //"${i + 1}"
-                }
-              },
-              "title": {
-                "type": "text",
-                "args": {
-                  "text": "ListTile"
-                }
-              }
-            }
-          }
-        ]
-      }
-    },
-    "floatingActionButton": {
-      "type": "floating_action_button",
-      "args": {
-        // "onPressed": "${increment()}",
-        "child": {
-          "type": "icon",
-          "args": {
-            "icon": {
-              "codePoint": 57415,
-              "fontFamily": "MaterialIcons",
-              "matchTextDirection": false
-            }
-          }
-        }
-      }
-    }
-  }
-};

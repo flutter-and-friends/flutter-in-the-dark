@@ -9,7 +9,9 @@ import 'package:fitd25/screens/challenge_screen.dart';
 import 'package:fitd25/screens/home_screen.dart';
 import 'package:fitd25/screens/waiting_for_challenge.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:timeago_flutter/timeago_flutter.dart'
     show setLocaleMessages, setDefaultLocale;
 
@@ -22,6 +24,7 @@ Future<void> main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   setLocaleMessages('en', OverrideEnTimeAgo());
   setDefaultLocale('en');
+  await initializeDateFormatting('sv_SE');
   runApp(const MainApp());
 }
 
@@ -33,6 +36,12 @@ class MainApp extends StatelessWidget {
     return MaterialApp(
       themeMode: ThemeMode.dark,
       darkTheme: ThemeData.dark(),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('en', 'US'), Locale('sv', 'SE')],
       onGenerateRoute: (settings) {
         switch (settings.name) {
           case '/admin':
