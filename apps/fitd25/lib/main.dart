@@ -7,6 +7,7 @@ import 'package:fitd25/firebase_options.dart';
 import 'package:fitd25/screens/admin_screen.dart';
 import 'package:fitd25/screens/challenge_screen.dart';
 import 'package:fitd25/screens/home_screen.dart';
+import 'package:fitd25/screens/show_screen.dart';
 import 'package:fitd25/screens/waiting_for_challenge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -46,6 +47,13 @@ class MainApp extends StatelessWidget {
         switch (settings.name) {
           case '/admin':
             return MaterialPageRoute(builder: (context) => const AdminScreen());
+          case '/show':
+            return MaterialPageRoute(
+              builder: (context) => AutoToggle(
+                routeName: settings.name,
+                child: const HomeScreen(),
+              ),
+            );
           default:
             return MaterialPageRoute(
               builder: (context) => const AutoToggle(child: HomeScreen()),
@@ -58,8 +66,9 @@ class MainApp extends StatelessWidget {
 
 class AutoToggle extends StatefulWidget {
   final Widget child;
+  final String? routeName;
 
-  const AutoToggle({super.key, required this.child});
+  const AutoToggle({super.key, required this.child, this.routeName});
 
   @override
   State<AutoToggle> createState() => _AutoToggleState();
@@ -160,6 +169,13 @@ class _AutoToggleState extends State<AutoToggle> {
     // If no challenge is ongoing, show the home screen
     if (challenge == null) {
       return const HomeScreen();
+    }
+
+    if (widget.routeName == '/show') {
+      return ShowScreen(
+        key: ValueKey(challenge),
+        challenge: challenge,
+      );
     }
 
     // Waiting for challenge to start

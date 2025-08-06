@@ -21,11 +21,11 @@ When working with an AI agent, the ideal workflow is collaborative. The agent sh
 ---
 
 - [ ] Challenge view
-  - [ ] Add a "show" view for the audience, displaying only the current challenge and remaining time.
-  - [ ] Create a flashy countdown overlay
-    - [ ] When waiting for a challenge to start.
-    - [ ] For the last 10 seconds of an active challenge.
-    - [ ] The countdown should feature large, animated numbers to engage the audience.
+  - [x] Add a "show" view for the audience, displaying only the current challenge and remaining time.
+  - [x] Create a flashy countdown overlay
+    - [x] When waiting for a challenge to start.
+    - [x] For the last 10 seconds of an active challenge.
+    - [x] The countdown should feature large, animated numbers to engage the audience.
   - [ ] Display challenger's name in the app bar.
     - [ ] Allow challenger to set their name when starting a challenge.
   - [ ] Block user's screen with a waiting message when the timer expires.
