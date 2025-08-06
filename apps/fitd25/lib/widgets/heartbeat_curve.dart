@@ -2,19 +2,32 @@ import 'dart:math' as math;
 
 import 'package:flutter/animation.dart';
 
-/// A curve that is very steep in the middle, like a heartbeat pulse.
+/// A curve that is very steep in the middle, like a heartbeat pulse,
+/// with a slight overshoot, similar to [Curves.easeInOutBack].
 class HeartbeatCurve extends Curve {
   const HeartbeatCurve();
 
   @override
   double transformInternal(double t) {
-    // A curve that is very steep in the middle, like a heartbeat pulse.
-    // This is a modified sigmoid function.
-    const k = 20.0; // Steepness factor
-    final val = 1 / (1 + math.exp(-k * (t - 0.5)));
-    // Normalize to 0-1 range
-    final min = 1 / (1 + math.exp(k * 0.5));
-    final max = 1 / (1 + math.exp(-k * 0.5));
-    return (val - min) / (max - min);
+    // We want the "heartbeat" feel (fast in the middle) and an overshoot.
+    // To achieve this while keeping the overshoot independent of the "speed",
+    // we can compose the timing.
+
+    // 1. Use an easeInOut curve to make the animation fast in the middle.
+    // This transforms `t` so that it changes slowly at the beginning and end,
+    // and quickly in the middle.
+    final fastMiddleT = Curves.easeInOut.transform(t);
+
+    // 2. Use the standard Curves.easeInOutBack logic on the transformed `t`.
+    // This adds the overshoot effect without changing the timing.
+    const c1 = 1.70158;
+    const c2 = c1 * 1.525; // Standard multiplier for easeInOutBack
+
+    return fastMiddleT < 0.5
+        ? (math.pow(2 * fastMiddleT, 2) * ((c2 + 1) * 2 * fastMiddleT - c2)) / 2
+        : (math.pow(2 * fastMiddleT - 2, 2) *
+                      ((c2 + 1) * (fastMiddleT * 2 - 2) + c2) +
+                  2) /
+              2;
   }
 }
