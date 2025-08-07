@@ -89,34 +89,18 @@ class _AutoToggleState extends State<AutoToggle> {
         .collection('fitd')
         .doc('state')
         .snapshots()
-        .listen((value) {
-          final data = value.data();
-          switch (data) {
-            case {
-              'name': final String name,
-              'startTime': final Timestamp startTime,
-              'endTime': final Timestamp endTime,
-              'dartPadId': final String dartPadId,
-              'challengeId': final String challengeId,
-              'widgetJson': final Map<String, dynamic> widgetJson,
-              'imageUrls': final List<dynamic>? imageUrls,
-            }:
-              setState(() {
-                challenge = Challenge(
-                  name: name,
-                  dartPadId: dartPadId,
-                  challengeId: challengeId,
-                  startTime: startTime.toDate(),
-                  endTime: endTime.toDate(),
-                  imageUrls: imageUrls?.cast() ?? const [],
-                  widgetJson: widgetJson,
-                );
-                countDown(startTime.toDate());
-                countFinish(endTime.toDate());
-              });
-              break;
-            default:
-              debugPrint('The challenge data is not in the expected format.');
+        .listen((snapshot) {
+          final data = snapshot.data();
+          if (data != null) {
+            setState(() {
+              challenge = Challenge.fromFirestore(data);
+              countDown(challenge!.startTime);
+              countFinish(challenge!.endTime);
+            });
+          } else {
+            setState(() {
+              challenge = null;
+            });
           }
         });
     super.initState();
@@ -148,6 +132,7 @@ class _AutoToggleState extends State<AutoToggle> {
       setState(() {
         _finishTimer?.cancel();
         _finishTimer = null;
+        // TODO: Move this to the challenge screen
         confettiController.play();
       });
     });

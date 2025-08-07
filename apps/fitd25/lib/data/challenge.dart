@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:collection/collection.dart';
 
 class ChallengeBase {
@@ -16,12 +17,12 @@ class ChallengeBase {
   });
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'dartPadId': dartPadId,
-        'challengeId': challengeId,
-        'imageUrls': imageUrls,
-        'widgetJson': widgetJson,
-      };
+    'name': name,
+    'dartPadId': dartPadId,
+    'challengeId': challengeId,
+    'imageUrls': imageUrls,
+    'widgetJson': widgetJson,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -34,8 +35,7 @@ class ChallengeBase {
           const DeepCollectionEquality().equals(widgetJson, other.widgetJson);
 
   @override
-  int get hashCode =>
-      Object.hash(name, dartPadId, challengeId, widgetJson);
+  int get hashCode => Object.hash(name, dartPadId, challengeId, widgetJson);
 }
 
 class Challenge extends ChallengeBase {
@@ -52,12 +52,36 @@ class Challenge extends ChallengeBase {
     required this.endTime,
   });
 
+  factory Challenge.fromFirestore(Map<String, dynamic> data) {
+    switch (data) {
+      case {
+        'name': final String name,
+        'startTime': final Timestamp startTime,
+        'endTime': final Timestamp endTime,
+        'dartPadId': final String dartPadId,
+        'challengeId': final String challengeId,
+        'widgetJson': final Map<String, dynamic> widgetJson,
+        'imageUrls': final List<dynamic>? imageUrls,
+      }:
+        return Challenge(
+          name: name,
+          dartPadId: dartPadId,
+          challengeId: challengeId,
+          startTime: startTime.toDate(),
+          endTime: endTime.toDate(),
+          imageUrls: imageUrls?.cast() ?? const [],
+          widgetJson: widgetJson,
+        );
+    }
+    throw ArgumentError('Invalid data format for Challenge');
+  }
+
   @override
   Map<String, dynamic> toJson() => {
-        ...super.toJson(),
-        'startTime': startTime,
-        'endTime': endTime,
-      };
+    ...super.toJson(),
+    'startTime': startTime,
+    'endTime': endTime,
+  };
 
   @override
   bool operator ==(Object other) =>
