@@ -28,7 +28,9 @@ When working with an AI agent, the ideal workflow is collaborative. The agent sh
     - [x] The countdown should feature large, animated numbers to engage the audience.
   - [ ] Display challenger's name in the app bar.
     - [ ] Allow challenger to set their name when starting a challenge.
-  - [ ] Block user's screen with a waiting message when the timer expires.
+  - [ ] When the timer expires.
+    - [ ] Block user's screen with a waiting message
+    - [ ] Shake the screen to indicate the end of the challenge.
 
 - [ ] Admin view
   - [ ] Display a list of challengers with their name and status (e.g., "in progress," "finished," "blocked").
