@@ -13,6 +13,7 @@ import 'package:json_dynamic_widget/json_dynamic_widget.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:timeago_flutter/timeago_flutter.dart'
     hide setLocaleMessages, setDefaultLocale;
+import 'package:web/web.dart' as web;
 
 class ChallengeScreen extends StatefulWidget {
   const ChallengeScreen({super.key});
@@ -108,6 +109,14 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                 challenger.withStatus(ChallengerStatus.blocked).toFirestore(),
                 SetOptions(merge: true),
               );
+          if (web.document.activeElement
+              case final web.HTMLElement activeElement) {
+            // Blur the active element to remove focus from any input fields
+            // This is necessary to prevent the keyboard from showing up on
+            // mobile when the challenge is finished, and to ensure the user
+            // can't interact with the challenge anymore on any platform.
+            activeElement.blur();
+          }
         }
       });
     });
