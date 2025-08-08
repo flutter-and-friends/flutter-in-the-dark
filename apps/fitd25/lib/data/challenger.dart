@@ -22,7 +22,7 @@ class Challenger {
   }
 
   Map<String, dynamic> toFirestore() {
-    return {'name': name, 'status': status};
+    return {'name': name, 'status': status.name};
   }
 }
 

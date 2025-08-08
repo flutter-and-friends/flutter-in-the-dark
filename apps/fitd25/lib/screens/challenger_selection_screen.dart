@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fitd25/data/challenge.dart';
 import 'package:fitd25/data/challenger.dart';
 import 'package:fitd25/screens/challenge_screen.dart';
 import 'package:flutter/material.dart';
@@ -37,6 +36,8 @@ class _ChallengerSelectionScreenState extends State<ChallengerSelectionScreen> {
         final challenger = Challenger(id: user.uid, name: _nameController.text);
 
         await FirebaseFirestore.instance
+            .collection('fitd')
+            .doc('state')
             .collection('challengers')
             .doc(user.uid)
             .set(challenger.toFirestore());
@@ -49,7 +50,9 @@ class _ChallengerSelectionScreenState extends State<ChallengerSelectionScreen> {
           );
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint(e.toString());
+      debugPrintStack(stackTrace: stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to start challenge: $e')),
@@ -68,51 +71,31 @@ class _ChallengerSelectionScreenState extends State<ChallengerSelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Join the Challenge')),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('fitd')
-            .doc('state')
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData || snapshot.data?.data() == null) {
-            return const Center(child: Text('No challenge active'));
-          }
-
-          final challenge = Challenge.fromFirestore(
-            snapshot.data!.data()! as Map<String, dynamic>,
-          );
-
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Current Challenge: ${challenge.name}',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Enter your name',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  if (_isLoading)
-                    const CircularProgressIndicator()
-                  else
-                    ElevatedButton(
-                      onPressed: () => _startChallenge(),
-                      child: const Text('Start Challenge'),
-                    ),
-                ],
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextField(
+                controller: _nameController,
+                onSubmitted: (_) => _startChallenge(),
+                decoration: const InputDecoration(
+                  labelText: 'Enter your name',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-          );
-        },
+              const SizedBox(height: 20),
+              if (_isLoading)
+                const CircularProgressIndicator()
+              else
+                ElevatedButton(
+                  onPressed: _startChallenge,
+                  child: const Text('Start Challenge'),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
