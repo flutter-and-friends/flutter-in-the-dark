@@ -18,9 +18,7 @@ class LoginScreen extends StatelessWidget {
             } catch (e) {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Failed to sign in with Google: $e'),
-                  ),
+                  SnackBar(content: Text('Failed to sign in with Google: $e')),
                 );
               }
             }

@@ -24,14 +24,8 @@ class CountdownOverlay extends StatelessWidget {
                 return FadeTransition(
                   opacity: animation,
                   child: ScaleTransition(
-                    scale: Tween<double>(
-                      begin: 2.0,
-                      end: 1.0,
-                    ).animate(
-                      CurvedAnimation(
-                        parent: animation,
-                        curve: animationCurve,
-                      ),
+                    scale: Tween<double>(begin: 2.0, end: 1.0).animate(
+                      CurvedAnimation(parent: animation, curve: animationCurve),
                     ),
                     child: child,
                   ),
@@ -39,24 +33,12 @@ class CountdownOverlay extends StatelessWidget {
               },
               reverseBuilder: (context, animation, child) {
                 return FadeTransition(
-                  opacity: Tween<double>(
-                    begin: 1.0,
-                    end: 0.0,
-                  ).animate(
-                    CurvedAnimation(
-                      parent: animation,
-                      curve: animationCurve,
-                    ),
+                  opacity: Tween<double>(begin: 1.0, end: 0.0).animate(
+                    CurvedAnimation(parent: animation, curve: animationCurve),
                   ),
                   child: ScaleTransition(
-                    scale: Tween<double>(
-                      begin: 1.0,
-                      end: 0.0,
-                    ).animate(
-                      CurvedAnimation(
-                        parent: animation,
-                        curve: animationCurve,
-                      ),
+                    scale: Tween<double>(begin: 1.0, end: 0.0).animate(
+                      CurvedAnimation(parent: animation, curve: animationCurve),
                     ),
                     child: child,
                   ),

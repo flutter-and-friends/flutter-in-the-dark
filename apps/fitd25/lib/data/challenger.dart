@@ -26,11 +26,7 @@ class Challenger {
   }
 
   Challenger withStatus(ChallengerStatus newStatus) {
-    return Challenger(
-      id: id,
-      name: name,
-      status: newStatus,
-    );
+    return Challenger(id: id, name: name, status: newStatus);
   }
 }
 

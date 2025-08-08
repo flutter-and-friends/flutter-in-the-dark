@@ -64,8 +64,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '593790140169',
     projectId: 'flutter-in-the-dark-f8570',
     storageBucket: 'flutter-in-the-dark-f8570.firebasestorage.app',
-    iosClientId: '593790140169-3f85peap0j72uojugj5cepcpl4cqfcrc.apps.googleusercontent.com',
+    iosClientId:
+        '593790140169-3f85peap0j72uojugj5cepcpl4cqfcrc.apps.googleusercontent.com',
     iosBundleId: 'dev.flutterfriends.fitd25',
   );
-
 }
