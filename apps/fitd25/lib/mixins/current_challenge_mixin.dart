@@ -37,7 +37,7 @@ mixin CurrentChallengeMixin<T extends StatefulWidget> on State<T> {
         .snapshots()
         .listen((snapshot) {
           final data = snapshot.data();
-          final challenge = this.challenge = Challenge.fromFirestore(data);
+          final challenge = this.challenge = Challenge.fromJson(data);
 
           setState(() {
             if (challenge case final challenge?) {

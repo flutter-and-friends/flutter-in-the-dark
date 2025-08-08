@@ -77,16 +77,7 @@ class _AdminChallengeSelectionScreenState
               return const Center(child: CircularProgressIndicator());
             }
             final challenges = snapshot.data!.docs
-                .map(
-                  (doc) => ChallengeBase(
-                    name: doc.data()['name'] ?? '',
-                    dartPadId: doc.data()['dartPadId'] ?? '',
-                    challengeId: doc.id,
-                    imageUrls: List<String>.from(doc.data()['imageUrls'] ?? []),
-                    widgetJson:
-                        doc.data()['widgetJson'] as Map<String, dynamic>? ?? {},
-                  ),
-                )
+                .map((doc) => ChallengeBase.fromJson(doc.data()))
                 .toList();
             return ListView.builder(
               shrinkWrap: true,

@@ -39,6 +39,23 @@ class ChallengeBase {
 
   @override
   int get hashCode => Object.hash(name, dartPadId, challengeId, widgetJson);
+
+  factory ChallengeBase.fromJson(Map<String, dynamic> data) {
+    final {
+      'name': String name,
+      'dartPadId': String dartPadId,
+      'challengeId': String challengeId,
+      'imageUrls': List<dynamic>? imageUrls,
+      'widgetJson': Map<String, dynamic> widgetJson,
+    } = data;
+    return ChallengeBase(
+      name: name,
+      dartPadId: dartPadId,
+      challengeId: challengeId,
+      imageUrls: imageUrls?.cast() ?? const [],
+      widgetJson: widgetJson,
+    );
+  }
 }
 
 class Challenge extends ChallengeBase {
@@ -59,7 +76,7 @@ class Challenge extends ChallengeBase {
 
   bool get isFinished => DateTime.now().isAfter(endTime);
 
-  static Challenge? fromFirestore(Map<String, dynamic>? data) {
+  static Challenge? fromJson(Map<String, dynamic>? data) {
     switch (data) {
       case {
         'name': final String name,
