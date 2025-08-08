@@ -4,6 +4,7 @@ import 'package:fitd25/dart_pad/dart_pad_widget.dart';
 import 'package:fitd25/data/challenger.dart';
 import 'package:fitd25/mixins/current_challenge_mixin.dart';
 import 'package:fitd25/mixins/current_challenger_mixin.dart';
+import 'package:fitd25/screens/challenger_selection_screen.dart';
 import 'package:fitd25/screens/home_screen.dart';
 import 'package:fitd25/screens/waiting_for_challenge.dart';
 import 'package:json_dynamic_widget/json_dynamic_widget.dart';
@@ -30,7 +31,9 @@ class _ChallengeScreenState extends State<ChallengeScreen>
     // If the challenger document doesn't exist, we can redirect to the selection screen
     if (mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        MaterialPageRoute(
+          builder: (context) => const ChallengerSelectionScreen(),
+        ),
       );
     }
     return true;
