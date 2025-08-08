@@ -30,25 +30,21 @@ class _ChallengerSelectionScreenState extends State<ChallengerSelectionScreen> {
 
     try {
       final userCredential = await FirebaseAuth.instance.signInAnonymously();
-      final user = userCredential.user;
+      final user = userCredential.user!;
 
-      if (user != null) {
-        final challenger = Challenger(id: user.uid, name: _nameController.text);
+      final challenger = Challenger(id: user.uid, name: _nameController.text);
 
-        await FirebaseFirestore.instance
-            .collection('fitd')
-            .doc('state')
-            .collection('challengers')
-            .doc(user.uid)
-            .set(challenger.toFirestore());
+      await FirebaseFirestore.instance
+          .collection('fitd')
+          .doc('state')
+          .collection('challengers')
+          .doc(user.uid)
+          .set(challenger.toFirestore());
 
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => ChallengeScreen(challenger: challenger),
-            ),
-          );
-        }
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => ChallengeScreen()),
+        );
       }
     } catch (e, stackTrace) {
       debugPrint(e.toString());

@@ -3,27 +3,30 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:confetti/confetti.dart';
 import 'package:devtools_app_shared/ui.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitd25/dart_pad/dart_pad_widget.dart';
 import 'package:fitd25/data/challenge.dart';
 import 'package:fitd25/data/challenger.dart';
 import 'package:fitd25/screens/home_screen.dart';
 import 'package:fitd25/screens/waiting_for_challenge.dart';
 import 'package:json_dynamic_widget/json_dynamic_widget.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:timeago_flutter/timeago_flutter.dart'
     hide setLocaleMessages, setDefaultLocale;
 
 class ChallengeScreen extends StatefulWidget {
-  const ChallengeScreen({super.key, required this.challenger});
-
-  final Challenger challenger;
+  const ChallengeScreen({super.key});
 
   @override
   State<ChallengeScreen> createState() => _ChallengeScreenState();
 }
 
 class _ChallengeScreenState extends State<ChallengeScreen> {
-  late final StreamSubscription _subscription;
+  late final StreamSubscription _challengeSubscription;
+  late final StreamSubscription _challengerSubscription;
+
   Challenge? challenge;
+  Challenger? challenger;
 
   Timer? _finishTimer;
   final confettiController = ConfettiController(
@@ -32,7 +35,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
 
   @override
   void initState() {
-    _subscription = FirebaseFirestore.instance
+    _challengeSubscription = FirebaseFirestore.instance
         .collection('fitd')
         .doc('state')
         .snapshots()
@@ -50,6 +53,34 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
           }
         });
 
+    FirebaseAuth.instance.signInAnonymously().then((userCredential) async {
+      final user = userCredential.user!;
+
+      _challengerSubscription = FirebaseFirestore.instance
+          .collection('fitd')
+          .doc('state')
+          .collection('challengers')
+          .doc(user.uid)
+          .snapshots()
+          .listen((snapshot) {
+            if (snapshot.exists) {
+              final challenger = Challenger.fromFirestore(snapshot);
+              if (mounted) {
+                setState(() {
+                  this.challenger = challenger;
+                });
+              }
+            } else {
+              // If the challenger document doesn't exist, we can redirect to the selection screen
+              if (mounted) {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                );
+              }
+            }
+          });
+    });
+
     super.initState();
   }
 
@@ -66,6 +97,18 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
         _finishTimer = null;
         // TODO: Move this to the challenge screen
         confettiController.play();
+
+        if (challenger case final challenger?) {
+          FirebaseFirestore.instance
+              .collection('fitd')
+              .doc('state')
+              .collection('challengers')
+              .doc(challenger.id)
+              .set(
+                challenger.withStatus(ChallengerStatus.blocked).toFirestore(),
+                SetOptions(merge: true),
+              );
+        }
       });
     });
   }
@@ -73,7 +116,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
   @override
   void dispose() {
     _finishTimer?.cancel();
-    _subscription.cancel();
+    _challengeSubscription.cancel();
     confettiController.dispose();
     super.dispose();
   }
@@ -81,7 +124,11 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
   @override
   Widget build(BuildContext context) {
     final challenge = this.challenge;
+    final challenger = this.challenger;
 
+    if (challenger == null) {
+      return Center(child: const CircularProgressIndicator());
+    }
     if (challenge == null) {
       return const HomeScreen();
     }
@@ -97,7 +144,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
           appBar: AppBar(
             title: Row(
               children: [
-                Text('Challenger: ${widget.challenger.name}'),
+                Text('Challenger: ${challenger.name}'),
                 const Spacer(),
                 switch (challenge.endTime) {
                   final endTime when DateTime.now().isAfter(endTime) =>
@@ -163,6 +210,20 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
           blastDirectionality: BlastDirectionality.explosive,
           strokeWidth: 2,
         ),
+        if (challenger.status == ChallengerStatus.blocked)
+          Positioned.fill(
+            child: PointerInterceptor(
+              child: Material(
+                color: Colors.black38,
+                child: Center(
+                  child: Text(
+                    "Time's up!",
+                    style: Theme.of(context).textTheme.headlineLarge,
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

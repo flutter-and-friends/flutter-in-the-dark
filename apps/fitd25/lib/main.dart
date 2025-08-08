@@ -1,15 +1,12 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:confetti/confetti.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:fitd25/firebase_options.dart';
 import 'package:fitd25/screens/admin_screen.dart';
 import 'package:fitd25/screens/challenge_screen.dart';
 import 'package:fitd25/screens/challenger_selection_screen.dart';
 import 'package:fitd25/screens/home_screen.dart';
-import 'package:fitd25/screens/show_screen.dart';
-import 'package:fitd25/screens/waiting_for_challenge.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
@@ -17,7 +14,6 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:timeago_flutter/timeago_flutter.dart'
     show setLocaleMessages, setDefaultLocale;
 
-import 'data/challenge.dart';
 import 'override_en_timeago.dart';
 
 Future<void> main() async {
@@ -84,13 +80,7 @@ class _AutoToggleState extends State<AutoToggle> {
     // }
 
     // return ExportExamplePage();
-    
-    return ChallengerSelectionScreen();
 
-    // return ChallengeScreen(
-    //   key: ValueKey(challenge),
-    //   challenge: challenge,
-    //   confettiController: confettiController,
-    // );
+    return ChallengerSelectionScreen();
   }
 }

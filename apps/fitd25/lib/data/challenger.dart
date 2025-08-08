@@ -24,6 +24,14 @@ class Challenger {
   Map<String, dynamic> toFirestore() {
     return {'name': name, 'status': status.name};
   }
+
+  Challenger withStatus(ChallengerStatus newStatus) {
+    return Challenger(
+      id: id,
+      name: name,
+      status: newStatus,
+    );
+  }
 }
 
 enum ChallengerStatus {

@@ -57,6 +57,8 @@ class Challenge extends ChallengeBase {
 
   bool get isInTheFuture => startTime.isAfter(DateTime.now());
 
+  bool get isFinished => DateTime.now().isAfter(endTime);
+
   factory Challenge.fromFirestore(Map<String, dynamic> data) {
     switch (data) {
       case {
