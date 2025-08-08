@@ -22,6 +22,10 @@ mixin CurrentChallengerMixin<T extends StatefulWidget> on State<T> {
   @override
   void initState() {
     super.initState();
+    final currentUser = FirebaseAuth.instance.currentUser;
+    // If the user is logged in as admin, we don't need to fetch the challenger
+    // document, as it is not relevant for admin users.
+    if (currentUser case final user? when !user.isAnonymous) return;
     FirebaseAuth.instance.signInAnonymously().then((userCredential) async {
       final user = userCredential.user!;
 

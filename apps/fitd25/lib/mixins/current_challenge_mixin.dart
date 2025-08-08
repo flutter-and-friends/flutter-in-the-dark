@@ -9,7 +9,7 @@ mixin CurrentChallengeMixin<T extends StatefulWidget> on State<T> {
   Challenge? challenge;
   Timer? _finishTimer;
 
-  void onChallengeEnd();
+  void onChallengeEnd() {}
 
   void countFinish(DateTime endTime) {
     _finishTimer?.cancel();
@@ -37,16 +37,13 @@ mixin CurrentChallengeMixin<T extends StatefulWidget> on State<T> {
         .snapshots()
         .listen((snapshot) {
           final data = snapshot.data();
-          if (data != null) {
-            setState(() {
-              final challenge = this.challenge = Challenge.fromFirestore(data);
+          final challenge = this.challenge = Challenge.fromFirestore(data);
+
+          setState(() {
+            if (challenge case final challenge?) {
               countFinish(challenge.endTime);
-            });
-          } else {
-            setState(() {
-              challenge = null;
-            });
-          }
+            }
+          });
         });
   }
 

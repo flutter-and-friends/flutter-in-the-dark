@@ -59,7 +59,7 @@ class Challenge extends ChallengeBase {
 
   bool get isFinished => DateTime.now().isAfter(endTime);
 
-  factory Challenge.fromFirestore(Map<String, dynamic> data) {
+  static Challenge? fromFirestore(Map<String, dynamic>? data) {
     switch (data) {
       case {
         'name': final String name,
@@ -80,7 +80,7 @@ class Challenge extends ChallengeBase {
           widgetJson: widgetJson,
         );
     }
-    throw ArgumentError('Invalid data format for Challenge');
+    return null;
   }
 
   @override
