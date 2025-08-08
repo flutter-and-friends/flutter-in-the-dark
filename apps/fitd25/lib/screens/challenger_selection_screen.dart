@@ -1,11 +1,9 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitd25/data/challenge.dart';
 import 'package:fitd25/data/challenger.dart';
 import 'package:fitd25/screens/challenge_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:confetti/confetti.dart';
 
 class ChallengerSelectionScreen extends StatefulWidget {
   const ChallengerSelectionScreen({super.key});
@@ -19,11 +17,11 @@ class _ChallengerSelectionScreenState extends State<ChallengerSelectionScreen> {
   final _nameController = TextEditingController();
   bool _isLoading = false;
 
-  Future<void> _startChallenge(Challenge challenge) async {
+  Future<void> _startChallenge() async {
     if (_nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your name')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter your name')));
       return;
     }
 
@@ -36,10 +34,7 @@ class _ChallengerSelectionScreenState extends State<ChallengerSelectionScreen> {
       final user = userCredential.user;
 
       if (user != null) {
-        final challenger = Challenger(
-          id: user.uid,
-          name: _nameController.text,
-        );
+        final challenger = Challenger(id: user.uid, name: _nameController.text);
 
         await FirebaseFirestore.instance
             .collection('challengers')
@@ -49,11 +44,7 @@ class _ChallengerSelectionScreenState extends State<ChallengerSelectionScreen> {
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => ChallengeScreen(
-                challenge: challenge,
-                challenger: challenger,
-                confettiController: ConfettiController(),
-              ),
+              builder: (context) => ChallengeScreen(challenger: challenger),
             ),
           );
         }
@@ -76,18 +67,20 @@ class _ChallengerSelectionScreenState extends State<ChallengerSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Join the Challenge'),
-      ),
+      appBar: AppBar(title: const Text('Join the Challenge')),
       body: StreamBuilder<DocumentSnapshot>(
-        stream:
-            FirebaseFirestore.instance.collection('fitd').doc('state').snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('fitd')
+            .doc('state')
+            .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData || snapshot.data?.data() == null) {
             return const Center(child: Text('No challenge active'));
           }
 
-          final challenge = Challenge.fromFirestore(snapshot.data!.data()! as Map<String, dynamic>);
+          final challenge = Challenge.fromFirestore(
+            snapshot.data!.data()! as Map<String, dynamic>,
+          );
 
           return Center(
             child: Padding(
@@ -112,7 +105,7 @@ class _ChallengerSelectionScreenState extends State<ChallengerSelectionScreen> {
                     const CircularProgressIndicator()
                   else
                     ElevatedButton(
-                      onPressed: () => _startChallenge(challenge),
+                      onPressed: () => _startChallenge(),
                       child: const Text('Start Challenge'),
                     ),
                 ],

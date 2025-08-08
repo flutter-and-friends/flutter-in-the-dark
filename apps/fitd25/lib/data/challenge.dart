@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:collection/collection.dart';
+import 'package:json_dynamic_widget/json_dynamic_widget.dart';
 
 class ChallengeBase {
   final String name;
@@ -23,6 +24,8 @@ class ChallengeBase {
     'imageUrls': imageUrls,
     'widgetJson': widgetJson,
   };
+
+  late final jsonWidgetData = JsonWidgetData.fromDynamic(widgetJson);
 
   @override
   bool operator ==(Object other) =>
@@ -51,6 +54,8 @@ class Challenge extends ChallengeBase {
     required this.startTime,
     required this.endTime,
   });
+
+  bool get isInTheFuture => startTime.isAfter(DateTime.now());
 
   factory Challenge.fromFirestore(Map<String, dynamic> data) {
     switch (data) {

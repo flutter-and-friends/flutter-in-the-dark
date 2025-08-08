@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:fitd25/firebase_options.dart';
 import 'package:fitd25/screens/admin_screen.dart';
 import 'package:fitd25/screens/challenge_screen.dart';
+import 'package:fitd25/screens/challenger_selection_screen.dart';
 import 'package:fitd25/screens/home_screen.dart';
 import 'package:fitd25/screens/show_screen.dart';
 import 'package:fitd25/screens/waiting_for_challenge.dart';
@@ -75,105 +76,21 @@ class AutoToggle extends StatefulWidget {
 }
 
 class _AutoToggleState extends State<AutoToggle> {
-  late final StreamSubscription _subscription;
-  Challenge? challenge;
-  Timer? startTime;
-  Timer? _finishTimer;
-  final confettiController = ConfettiController(
-    duration: const Duration(seconds: 5),
-  );
-
-  @override
-  void initState() {
-    _subscription = FirebaseFirestore.instance
-        .collection('fitd')
-        .doc('state')
-        .snapshots()
-        .listen((snapshot) {
-          final data = snapshot.data();
-          if (data != null) {
-            setState(() {
-              challenge = Challenge.fromFirestore(data);
-              countDown(challenge!.startTime);
-              countFinish(challenge!.endTime);
-            });
-          } else {
-            setState(() {
-              challenge = null;
-            });
-          }
-        });
-    super.initState();
-  }
-
-  void countDown(DateTime startTime) {
-    this.startTime?.cancel();
-    this.startTime = null;
-
-    // If the start time is in the past, we don't need to set a timer
-    if (DateTime.now().isAfter(startTime)) return;
-
-    this.startTime = Timer(startTime.difference(DateTime.now()), () {
-      setState(() {
-        this.startTime?.cancel();
-        this.startTime = null;
-      });
-    });
-  }
-
-  void countFinish(DateTime endTime) {
-    _finishTimer?.cancel();
-    _finishTimer = null;
-
-    // If the end time is in the past, we don't need to set a timer
-    if (DateTime.now().isAfter(endTime)) return;
-
-    _finishTimer = Timer(endTime.difference(DateTime.now()), () {
-      setState(() {
-        _finishTimer?.cancel();
-        _finishTimer = null;
-        // TODO: Move this to the challenge screen
-        confettiController.play();
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _subscription.cancel();
-    confettiController.dispose();
-    startTime?.cancel();
-    _finishTimer?.cancel();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final challenge = this.challenge;
-
-    // If no challenge is ongoing, show the home screen
-    if (challenge == null) {
-      return const HomeScreen();
-    }
-
-    if (widget.routeName == '/show') {
-      return ShowScreen(
-        key: ValueKey(challenge),
-        challenge: challenge,
-      );
-    }
-
-    // Waiting for challenge to start
-    if (challenge.startTime.isAfter(DateTime.now())) {
-      return WaitingForChallenge(challenge: challenge);
-    }
+    // TODO: Convert ShowScreen to handle loading and confetti
+    // if (widget.routeName == '/show') {
+    //   return ShowScreen(key: ValueKey(challenge), challenge: challenge);
+    // }
 
     // return ExportExamplePage();
+    
+    return ChallengerSelectionScreen();
 
-    return ChallengeScreen(
-      key: ValueKey(challenge),
-      challenge: challenge,
-      confettiController: confettiController,
-    );
+    // return ChallengeScreen(
+    //   key: ValueKey(challenge),
+    //   challenge: challenge,
+    //   confettiController: confettiController,
+    // );
   }
 }
