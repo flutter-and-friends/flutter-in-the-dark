@@ -126,6 +126,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
   void dispose() {
     _finishTimer?.cancel();
     _challengeSubscription.cancel();
+    _challengerSubscription.cancel();
     confettiController.dispose();
     super.dispose();
   }

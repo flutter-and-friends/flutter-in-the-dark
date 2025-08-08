@@ -75,7 +75,7 @@ void main() {
 
     testWidgets('can manually set date and time', (tester) async {
       final newDate = DateTime(2025, 1, 2, 14, 30);
-      final getResult = await pumpDialog(tester);
+      await pumpDialog(tester);
 
       await tester.tap(find.text('Manual'));
       await tester.pumpAndSettle();
