@@ -1,12 +1,9 @@
-import 'dart:async';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:confetti/confetti.dart';
 import 'package:devtools_app_shared/ui.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitd25/dart_pad/dart_pad_widget.dart';
 import 'package:fitd25/data/challenger.dart';
 import 'package:fitd25/mixins/current_challenge_mixin.dart';
+import 'package:fitd25/mixins/current_challenger_mixin.dart';
 import 'package:fitd25/screens/home_screen.dart';
 import 'package:fitd25/screens/waiting_for_challenge.dart';
 import 'package:json_dynamic_widget/json_dynamic_widget.dart';
@@ -23,45 +20,20 @@ class ChallengeScreen extends StatefulWidget {
 }
 
 class _ChallengeScreenState extends State<ChallengeScreen>
-    with CurrentChallengeMixin {
-  late final StreamSubscription _challengerSubscription;
-
-  Challenger? challenger;
-
+    with CurrentChallengeMixin, CurrentChallengerMixin {
   final confettiController = ConfettiController(
     duration: const Duration(seconds: 5),
   );
 
   @override
-  void initState() {
-    super.initState();
-    FirebaseAuth.instance.signInAnonymously().then((userCredential) async {
-      final user = userCredential.user!;
-
-      _challengerSubscription = FirebaseFirestore.instance
-          .collection('fitd')
-          .doc('state')
-          .collection('challengers')
-          .doc(user.uid)
-          .snapshots()
-          .listen((snapshot) {
-            if (snapshot.exists) {
-              final challenger = Challenger.fromFirestore(snapshot);
-              if (mounted) {
-                setState(() {
-                  this.challenger = challenger;
-                });
-              }
-            } else {
-              // If the challenger document doesn't exist, we can redirect to the selection screen
-              if (mounted) {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const HomeScreen()),
-                );
-              }
-            }
-          });
-    });
+  bool onFailedToFetchChallenger() {
+    // If the challenger document doesn't exist, we can redirect to the selection screen
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    }
+    return true;
   }
 
   @override
@@ -69,28 +41,20 @@ class _ChallengeScreenState extends State<ChallengeScreen>
     confettiController.play();
 
     if (challenger case final challenger?) {
-      FirebaseFirestore.instance
-          .collection('fitd')
-          .doc('state')
-          .collection('challengers')
-          .doc(challenger.id)
-          .set(
-            challenger.withStatus(ChallengerStatus.blocked).toFirestore(),
-            SetOptions(merge: true),
-          );
-      if (web.document.activeElement case final web.HTMLElement activeElement) {
-        // Blur the active element to remove focus from any input fields
-        // This is necessary to prevent the keyboard from showing up on
-        // mobile when the challenge is finished, and to ensure the user
-        // can't interact with the challenge anymore on any platform.
-        activeElement.blur();
-      }
+      updateChallenger(challenger.withStatus(ChallengerStatus.blocked));
+    }
+
+    if (web.document.activeElement case final web.HTMLElement activeElement) {
+      // Blur the active element to remove focus from any input fields
+      // This is necessary to prevent the keyboard from showing up on
+      // mobile when the challenge is finished, and to ensure the user
+      // can't interact with the challenge anymore on any platform.
+      activeElement.blur();
     }
   }
 
   @override
   void dispose() {
-    _challengerSubscription.cancel();
     confettiController.dispose();
     super.dispose();
   }

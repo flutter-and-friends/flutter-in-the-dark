@@ -1,6 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fitd25/data/challenger.dart';
+import 'package:fitd25/mixins/current_challenger_mixin.dart';
 import 'package:fitd25/screens/challenge_screen.dart';
 import 'package:flutter/material.dart';
 
@@ -12,7 +10,8 @@ class ChallengerSelectionScreen extends StatefulWidget {
       _ChallengerSelectionScreenState();
 }
 
-class _ChallengerSelectionScreenState extends State<ChallengerSelectionScreen> {
+class _ChallengerSelectionScreenState extends State<ChallengerSelectionScreen>
+    with CurrentChallengerMixin {
   final _nameController = TextEditingController();
   bool _isLoading = false;
 
@@ -29,17 +28,7 @@ class _ChallengerSelectionScreenState extends State<ChallengerSelectionScreen> {
     });
 
     try {
-      final userCredential = await FirebaseAuth.instance.signInAnonymously();
-      final user = userCredential.user!;
-
-      final challenger = Challenger(id: user.uid, name: _nameController.text);
-
-      await FirebaseFirestore.instance
-          .collection('fitd')
-          .doc('state')
-          .collection('challengers')
-          .doc(user.uid)
-          .set(challenger.toFirestore());
+      await createChallenger(_nameController.text);
 
       if (mounted) {
         Navigator.of(context).pushReplacement(
