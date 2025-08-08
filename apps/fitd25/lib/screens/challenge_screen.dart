@@ -5,8 +5,8 @@ import 'package:confetti/confetti.dart';
 import 'package:devtools_app_shared/ui.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitd25/dart_pad/dart_pad_widget.dart';
-import 'package:fitd25/data/challenge.dart';
 import 'package:fitd25/data/challenger.dart';
+import 'package:fitd25/mixins/current_challenge_mixin.dart';
 import 'package:fitd25/screens/home_screen.dart';
 import 'package:fitd25/screens/waiting_for_challenge.dart';
 import 'package:json_dynamic_widget/json_dynamic_widget.dart';
@@ -22,38 +22,19 @@ class ChallengeScreen extends StatefulWidget {
   State<ChallengeScreen> createState() => _ChallengeScreenState();
 }
 
-class _ChallengeScreenState extends State<ChallengeScreen> {
-  late final StreamSubscription _challengeSubscription;
+class _ChallengeScreenState extends State<ChallengeScreen>
+    with CurrentChallengeMixin {
   late final StreamSubscription _challengerSubscription;
 
-  Challenge? challenge;
   Challenger? challenger;
 
-  Timer? _finishTimer;
   final confettiController = ConfettiController(
     duration: const Duration(seconds: 5),
   );
 
   @override
   void initState() {
-    _challengeSubscription = FirebaseFirestore.instance
-        .collection('fitd')
-        .doc('state')
-        .snapshots()
-        .listen((snapshot) {
-          final data = snapshot.data();
-          if (data != null) {
-            setState(() {
-              final challenge = this.challenge = Challenge.fromFirestore(data);
-              countFinish(challenge.endTime);
-            });
-          } else {
-            setState(() {
-              challenge = null;
-            });
-          }
-        });
-
+    super.initState();
     FirebaseAuth.instance.signInAnonymously().then((userCredential) async {
       final user = userCredential.user!;
 
@@ -81,51 +62,34 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
             }
           });
     });
-
-    super.initState();
   }
 
-  void countFinish(DateTime endTime) {
-    _finishTimer?.cancel();
-    _finishTimer = null;
+  @override
+  void onChallengeEnd() {
+    confettiController.play();
 
-    // If the end time is in the past, we don't need to set a timer
-    if (DateTime.now().isAfter(endTime)) return;
-
-    _finishTimer = Timer(endTime.difference(DateTime.now()), () {
-      setState(() {
-        _finishTimer?.cancel();
-        _finishTimer = null;
-        // TODO: Move this to the challenge screen
-        confettiController.play();
-
-        if (challenger case final challenger?) {
-          FirebaseFirestore.instance
-              .collection('fitd')
-              .doc('state')
-              .collection('challengers')
-              .doc(challenger.id)
-              .set(
-                challenger.withStatus(ChallengerStatus.blocked).toFirestore(),
-                SetOptions(merge: true),
-              );
-          if (web.document.activeElement
-              case final web.HTMLElement activeElement) {
-            // Blur the active element to remove focus from any input fields
-            // This is necessary to prevent the keyboard from showing up on
-            // mobile when the challenge is finished, and to ensure the user
-            // can't interact with the challenge anymore on any platform.
-            activeElement.blur();
-          }
-        }
-      });
-    });
+    if (challenger case final challenger?) {
+      FirebaseFirestore.instance
+          .collection('fitd')
+          .doc('state')
+          .collection('challengers')
+          .doc(challenger.id)
+          .set(
+            challenger.withStatus(ChallengerStatus.blocked).toFirestore(),
+            SetOptions(merge: true),
+          );
+      if (web.document.activeElement case final web.HTMLElement activeElement) {
+        // Blur the active element to remove focus from any input fields
+        // This is necessary to prevent the keyboard from showing up on
+        // mobile when the challenge is finished, and to ensure the user
+        // can't interact with the challenge anymore on any platform.
+        activeElement.blur();
+      }
+    }
   }
 
   @override
   void dispose() {
-    _finishTimer?.cancel();
-    _challengeSubscription.cancel();
     _challengerSubscription.cancel();
     confettiController.dispose();
     super.dispose();

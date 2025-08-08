@@ -1,42 +1,42 @@
-import 'package:fitd25/data/challenge.dart';
+import 'package:fitd25/mixins/current_challenge_mixin.dart';
+import 'package:fitd25/screens/home_screen.dart';
 import 'package:fitd25/widgets/countdown_overlay.dart';
 import 'package:json_dynamic_widget/json_dynamic_widget.dart';
 import 'package:timeago_flutter/timeago_flutter.dart';
 
 class ShowScreen extends StatefulWidget {
-  const ShowScreen({super.key, required this.challenge});
-
-  final Challenge challenge;
+  const ShowScreen({super.key});
 
   @override
   State<ShowScreen> createState() => _ShowScreenState();
 }
 
-class _ShowScreenState extends State<ShowScreen> {
-  late final JsonWidgetData jsonWidgetData;
-
+class _ShowScreenState extends State<ShowScreen> with CurrentChallengeMixin {
   @override
-  void initState() {
-    jsonWidgetData = JsonWidgetData.fromDynamic(widget.challenge.widgetJson);
-    super.initState();
-  }
+  void onChallengeEnd() {}
 
   @override
   Widget build(BuildContext context) {
+    final challenge = this.challenge;
+
+    if (challenge == null) {
+      return const HomeScreen();
+    }
+
     return Scaffold(
-      appBar: AppBar(title: Text(widget.challenge.name)),
+      appBar: AppBar(title: Text(challenge.name)),
       body: Stack(
         alignment: Alignment.center,
         children: [
-          jsonWidgetData.build(context: context),
+          challenge.jsonWidgetData.build(context: context),
           Positioned(
             top: 50,
             child: Timeago(
               refreshRate: const Duration(milliseconds: 100),
-              date: widget.challenge.endTime,
+              date: challenge.endTime,
               allowFromNow: true,
               builder: (context, time) {
-                final remainingTime = widget.challenge.endTime.difference(
+                final remainingTime = challenge.endTime.difference(
                   DateTime.now(),
                 );
                 if (remainingTime.isNegative) {
@@ -63,10 +63,10 @@ class _ShowScreenState extends State<ShowScreen> {
           ),
           Timeago(
             refreshRate: const Duration(milliseconds: 100),
-            date: widget.challenge.endTime,
+            date: challenge.endTime,
             allowFromNow: true,
             builder: (context, time) {
-              final remainingTime = widget.challenge.endTime.difference(
+              final remainingTime = challenge.endTime.difference(
                 DateTime.now(),
               );
 
