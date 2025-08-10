@@ -40,6 +40,11 @@ class _ChallengeScreenState extends State<ChallengeScreen>
   }
 
   @override
+  void onChallengeStart() {
+    setState(() {});
+  }
+
+  @override
   void onChallengeEnd() {
     confettiController.play();
 
@@ -64,16 +69,16 @@ class _ChallengeScreenState extends State<ChallengeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final challenge = this.challenge;
     final challenger = this.challenger;
 
     if (challenger == null) {
       return Center(child: const CircularProgressIndicator());
     }
+
+    final challenge = this.challenge;
     if (challenge == null) {
       return const HomeScreen();
     }
-
     if (challenge.isInTheFuture) {
       return WaitingForChallenge(challenge: challenge);
     }

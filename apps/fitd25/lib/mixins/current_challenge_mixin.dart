@@ -8,15 +8,41 @@ mixin CurrentChallengeMixin<T extends StatefulWidget> on State<T> {
   late final StreamSubscription _challengeSubscription;
   Challenge? challenge;
   Timer? _finishTimer;
+  Timer? _startTimer;
+
+  void onChallengeStart() {}
 
   void onChallengeEnd() {}
+
+  void countStart(DateTime startTime) {
+    _startTimer?.cancel();
+    _startTimer = null;
+
+    // If the start time is in the past, we don't need to set a timer
+    if (DateTime.now().isAfter(startTime)) {
+      onChallengeStart();
+      return;
+    }
+
+    _startTimer = Timer(startTime.difference(DateTime.now()), () {
+      setState(() {
+        _startTimer?.cancel();
+        _startTimer = null;
+
+        onChallengeStart();
+      });
+    });
+  }
 
   void countFinish(DateTime endTime) {
     _finishTimer?.cancel();
     _finishTimer = null;
 
     // If the end time is in the past, we don't need to set a timer
-    if (DateTime.now().isAfter(endTime)) return;
+    if (DateTime.now().isAfter(endTime)) {
+      onChallengeEnd();
+      return;
+    }
 
     _finishTimer = Timer(endTime.difference(DateTime.now()), () {
       setState(() {
@@ -37,10 +63,11 @@ mixin CurrentChallengeMixin<T extends StatefulWidget> on State<T> {
         .snapshots()
         .listen((snapshot) {
           final data = snapshot.data();
-          final challenge = this.challenge = Challenge.fromJson(data);
+          challenge = Challenge.fromJson(data);
 
           setState(() {
             if (challenge case final challenge?) {
+              countStart(challenge.startTime);
               countFinish(challenge.endTime);
             }
           });
@@ -49,6 +76,7 @@ mixin CurrentChallengeMixin<T extends StatefulWidget> on State<T> {
 
   @override
   void dispose() {
+    _startTimer?.cancel();
     _finishTimer?.cancel();
     _challengeSubscription.cancel();
     super.dispose();
