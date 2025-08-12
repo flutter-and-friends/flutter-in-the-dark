@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fitd25/mixins/current_challenge_mixin.dart';
 import 'package:fitd25/screens/admin/challenger_settings_modal.dart';
+import 'package:fitd25/data/challenger.dart';
 import 'package:fitd25/screens/admin/mixins/all_challengers_mixin.dart';
 import 'package:flutter/material.dart';
 
@@ -43,7 +44,30 @@ class _CurrentChallengeAdminScreenState
               );
             },
             title: Text(challenger.name),
-            subtitle: Text('Status: ${challenger.status}'),
+            subtitle: Text(
+              'Status: ${challenger.status}',
+              style: TextStyle(
+                color: challenger.status == ChallengerStatus.blocked
+                    ? Colors.red.shade300
+                    : Colors.green.shade300,
+              ),
+            ),
+            trailing: IconButton(
+              icon: Icon(
+                challenger.status == ChallengerStatus.blocked
+                    ? Icons.block
+                    : Icons.check_circle,
+                color: challenger.status == ChallengerStatus.blocked
+                    ? Colors.red.shade300
+                    : Colors.green.shade300,
+              ),
+              onPressed: () {
+                final newStatus = challenger.status == ChallengerStatus.blocked
+                    ? ChallengerStatus.inProgress
+                    : ChallengerStatus.blocked;
+                updateChallenger(challenger.withStatus(newStatus));
+              },
+            ),
           ),
         Text(
           'Firestore Data: ${const JsonEncoder.withIndent('  ').convert(_jsonEncodable(challenge.toJson()))}',
