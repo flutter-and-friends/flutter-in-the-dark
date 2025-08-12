@@ -39,7 +39,10 @@ class _CurrentChallengeAdminScreenState
               showModalBottomSheet(
                 context: context,
                 builder: (context) {
-                  return ChallengerSettingsModal(challenger: challenger);
+                  return ChallengerSettingsModal(
+                    challenger: challenger,
+                    onDelete: deleteChallenger,
+                  );
                 },
               );
             },

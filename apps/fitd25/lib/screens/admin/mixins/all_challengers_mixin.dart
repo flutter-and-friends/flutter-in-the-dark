@@ -39,6 +39,15 @@ mixin AllChallengersMixin<T extends StatefulWidget> on State<T> {
         .set(challenger.toFirestore(), SetOptions(merge: true));
   }
 
+  Future<void> deleteChallenger(Challenger challenger) {
+    return FirebaseFirestore.instance
+        .collection('fitd')
+        .doc('state')
+        .collection('challengers')
+        .doc(challenger.id)
+        .delete();
+  }
+
   @override
   void dispose() {
     _challengersSubscription.cancel();
