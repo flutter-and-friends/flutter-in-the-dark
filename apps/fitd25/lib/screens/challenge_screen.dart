@@ -43,7 +43,7 @@ class _ChallengeScreenState extends State<ChallengeScreen>
     _animationController =
         AnimationController(
           vsync: this,
-          duration: const Duration(milliseconds: 100),
+          duration: const Duration(milliseconds: 200),
         )..addStatusListener((status) {
           if (status == AnimationStatus.completed) {
             _animationController.reverse();
@@ -75,15 +75,19 @@ class _ChallengeScreenState extends State<ChallengeScreen>
 
   void _shake() {
     _tween.end = Offset(
-      (_random.nextDouble() - 0.5) * 0.1,
-      (_random.nextDouble() - 0.5) * 0.1,
+      (_random.nextDouble() - 0.5) * 0.2,
+      (_random.nextDouble() - 0.5) * 0.2,
     );
     _animationController.forward(from: 0);
   }
 
   @override
   void onChallengeEnd() {
-    _shake();
+    for (var i = 0; i < 5; i++) {
+      Future.delayed(Duration(milliseconds: i * 200), () {
+        _shake();
+      });
+    }
 
     confettiController.play();
 
