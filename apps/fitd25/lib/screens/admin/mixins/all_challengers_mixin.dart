@@ -48,6 +48,19 @@ mixin AllChallengersMixin<T extends StatefulWidget> on State<T> {
         .delete();
   }
 
+  Future<void> clearAllChallengers() async {
+    final challengers = await FirebaseFirestore.instance
+        .collection('fitd')
+        .doc('state')
+        .collection('challengers')
+        .get();
+    final batch = FirebaseFirestore.instance.batch();
+    for (final doc in challengers.docs) {
+      batch.delete(doc.reference);
+    }
+    return batch.commit();
+  }
+
   @override
   void dispose() {
     _challengersSubscription.cancel();

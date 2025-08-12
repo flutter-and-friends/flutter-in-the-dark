@@ -33,6 +33,16 @@ class _CurrentChallengeAdminScreenState
     return ListView(
       padding: EdgeInsets.all(16),
       children: [
+        ElevatedButton.icon(
+          onPressed: () => _showClearAllConfirmationDialog(),
+          icon: const Icon(Icons.delete_sweep),
+          label: const Text('Remove All Challengers'),
+          style: ElevatedButton.styleFrom(
+            foregroundColor: Colors.white,
+            backgroundColor: Colors.red.shade300,
+          ),
+        ),
+        const SizedBox(height: 16),
         for (final challenger in allChallengers)
           ListTile(
             onTap: () {
@@ -89,5 +99,29 @@ class _CurrentChallengeAdminScreenState
         },
     };
     return newMap;
+  }
+
+  void _showClearAllConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove All Challengers?'),
+        content: const Text(
+            'This will remove all challengers from the competition. This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              clearAllChallengers();
+              Navigator.of(context).pop();
+            },
+            child: const Text('Remove All'),
+          ),
+        ],
+      ),
+    );
   }
 }
