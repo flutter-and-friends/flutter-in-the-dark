@@ -20,8 +20,8 @@ class _CurrentChallengeAdminScreenState
     extends State<CurrentChallengeAdminScreen>
     with CurrentChallengeMixin, AllChallengersMixin {
   @override
-  void onChallengeChanged() {
-    super.onChallengeChanged();
+  void onChallengeCleared() {
+    super.onChallengeCleared();
     clearAllChallengers();
   }
 

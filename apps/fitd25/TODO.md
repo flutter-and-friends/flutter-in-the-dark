@@ -36,8 +36,9 @@ When working with an AI agent, the ideal workflow is collaborative. The agent sh
 
 - [ ] Admin view
   - [x] Display a list of challengers with their name and status (e.g., "in progress," "finished," "blocked").
+    - [ ] Show both in 'Current challenge view' and 'Select challenge view'.
   - [x] Provide a button next to each challenger to block and unblock their screen.
   - [x] Clear a challenger manually.
   - [x] Add a button for the admin to clear all challengers manually.
-  - [ ] Automatically clear challengers only when the current challenge is stopped.
+  - [x] Automatically clear challengers only when the current challenge is stopped.
   - [ ] Allow admin to change the remaining time of the challenge.
