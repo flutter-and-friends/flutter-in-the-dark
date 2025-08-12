@@ -14,6 +14,8 @@ mixin CurrentChallengeMixin<T extends StatefulWidget> on State<T> {
 
   void onChallengeEnd() {}
 
+  void onChallengeChanged() {}
+
   void countStart(DateTime startTime) {
     _startTimer?.cancel();
     _startTimer = null;
@@ -62,8 +64,13 @@ mixin CurrentChallengeMixin<T extends StatefulWidget> on State<T> {
         .doc('state')
         .snapshots()
         .listen((snapshot) {
+          final oldChallengeId = challenge?.challengeId;
           final data = snapshot.data();
           challenge = Challenge.fromJson(data);
+
+          if (oldChallengeId != challenge?.challengeId) {
+            onChallengeChanged();
+          }
 
           setState(() {
             if (challenge case final challenge?) {

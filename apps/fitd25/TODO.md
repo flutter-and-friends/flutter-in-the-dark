@@ -37,4 +37,4 @@ When working with an AI agent, the ideal workflow is collaborative. The agent sh
   - [x] Provide a button next to each challenger to block and unblock their screen.
   - [x] Clear a challenger manually.
   - [x] Add a button for the admin to clear all challengers manually.
-  - [ ] Automatically clear the list of challengers when the current challenge is changed or cleared.
+  - [x] Automatically clear the list of challengers when the current challenge is changed or cleared.

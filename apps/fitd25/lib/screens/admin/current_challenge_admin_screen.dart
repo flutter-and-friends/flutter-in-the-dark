@@ -20,6 +20,12 @@ class _CurrentChallengeAdminScreenState
     extends State<CurrentChallengeAdminScreen>
     with CurrentChallengeMixin, AllChallengersMixin {
   @override
+  void onChallengeChanged() {
+    super.onChallengeChanged();
+    clearAllChallengers();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final challenge = this.challenge;
     if (challenge == null) {
