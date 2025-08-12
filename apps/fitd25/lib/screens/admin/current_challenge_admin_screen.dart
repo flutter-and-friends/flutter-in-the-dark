@@ -1,11 +1,12 @@
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fitd25/data/challenger.dart';
 import 'package:fitd25/mixins/current_challenge_mixin.dart';
 import 'package:fitd25/screens/admin/challenger_settings_modal.dart';
-import 'package:fitd25/data/challenger.dart';
 import 'package:fitd25/screens/admin/mixins/all_challengers_mixin.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class CurrentChallengeAdminScreen extends StatefulWidget {
   const CurrentChallengeAdminScreen({super.key});
@@ -82,8 +83,32 @@ class _CurrentChallengeAdminScreenState
               },
             ),
           ),
-        Text(
-          'Firestore Data: ${const JsonEncoder.withIndent('  ').convert(_jsonEncodable(challenge.toJson()))}',
+        const Divider(),
+        ExpansionTile(
+          title: Text(challenge.name),
+          subtitle: Text(
+            'Starts: ${DateFormat('yyyy-MM-dd HH:mm', 'sv_SE').format(challenge.startTime)}\n'
+            'Ends: ${DateFormat('yyyy-MM-dd HH:mm', 'sv_SE').format(challenge.endTime)}',
+          ),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              title: const Text('DartPad ID'),
+              subtitle: Text(challenge.dartPadId),
+            ),
+            ListTile(
+              title: const Text('Challenge ID'),
+              subtitle: Text(challenge.challengeId),
+            ),
+            ListTile(
+              title: const Text('Widget JSON'),
+              subtitle: Text(
+                const JsonEncoder.withIndent(
+                  '  ',
+                ).convert(_jsonEncodable(challenge.widgetJson)),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -107,7 +132,8 @@ class _CurrentChallengeAdminScreenState
       builder: (context) => AlertDialog(
         title: const Text('Remove All Challengers?'),
         content: const Text(
-            'This will remove all challengers from the competition. This action cannot be undone.'),
+          'This will remove all challengers from the competition. This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
