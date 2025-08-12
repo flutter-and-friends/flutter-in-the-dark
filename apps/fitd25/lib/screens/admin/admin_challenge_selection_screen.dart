@@ -3,7 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitd25/data/challenge.dart';
 import 'package:fitd25/mixins/current_challenge_mixin.dart';
 import 'package:fitd25/screens/admin/edit_challenge_screen.dart';
+import 'package:fitd25/screens/admin/mixins/all_challengers_mixin.dart';
 import 'package:fitd25/screens/admin/set_challenge_dialog.dart';
+import 'package:fitd25/screens/admin/widgets/challenger_list_item.dart';
 import 'package:flutter/material.dart';
 
 class AdminChallengeSelectionScreen extends StatefulWidget {
@@ -16,7 +18,7 @@ class AdminChallengeSelectionScreen extends StatefulWidget {
 
 class _AdminChallengeSelectionScreenState
     extends State<AdminChallengeSelectionScreen>
-    with CurrentChallengeMixin {
+    with CurrentChallengeMixin, AllChallengersMixin {
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _challengesStream;
 
   @override
@@ -65,6 +67,15 @@ class _AdminChallengeSelectionScreenState
         Center(child: Text('Welcome, ${user.displayName}!')),
         Center(child: Text(user.email!)),
         const SizedBox(height: 20),
+        const Center(child: Text('Challengers:')),
+        const SizedBox(height: 10),
+        for (final challenger in allChallengers)
+          ChallengerListItem(
+            challenger: challenger,
+            onDelete: deleteChallenger,
+            onUpdate: updateChallenger,
+          ),
+        const SizedBox(height: 20),
         const Center(child: Text('Challenges:')),
         const SizedBox(height: 10),
         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -79,38 +90,35 @@ class _AdminChallengeSelectionScreenState
             final challenges = snapshot.data!.docs
                 .map((doc) => ChallengeBase.fromJson(doc.data()))
                 .toList();
-            return ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: challenges.length,
-              itemBuilder: (context, index) {
-                final challenge = challenges[index];
-                return ListTile(
-                  title: Text(challenge.name),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ElevatedButton(
-                        onPressed: () =>
-                            _showSetChallengeDialog(context, challenge),
-                        child: const Text('Set as current'),
-                      ),
-                      IconButton(
-                        tooltip: 'Edit challenge',
-                        icon: const Icon(Icons.edit),
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  EditChallengeScreen(challenge: challenge),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+            return Column(
+              children: [
+                for (final challenge in challenges)
+                  ListTile(
+                    title: Text(challenge.name),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () =>
+                              _showSetChallengeDialog(context, challenge),
+                          child: const Text('Set as current'),
+                        ),
+                        IconButton(
+                          tooltip: 'Edit challenge',
+                          icon: const Icon(Icons.edit),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    EditChallengeScreen(challenge: challenge),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                );
-              },
+              ],
             );
           },
         ),

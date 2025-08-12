@@ -1,10 +1,9 @@
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fitd25/data/challenger.dart';
 import 'package:fitd25/mixins/current_challenge_mixin.dart';
-import 'package:fitd25/screens/admin/challenger_settings_modal.dart';
 import 'package:fitd25/screens/admin/mixins/all_challengers_mixin.dart';
+import 'package:fitd25/screens/admin/widgets/challenger_list_item.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -51,46 +50,10 @@ class _CurrentChallengeAdminScreenState
         ),
         const SizedBox(height: 16),
         for (final challenger in allChallengers)
-          ListTile(
-            onTap: () {
-              showModalBottomSheet(
-                context: context,
-                builder: (context) {
-                  return ChallengerSettingsModal(
-                    challenger: challenger,
-                    onDelete: deleteChallenger,
-                  );
-                },
-              );
-            },
-            title: Text(challenger.name),
-            subtitle: Text(
-              'Status: ${challenger.status}',
-              style: TextStyle(
-                color: challenger.status == ChallengerStatus.blocked
-                    ? Colors.red.shade300
-                    : Colors.green.shade300,
-              ),
-            ),
-            trailing: IconButton(
-              tooltip: challenger.status == ChallengerStatus.blocked
-                  ? 'Unblock challenger'
-                  : 'Block challenger',
-              icon: Icon(
-                challenger.status == ChallengerStatus.blocked
-                    ? Icons.block
-                    : Icons.check_circle,
-                color: challenger.status == ChallengerStatus.blocked
-                    ? Colors.red.shade300
-                    : Colors.green.shade300,
-              ),
-              onPressed: () {
-                final newStatus = challenger.status == ChallengerStatus.blocked
-                    ? ChallengerStatus.inProgress
-                    : ChallengerStatus.blocked;
-                updateChallenger(challenger.withStatus(newStatus));
-              },
-            ),
+          ChallengerListItem(
+            challenger: challenger,
+            onDelete: deleteChallenger,
+            onUpdate: updateChallenger,
           ),
         const Divider(),
         ExpansionTile(
