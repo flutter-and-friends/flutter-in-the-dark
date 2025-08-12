@@ -1,5 +1,5 @@
 name: fitd25
-description: "A new Flutter project."
+description: "A set of tools to run a Flutter in the Dark event. This includes a challenger view, an admin view, and a show view for the audience."
 publish_to: 'none'
 version: 0.1.0
 
