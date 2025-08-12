@@ -67,6 +67,9 @@ class _CurrentChallengeAdminScreenState
               ),
             ),
             trailing: IconButton(
+              tooltip: challenger.status == ChallengerStatus.blocked
+                  ? 'Unblock challenger'
+                  : 'Block challenger',
               icon: Icon(
                 challenger.status == ChallengerStatus.blocked
                     ? Icons.block

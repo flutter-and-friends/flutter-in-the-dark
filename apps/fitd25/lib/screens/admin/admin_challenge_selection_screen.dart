@@ -96,6 +96,7 @@ class _AdminChallengeSelectionScreenState
                         child: const Text('Set as current'),
                       ),
                       IconButton(
+                        tooltip: 'Edit challenge',
                         icon: const Icon(Icons.edit),
                         onPressed: () {
                           Navigator.of(context).push(

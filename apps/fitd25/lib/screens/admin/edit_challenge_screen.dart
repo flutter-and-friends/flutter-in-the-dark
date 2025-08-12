@@ -91,6 +91,7 @@ class _EditChallengeScreenState extends State<EditChallengeScreen> {
                 (url) => ListTile(
                   title: Text(url),
                   trailing: IconButton(
+                    tooltip: 'Remove image URL',
                     icon: const Icon(Icons.remove_circle),
                     onPressed: () {
                       setState(() {

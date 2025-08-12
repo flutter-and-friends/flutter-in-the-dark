@@ -24,6 +24,7 @@ class _AdminContentScreenState extends State<AdminContentScreen>
         title: const Text('Admin'),
         actions: [
           IconButton(
+            tooltip: 'Create a new challenge',
             icon: const Icon(Icons.add),
             onPressed: () {
               Navigator.of(context).push(
@@ -34,6 +35,7 @@ class _AdminContentScreenState extends State<AdminContentScreen>
             },
           ),
           IconButton(
+            tooltip: 'Clear the current state',
             icon: const Icon(Icons.clear),
             onPressed: () {
               showDialog(
@@ -62,6 +64,7 @@ class _AdminContentScreenState extends State<AdminContentScreen>
             },
           ),
           IconButton(
+            tooltip: 'Logout',
             icon: const Icon(Icons.logout),
             onPressed: () => FirebaseAuth.instance.signOut(),
           ),
