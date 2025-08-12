@@ -39,14 +39,31 @@ class _CurrentChallengeAdminScreenState
     return ListView(
       padding: EdgeInsets.all(16),
       children: [
-        ElevatedButton.icon(
-          onPressed: () => _showClearAllConfirmationDialog(),
-          icon: const Icon(Icons.delete_sweep),
-          label: const Text('Remove All Challengers'),
-          style: ElevatedButton.styleFrom(
-            foregroundColor: Colors.white,
-            backgroundColor: Colors.red.shade300,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _showClearAllConfirmationDialog(),
+                icon: const Icon(Icons.delete_sweep),
+                label: const Text('Remove All Challengers'),
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.red.shade300,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            ElevatedButton(
+              onPressed: () => _updateChallengeTime(const Duration(minutes: 1)),
+              child: const Text('+1 min'),
+            ),
+            const SizedBox(width: 16),
+            ElevatedButton(
+              onPressed: () =>
+                  _updateChallengeTime(const Duration(minutes: -1)),
+              child: const Text('-1 min'),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         for (final challenger in allChallengers)
@@ -121,5 +138,15 @@ class _CurrentChallengeAdminScreenState
         ],
       ),
     );
+  }
+
+  Future<void> _updateChallengeTime(Duration duration) async {
+    final challenge = this.challenge;
+    if (challenge == null) return;
+
+    final newEndTime = challenge.endTime.add(duration);
+    await FirebaseFirestore.instance
+        .doc('/fitd/state')
+        .update({'endTime': newEndTime});
   }
 }
