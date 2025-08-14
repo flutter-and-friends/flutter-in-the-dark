@@ -6,7 +6,7 @@ import 'package:fitd25/data/challenger.dart';
 import 'package:flutter/material.dart';
 
 mixin CurrentChallengerMixin<T extends StatefulWidget> on State<T> {
-  late final StreamSubscription _challengerSubscription;
+  StreamSubscription? _challengerSubscription;
   Challenger? challenger;
 
   /// This method is called when the challenger document is not found or fails
@@ -22,38 +22,52 @@ mixin CurrentChallengerMixin<T extends StatefulWidget> on State<T> {
   @override
   void initState() {
     super.initState();
-    final currentUser = FirebaseAuth.instance.currentUser;
-    // If the user is logged in as admin, we don't need to fetch the challenger
-    // document, as it is not relevant for admin users.
-    if (currentUser case final user? when !user.isAnonymous) return;
-    FirebaseAuth.instance.signInAnonymously().then((userCredential) async {
-      final user = userCredential.user!;
 
-      _challengerSubscription = FirebaseFirestore.instance
-          .collection('fitd')
-          .doc('state')
-          .collection('challengers')
-          .doc(user.uid)
-          .snapshots()
-          .listen((snapshot) {
-            if (snapshot.exists) {
-              setState(() {
-                challenger = Challenger.fromFirestore(snapshot);
-              });
-            } else {
-              if (onFailedToFetchChallenger()) {
-                return;
-              }
-              setState(() {
-                challenger = null;
-              });
-            }
-          });
+    FirebaseAuth.instance.userChanges().listen((user) {
+      if (user == null) {
+        setState(() {
+          challenger = null;
+        });
+      } else {
+        setUpChallenger(user);
+      }
     });
+
+    if (FirebaseAuth.instance.currentUser == null) {
+      // If the user is not signed in, we sign them in anonymously
+      FirebaseAuth.instance.signInAnonymously();
+    }
   }
 
-  Future<void> createChallenger(String name) {
-    final user = FirebaseAuth.instance.currentUser;
+  Future<void> setUpChallenger(User user) async {
+    _challengerSubscription?.cancel();
+
+    _challengerSubscription = FirebaseFirestore.instance
+        .collection('fitd')
+        .doc('state')
+        .collection('challengers')
+        .doc(user.uid)
+        .snapshots()
+        .listen((snapshot) {
+          if (snapshot.exists) {
+            setState(() {
+              challenger = Challenger.fromFirestore(snapshot);
+            });
+          } else {
+            if (onFailedToFetchChallenger()) {
+              return;
+            }
+            setState(() {
+              challenger = null;
+            });
+          }
+        });
+  }
+
+  Future<void> createChallenger(String name) async {
+    final user = await FirebaseAuth.instance.signInAnonymously().then(
+      (e) => e.user,
+    );
     if (user == null) {
       throw StateError('User must be signed in to create a challenger');
     }
@@ -73,7 +87,7 @@ mixin CurrentChallengerMixin<T extends StatefulWidget> on State<T> {
 
   @override
   void dispose() {
-    _challengerSubscription.cancel();
+    _challengerSubscription?.cancel();
     super.dispose();
   }
 }

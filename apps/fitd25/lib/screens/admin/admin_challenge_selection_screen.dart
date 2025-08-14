@@ -76,7 +76,7 @@ class _AdminChallengeSelectionScreenState
             onUpdate: updateChallenger,
           ),
         const SizedBox(height: 20),
-        const Center(child: Text('Challenges:')),
+        const Center(child: Text('Challenges in the lobby:')),
         const SizedBox(height: 10),
         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: _challengesStream,

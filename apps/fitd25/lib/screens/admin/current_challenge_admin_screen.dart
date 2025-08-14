@@ -54,14 +54,14 @@ class _CurrentChallengeAdminScreenState
             ),
             const SizedBox(width: 16),
             ElevatedButton(
-              onPressed: () => _updateChallengeTime(const Duration(minutes: 1)),
-              child: const Text('+1 min'),
-            ),
-            const SizedBox(width: 16),
-            ElevatedButton(
               onPressed: () =>
                   _updateChallengeTime(const Duration(minutes: -1)),
               child: const Text('-1 min'),
+            ),
+            const SizedBox(width: 16),
+            ElevatedButton(
+              onPressed: () => _updateChallengeTime(const Duration(minutes: 1)),
+              child: const Text('+1 min'),
             ),
           ],
         ),

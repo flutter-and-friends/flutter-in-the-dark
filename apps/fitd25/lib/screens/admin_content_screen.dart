@@ -73,9 +73,15 @@ class _AdminContentScreenState extends State<AdminContentScreen>
       body: Navigator(
         onDidRemovePage: (_) {},
         pages: [
-          MaterialPage(child: AdminChallengeSelectionScreen()),
+          MaterialPage(
+            key: ValueKey('AdminChallengeSelection'),
+            child: AdminChallengeSelectionScreen(
+              key: ValueKey('AdminChallengeSelectionScreen${widget.user.uid}'),
+            ),
+          ),
           if (challenge != null)
             MaterialPage(
+              key: ValueKey('CurrentChallengeAdminScreen'),
               child: CurrentChallengeAdminScreen(),
               fullscreenDialog: true,
             ),

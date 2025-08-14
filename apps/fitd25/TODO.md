@@ -42,3 +42,4 @@ When working with an AI agent, the ideal workflow is collaborative. The agent sh
   - [x] Add a button for the admin to clear all challengers manually.
   - [x] Automatically clear challengers only when the current challenge is stopped.
   - [x] Allow admin to change the remaining time of the challenge.
+  - [ ] Fix indefinite loading of challenges.

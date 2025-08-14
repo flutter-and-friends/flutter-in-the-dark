@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitd25/mixins/current_challenger_mixin.dart';
 import 'package:fitd25/screens/challenge_screen.dart';
 import 'package:flutter/material.dart';
