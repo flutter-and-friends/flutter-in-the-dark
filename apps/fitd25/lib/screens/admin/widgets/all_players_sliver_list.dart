@@ -23,12 +23,10 @@ class _AllPlayersSliverListState extends State<AllPlayersSliverList>
         SliverList.list(
           children: [
             for (final challenger in allPlayers)
-              SliverToBoxAdapter(
-                child: PlayerListItem(
-                  challenger: challenger,
-                  onDelete: deleteChallenger,
-                  onUpdate: updateChallenger,
-                ),
+              PlayerListItem(
+                challenger: challenger,
+                onDelete: deleteChallenger,
+                onUpdate: updateChallenger,
               ),
           ],
         ),
