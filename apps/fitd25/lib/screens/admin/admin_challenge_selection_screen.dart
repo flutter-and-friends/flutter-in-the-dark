@@ -1,12 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitd25/data/challenge.dart';
-import 'package:fitd25/mixins/current_challenge_mixin.dart';
-import 'package:fitd25/screens/admin/edit_challenge_screen.dart';
-import 'package:fitd25/screens/admin/mixins/all_challengers_mixin.dart';
 import 'package:fitd25/screens/admin/set_challenge_dialog.dart';
-import 'package:fitd25/screens/admin/widgets/challenger_list_item.dart';
+import 'package:fitd25/screens/admin/widgets/all_challenges_sliver_list.dart';
+import 'package:fitd25/screens/admin/widgets/all_players_sliver_list.dart';
 import 'package:flutter/material.dart';
+import 'package:gap/gap.dart';
 
 class AdminChallengeSelectionScreen extends StatefulWidget {
   const AdminChallengeSelectionScreen({super.key});
@@ -17,15 +16,16 @@ class AdminChallengeSelectionScreen extends StatefulWidget {
 }
 
 class _AdminChallengeSelectionScreenState
-    extends State<AdminChallengeSelectionScreen>
-    with CurrentChallengeMixin, AllChallengersMixin {
+    extends State<AdminChallengeSelectionScreen> {
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _challengesStream;
 
   @override
   void initState() {
     super.initState();
     _challengesStream = FirebaseFirestore.instance
-        .collection('/fitd/state/challenges')
+        .collection('fitd')
+        .doc('state')
+        .collection('challenges')
         .snapshots();
   }
 
@@ -61,66 +61,72 @@ class _AdminChallengeSelectionScreenState
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser!;
 
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
-      children: [
-        Center(child: Text('Welcome, ${user.displayName}!')),
-        Center(child: Text(user.email!)),
-        const SizedBox(height: 20),
-        const Center(child: Text('Challengers:')),
-        const SizedBox(height: 10),
-        for (final challenger in allChallengers)
-          ChallengerListItem(
-            challenger: challenger,
-            onDelete: deleteChallenger,
-            onUpdate: updateChallenger,
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.all(16.0),
+          sliver: SliverMainAxisGroup(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Center(child: Text('Welcome, ${user.displayName}!')),
+              ),
+              SliverToBoxAdapter(child: Center(child: Text(user.email!))),
+              const SliverGap(20),
+              const AllPlayersSliverList(),
+              const SliverGap(20),
+              const AllChallengesSliverList(),
+              // SliverToBoxAdapter(
+              //   child: const Center(child: Text('Challenges:')),
+              // ),
+              // const SliverGap(10),
+              // StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              //   stream: _challengesStream,
+              //   builder: (context, snapshot) {
+              //     if (snapshot.hasError) {
+              //       return Text('Error: ${snapshot.error}');
+              //     }
+              //     if (snapshot.connectionState == ConnectionState.waiting) {
+              //       print('Waiting for challenges...');
+              //       return const Center(child: CircularProgressIndicator());
+              //     }
+              //     final challenges = snapshot.data!.docs
+              //         .map((doc) => ChallengeBase.fromJson(doc.data()))
+              //         .toList();
+              //     return Column(
+              //       children: [
+              //         for (final challenge in challenges)
+              //           ListTile(
+              //             title: Text(challenge.name),
+              //             trailing: Row(
+              //               mainAxisSize: MainAxisSize.min,
+              //               children: [
+              //                 ElevatedButton(
+              //                   onPressed: () =>
+              //                       _showSetChallengeDialog(context, challenge),
+              //                   child: const Text('Set as current'),
+              //                 ),
+              //                 IconButton(
+              //                   tooltip: 'Edit challenge',
+              //                   icon: const Icon(Icons.edit),
+              //                   onPressed: () {
+              //                     Navigator.of(context).push(
+              //                       MaterialPageRoute(
+              //                         builder: (context) => EditChallengeScreen(
+              //                           challenge: challenge,
+              //                         ),
+              //                       ),
+              //                     );
+              //                   },
+              //                 ),
+              //               ],
+              //             ),
+              //           ),
+              //       ],
+              //     );
+              //   },
+              // ),
+            ],
           ),
-        const SizedBox(height: 20),
-        const Center(child: Text('Challenges in the lobby:')),
-        const SizedBox(height: 10),
-        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: _challengesStream,
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Text('Error: ${snapshot.error}');
-            }
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final challenges = snapshot.data!.docs
-                .map((doc) => ChallengeBase.fromJson(doc.data()))
-                .toList();
-            return Column(
-              children: [
-                for (final challenge in challenges)
-                  ListTile(
-                    title: Text(challenge.name),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () =>
-                              _showSetChallengeDialog(context, challenge),
-                          child: const Text('Set as current'),
-                        ),
-                        IconButton(
-                          tooltip: 'Edit challenge',
-                          icon: const Icon(Icons.edit),
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    EditChallengeScreen(challenge: challenge),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            );
-          },
         ),
       ],
     );

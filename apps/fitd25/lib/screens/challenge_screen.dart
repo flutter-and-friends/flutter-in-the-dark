@@ -6,14 +6,14 @@ import 'package:fitd25/dart_pad/dart_pad_widget.dart';
 import 'package:fitd25/data/challenger.dart';
 import 'package:fitd25/mixins/current_challenge_mixin.dart';
 import 'package:fitd25/mixins/current_challenger_mixin.dart';
-import 'package:fitd25/screens/challenger_selection_screen.dart';
 import 'package:fitd25/screens/home_screen.dart';
+import 'package:fitd25/screens/player_selection_screen.dart';
 import 'package:fitd25/screens/waiting_for_challenge.dart';
 import 'package:flutter/foundation.dart';
 import 'package:json_dynamic_widget/json_dynamic_widget.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:timeago_flutter/timeago_flutter.dart'
-    hide setLocaleMessages, setDefaultLocale;
+    hide setDefaultLocale, setLocaleMessages;
 import 'package:web/web.dart' as web;
 
 class ChallengeScreen extends StatefulWidget {
@@ -61,7 +61,7 @@ class _ChallengeScreenState extends State<ChallengeScreen>
     if (mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => const ChallengerSelectionScreen(),
+          builder: (context) => const PlayerSelectionScreen(),
         ),
       );
     }
@@ -84,9 +84,7 @@ class _ChallengeScreenState extends State<ChallengeScreen>
   @override
   void onChallengeEnd() {
     for (var i = 0; i < 5; i++) {
-      Future.delayed(Duration(milliseconds: i * 200), () {
-        _shake();
-      });
+      Future.delayed(Duration(milliseconds: i * 200), _shake);
     }
 
     confettiController.play();
@@ -116,7 +114,7 @@ class _ChallengeScreenState extends State<ChallengeScreen>
     final challenger = this.challenger;
 
     if (challenger == null) {
-      return Center(child: const CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator());
     }
 
     final challenge = this.challenge;
@@ -165,7 +163,7 @@ class _ChallengeScreenState extends State<ChallengeScreen>
                   : null,
               body: SplitPane(
                 axis: Axis.horizontal,
-                initialFractions: [0.4, 0.4, 0.2],
+                initialFractions: const [0.4, 0.4, 0.2],
                 children: [
                   challenge.jsonWidgetData.build(context: context),
                   LayoutBuilder(

@@ -13,7 +13,7 @@ class Challenger {
 
   factory Challenger.fromFirestore(DocumentSnapshot doc) {
     final {'name': String name, 'status': String status} =
-        doc.data() as Map<String, dynamic>;
+        doc.data()! as Map<String, dynamic>;
     return Challenger(
       id: doc.id,
       name: name,

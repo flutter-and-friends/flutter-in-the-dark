@@ -49,7 +49,7 @@ class _ShowScreenState extends State<ShowScreen> with CurrentChallengeMixin {
                 if (remainingTime.inSeconds > 10) {
                   return Text(
                     'Time remaining: $time',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 48,
                       backgroundColor: Colors.black54,
                       color: Colors.white,

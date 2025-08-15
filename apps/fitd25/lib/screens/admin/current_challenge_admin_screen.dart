@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fitd25/mixins/current_challenge_mixin.dart';
-import 'package:fitd25/screens/admin/mixins/all_challengers_mixin.dart';
-import 'package:fitd25/screens/admin/widgets/challenger_list_item.dart';
+import 'package:fitd25/screens/admin/mixins/all_players_mixin.dart';
+import 'package:fitd25/screens/admin/widgets/player_list_item.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -17,7 +17,7 @@ class CurrentChallengeAdminScreen extends StatefulWidget {
 
 class _CurrentChallengeAdminScreenState
     extends State<CurrentChallengeAdminScreen>
-    with CurrentChallengeMixin, AllChallengersMixin {
+    with CurrentChallengeMixin, AllPlayersMixin {
   @override
   void onChallengeCleared() {
     super.onChallengeCleared();
@@ -37,13 +37,13 @@ class _CurrentChallengeAdminScreenState
     }
 
     return ListView(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       children: [
         Row(
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () => _showClearAllConfirmationDialog(),
+                onPressed: _showClearAllConfirmationDialog,
                 icon: const Icon(Icons.delete_sweep),
                 label: const Text('Remove All Challengers'),
                 style: ElevatedButton.styleFrom(
@@ -67,7 +67,7 @@ class _CurrentChallengeAdminScreenState
         ),
         const SizedBox(height: 16),
         for (final challenger in allChallengers)
-          ChallengerListItem(
+          PlayerListItem(
             challenger: challenger,
             onDelete: deleteChallenger,
             onUpdate: updateChallenger,
@@ -107,8 +107,8 @@ class _CurrentChallengeAdminScreenState
     final newMap = <String, dynamic>{
       for (final entry in map.entries)
         entry.key: switch (entry.value) {
-          Timestamp timestamp => timestamp.toDate().toIso8601String(),
-          DateTime dateTime => dateTime.toIso8601String(),
+          final Timestamp timestamp => timestamp.toDate().toIso8601String(),
+          final DateTime dateTime => dateTime.toIso8601String(),
           final value => value,
         },
     };
@@ -145,8 +145,8 @@ class _CurrentChallengeAdminScreenState
     if (challenge == null) return;
 
     final newEndTime = challenge.endTime.add(duration);
-    await FirebaseFirestore.instance
-        .doc('/fitd/state')
-        .update({'endTime': newEndTime});
+    await FirebaseFirestore.instance.doc('/fitd/state').update({
+      'endTime': newEndTime,
+    });
   }
 }

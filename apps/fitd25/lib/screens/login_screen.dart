@@ -13,7 +13,7 @@ class LoginScreen extends StatelessWidget {
           child: const Text('Sign in with Google'),
           onPressed: () async {
             try {
-              GoogleAuthProvider googleProvider = GoogleAuthProvider();
+              final googleProvider = GoogleAuthProvider();
               await FirebaseAuth.instance.signInWithPopup(googleProvider);
             } catch (e) {
               if (context.mounted) {

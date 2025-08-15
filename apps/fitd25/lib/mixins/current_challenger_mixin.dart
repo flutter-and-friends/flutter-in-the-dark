@@ -6,7 +6,7 @@ import 'package:fitd25/data/challenger.dart';
 import 'package:flutter/material.dart';
 
 mixin CurrentChallengerMixin<T extends StatefulWidget> on State<T> {
-  StreamSubscription? _challengerSubscription;
+  StreamSubscription<dynamic>? _challengerSubscription;
   Challenger? challenger;
 
   /// This method is called when the challenger document is not found or fails

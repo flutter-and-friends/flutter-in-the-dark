@@ -11,7 +11,7 @@ class CountdownOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final remainingSeconds = duration.inSeconds;
-    return Container(
+    return ColoredBox(
       color: Colors.black54,
       child: Center(
         child: AnimatedSwitcher(

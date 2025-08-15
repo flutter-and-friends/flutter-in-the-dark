@@ -138,7 +138,8 @@ class _EditChallengeScreenState extends State<EditChallengeScreen> {
         dartPadId: _dartPadIdController.text,
         challengeId: _challengeIdController.text,
         imageUrls: _imageUrls,
-        widgetJson: jsonDecode(_widgetJsonController.text),
+        widgetJson:
+            jsonDecode(_widgetJsonController.text) as Map<String, dynamic>,
       );
 
       await FirebaseFirestore.instance

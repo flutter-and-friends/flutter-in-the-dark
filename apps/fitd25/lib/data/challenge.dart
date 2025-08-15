@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:collection/collection.dart';
 import 'package:json_dynamic_widget/json_dynamic_widget.dart';
 
+@immutable
 class ChallengeBase {
   final String name;
   final String dartPadId;

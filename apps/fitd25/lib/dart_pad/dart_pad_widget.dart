@@ -44,7 +44,7 @@ class DartPad extends StatefulWidget {
   State<DartPad> createState() => _DartPadState();
 
   String get iframeSrc {
-    Uri uri = Uri.https('dartpad.dev', '', <String, String>{
+    final uri = Uri.https('dartpad.dev', '', <String, String>{
       'id': gistId,
       'theme': darkMode ? 'dark' : 'light',
       'run': runImmediately.toString(),

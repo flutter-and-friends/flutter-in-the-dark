@@ -47,7 +47,7 @@ class FrostedBackground extends StatelessWidget {
               width: 450,
               height: 250,
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.1),
+                color: Colors.grey.withValues(alpha: 0.1),
               ),
             ),
           ),

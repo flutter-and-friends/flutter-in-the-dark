@@ -5,7 +5,7 @@ import 'package:fitd25/data/challenge.dart';
 import 'package:flutter/material.dart';
 
 mixin CurrentChallengeMixin<T extends StatefulWidget> on State<T> {
-  late final StreamSubscription _challengeSubscription;
+  late final StreamSubscription<dynamic> _challengeSubscription;
   Challenge? challenge;
   Timer? _finishTimer;
   Timer? _startTimer;

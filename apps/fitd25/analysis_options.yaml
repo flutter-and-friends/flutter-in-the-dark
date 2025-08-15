@@ -1,1 +1,36 @@
-include: package:flutter_lints/flutter.yaml
+include: package:lint/analysis_options.yaml
+
+analyzer:
+  language:
+    strict-raw-types: true
+    strict-casts: true
+
+  exclude:
+    - lib/**.g.dart
+    - lib/**.freezed.dart
+    - test/**.mocks.dart
+  errors:
+    avoid_setters_without_getters: ignore
+    invalid_annotation_target: ignore
+    prefer_const_constructors: warning
+    prefer_const_constructors_in_immutables: warning
+    unused_element: ignore
+
+linter:
+  rules:
+    - avoid_equals_and_hash_code_on_mutable_classes
+    - avoid_positional_boolean_parameters
+    - avoid_returning_this
+    - avoid_slow_async_io
+    - close_sinks
+    - curly_braces_in_flow_control_structures
+    - flutter_style_todos
+    - literal_only_boolean_expressions
+    - omit_local_variable_types
+    - prefer_adjacent_string_concatenation
+    - require_trailing_commas
+    - unnecessary_lambdas
+    - use_if_null_to_convert_nulls_to_bools
+    - use_super_parameters
+    - use_enums
+    - use_colored_box
