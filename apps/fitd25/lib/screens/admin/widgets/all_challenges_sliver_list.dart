@@ -69,14 +69,13 @@ class _AllChallengesSliverListState extends State<AllChallengesSliverList> {
               );
             }
             if (snapshot.connectionState == ConnectionState.waiting) {
-              print('Waiting for challenges...');
               return const SliverToBoxAdapter(
                 child: Center(child: CircularProgressIndicator()),
               );
             }
             final challenges = snapshot.data!.docs
                 .map((doc) => ChallengeBase.fromJson(doc.data()))
-                .toList();
+                .toList(growable: false);
             return SliverList.list(
               children: [
                 for (final challenge in challenges)

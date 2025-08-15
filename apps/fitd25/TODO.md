@@ -34,7 +34,7 @@ When working with an AI agent, the ideal workflow is collaborative. The agent sh
   - [ ] Shake the screen when the challenger is "on fire".
     - [ ] Define the "on fire" state (e.g., based on typing speed).
 
-- [ ] Admin view
+- [x] Admin view
   - [x] Display a list of challengers with their name and status (e.g., "in progress," "finished," "blocked").
     - [x] Show both in 'Current challenge view' and 'Select challenge view'.
   - [x] Provide a button next to each challenger to block and unblock their screen.
@@ -42,4 +42,4 @@ When working with an AI agent, the ideal workflow is collaborative. The agent sh
   - [x] Add a button for the admin to clear all challengers manually.
   - [x] Automatically clear challengers only when the current challenge is stopped.
   - [x] Allow admin to change the remaining time of the challenge.
-  - [ ] Fix indefinite loading of challenges.
+  - [x] Fix indefinite loading of challenges.
