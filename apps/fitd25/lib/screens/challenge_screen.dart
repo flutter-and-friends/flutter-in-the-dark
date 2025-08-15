@@ -90,7 +90,7 @@ class _ChallengeScreenState extends State<ChallengeScreen>
     confettiController.play();
 
     if (challenger case final challenger?) {
-      updateChallenger(challenger.withStatus(ChallengerStatus.blocked));
+      updateChallenger(challenger.withStatus(PlayerStatus.blocked));
     }
 
     if (web.document.activeElement case final web.HTMLElement activeElement) {
@@ -209,7 +209,7 @@ class _ChallengeScreenState extends State<ChallengeScreen>
               blastDirectionality: BlastDirectionality.explosive,
               strokeWidth: 2,
             ),
-            if (challenger.status == ChallengerStatus.blocked)
+            if (challenger.status == PlayerStatus.blocked)
               Positioned.fill(
                 child: PointerInterceptor(
                   child: Material(

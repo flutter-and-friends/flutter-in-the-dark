@@ -7,8 +7,7 @@ class AllPlayersSliverList extends StatefulWidget {
   const AllPlayersSliverList({super.key});
 
   @override
-  State<AllPlayersSliverList> createState() =>
-      _AllPlayersSliverListState();
+  State<AllPlayersSliverList> createState() => _AllPlayersSliverListState();
 }
 
 class _AllPlayersSliverListState extends State<AllPlayersSliverList>
@@ -18,17 +17,21 @@ class _AllPlayersSliverListState extends State<AllPlayersSliverList>
     return SliverMainAxisGroup(
       slivers: [
         const SliverToBoxAdapter(
-          child: Center(child: Text('Challengers in the lobby:')),
+          child: Center(child: Text('Players in the lobby:')),
         ),
         const SliverGap(10),
-        for (final challenger in allChallengers)
-          SliverToBoxAdapter(
-            child: PlayerListItem(
-              challenger: challenger,
-              onDelete: deleteChallenger,
-              onUpdate: updateChallenger,
-            ),
-          ),
+        SliverList.list(
+          children: [
+            for (final challenger in allPlayers)
+              SliverToBoxAdapter(
+                child: PlayerListItem(
+                  challenger: challenger,
+                  onDelete: deleteChallenger,
+                  onUpdate: updateChallenger,
+                ),
+              ),
+          ],
+        ),
       ],
     );
   }

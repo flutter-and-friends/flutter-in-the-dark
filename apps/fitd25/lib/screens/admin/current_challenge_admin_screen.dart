@@ -21,7 +21,7 @@ class _CurrentChallengeAdminScreenState
   @override
   void onChallengeCleared() {
     super.onChallengeCleared();
-    clearAllChallengers();
+    clearAllPlayers();
   }
 
   @override
@@ -45,7 +45,7 @@ class _CurrentChallengeAdminScreenState
               child: ElevatedButton.icon(
                 onPressed: _showClearAllConfirmationDialog,
                 icon: const Icon(Icons.delete_sweep),
-                label: const Text('Remove All Challengers'),
+                label: const Text('Remove All Players'),
                 style: ElevatedButton.styleFrom(
                   foregroundColor: Colors.white,
                   backgroundColor: Colors.red.shade300,
@@ -66,7 +66,7 @@ class _CurrentChallengeAdminScreenState
           ],
         ),
         const SizedBox(height: 16),
-        for (final challenger in allChallengers)
+        for (final challenger in allPlayers)
           PlayerListItem(
             challenger: challenger,
             onDelete: deleteChallenger,
@@ -119,9 +119,9 @@ class _CurrentChallengeAdminScreenState
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Remove All Challengers?'),
+        title: const Text('Remove All Players?'),
         content: const Text(
-          'This will remove all challengers from the competition. This action cannot be undone.',
+          'This will remove all players from the competition. This action cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -130,7 +130,7 @@ class _CurrentChallengeAdminScreenState
           ),
           TextButton(
             onPressed: () {
-              clearAllChallengers();
+              clearAllPlayers();
               Navigator.of(context).pop();
             },
             child: const Text('Remove All'),

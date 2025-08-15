@@ -6,8 +6,8 @@ import 'package:fitd25/data/challenger.dart';
 import 'package:flutter/material.dart';
 
 mixin CurrentChallengerMixin<T extends StatefulWidget> on State<T> {
-  StreamSubscription<dynamic>? _challengerSubscription;
-  Challenger? challenger;
+  StreamSubscription<dynamic>? _playerSubscription;
+  Player? challenger;
 
   /// This method is called when the challenger document is not found or fails
   /// to fetch.
@@ -40,9 +40,9 @@ mixin CurrentChallengerMixin<T extends StatefulWidget> on State<T> {
   }
 
   Future<void> setUpChallenger(User user) async {
-    _challengerSubscription?.cancel();
+    _playerSubscription?.cancel();
 
-    _challengerSubscription = FirebaseFirestore.instance
+    _playerSubscription = FirebaseFirestore.instance
         .collection('fitd')
         .doc('state')
         .collection('challengers')
@@ -51,7 +51,7 @@ mixin CurrentChallengerMixin<T extends StatefulWidget> on State<T> {
         .listen((snapshot) {
           if (snapshot.exists) {
             setState(() {
-              challenger = Challenger.fromFirestore(snapshot);
+              challenger = Player.fromFirestore(snapshot);
             });
           } else {
             if (onFailedToFetchChallenger()) {
@@ -72,11 +72,11 @@ mixin CurrentChallengerMixin<T extends StatefulWidget> on State<T> {
       throw StateError('User must be signed in to create a challenger');
     }
 
-    final challenger = Challenger(id: user.uid, name: name);
+    final challenger = Player(id: user.uid, name: name);
     return updateChallenger(challenger);
   }
 
-  Future<void> updateChallenger(Challenger challenger) {
+  Future<void> updateChallenger(Player challenger) {
     return FirebaseFirestore.instance
         .collection('fitd')
         .doc('state')
@@ -87,7 +87,7 @@ mixin CurrentChallengerMixin<T extends StatefulWidget> on State<T> {
 
   @override
   void dispose() {
-    _challengerSubscription?.cancel();
+    _playerSubscription?.cancel();
     super.dispose();
   }
 }

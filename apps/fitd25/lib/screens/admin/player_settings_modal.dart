@@ -2,8 +2,8 @@ import 'package:fitd25/data/challenger.dart';
 import 'package:flutter/material.dart';
 
 class PlayerSettingsModal extends StatelessWidget {
-  final Challenger challenger;
-  final Future<void> Function(Challenger) onDelete;
+  final Player challenger;
+  final Future<void> Function(Player) onDelete;
 
   const PlayerSettingsModal({
     super.key,

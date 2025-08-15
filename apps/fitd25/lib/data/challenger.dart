@@ -1,23 +1,23 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class Challenger {
+class Player {
   final String id;
   final String name;
-  final ChallengerStatus status;
+  final PlayerStatus status;
 
-  Challenger({
+  Player({
     required this.id,
     required this.name,
-    this.status = ChallengerStatus.inProgress,
+    this.status = PlayerStatus.inProgress,
   });
 
-  factory Challenger.fromFirestore(DocumentSnapshot doc) {
+  factory Player.fromFirestore(DocumentSnapshot doc) {
     final {'name': String name, 'status': String status} =
         doc.data()! as Map<String, dynamic>;
-    return Challenger(
+    return Player(
       id: doc.id,
       name: name,
-      status: ChallengerStatus.fromString(status),
+      status: PlayerStatus.fromString(status),
     );
   }
 
@@ -25,21 +25,21 @@ class Challenger {
     return {'name': name, 'status': status.name};
   }
 
-  Challenger withStatus(ChallengerStatus newStatus) {
-    return Challenger(id: id, name: name, status: newStatus);
+  Player withStatus(PlayerStatus newStatus) {
+    return Player(id: id, name: name, status: newStatus);
   }
 }
 
-enum ChallengerStatus {
+enum PlayerStatus {
   inProgress,
   blocked;
 
-  static ChallengerStatus fromString(String status) {
+  static PlayerStatus fromString(String status) {
     switch (status) {
       case 'inProgress':
-        return ChallengerStatus.inProgress;
+        return PlayerStatus.inProgress;
       case 'blocked':
-        return ChallengerStatus.blocked;
+        return PlayerStatus.blocked;
       default:
         throw ArgumentError('Unknown status: $status');
     }

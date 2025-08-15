@@ -8,7 +8,7 @@ The application has two main components:
 
 ### Challenge View
 
-This is the view for the audience and the challengers. It includes:
+This is the view for the audience and the challengers/players. It includes:
 
 *   Display of the current challenge and the remaining time.
 *   A flashy countdown overlay for when a challenge is about to start or end.

@@ -5,32 +5,32 @@ import 'package:fitd25/data/challenger.dart';
 import 'package:flutter/material.dart';
 
 mixin AllPlayersMixin<T extends StatefulWidget> on State<T> {
-  List<Challenger>? _allChallengers;
+  List<Player>? _allPlayers;
 
-  List<Challenger> get allChallengers => _allChallengers ?? const [];
+  List<Player> get allPlayers => _allPlayers ?? const [];
 
-  late final StreamSubscription<dynamic> _challengersSubscription;
+  late final StreamSubscription<dynamic> _playersSubscription;
 
   @override
   void initState() {
     super.initState();
 
-    _challengersSubscription = FirebaseFirestore.instance
+    _playersSubscription = FirebaseFirestore.instance
         .collection('fitd')
         .doc('state')
         .collection('challengers')
         .snapshots()
         .listen((snapshot) {
           setState(() {
-            _allChallengers = snapshot.docs
-                .map(Challenger.fromFirestore)
+            _allPlayers = snapshot.docs
+                .map(Player.fromFirestore)
                 .nonNulls
                 .toList(growable: false);
           });
         });
   }
 
-  Future<void> updateChallenger(Challenger challenger) {
+  Future<void> updateChallenger(Player challenger) {
     return FirebaseFirestore.instance
         .collection('fitd')
         .doc('state')
@@ -39,7 +39,7 @@ mixin AllPlayersMixin<T extends StatefulWidget> on State<T> {
         .set(challenger.toFirestore(), SetOptions(merge: true));
   }
 
-  Future<void> deleteChallenger(Challenger challenger) {
+  Future<void> deleteChallenger(Player challenger) {
     return FirebaseFirestore.instance
         .collection('fitd')
         .doc('state')
@@ -48,14 +48,14 @@ mixin AllPlayersMixin<T extends StatefulWidget> on State<T> {
         .delete();
   }
 
-  Future<void> clearAllChallengers() async {
-    final challengers = await FirebaseFirestore.instance
+  Future<void> clearAllPlayers() async {
+    final players = await FirebaseFirestore.instance
         .collection('fitd')
         .doc('state')
         .collection('challengers')
         .get();
     final batch = FirebaseFirestore.instance.batch();
-    for (final doc in challengers.docs) {
+    for (final doc in players.docs) {
       batch.delete(doc.reference);
     }
     return batch.commit();
@@ -63,7 +63,7 @@ mixin AllPlayersMixin<T extends StatefulWidget> on State<T> {
 
   @override
   void dispose() {
-    _challengersSubscription.cancel();
+    _playersSubscription.cancel();
     super.dispose();
   }
 }

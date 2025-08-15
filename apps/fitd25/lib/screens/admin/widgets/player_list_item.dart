@@ -10,9 +10,9 @@ class PlayerListItem extends StatelessWidget {
     required this.onUpdate,
   });
 
-  final Challenger challenger;
-  final Future<void> Function(Challenger) onDelete;
-  final Future<void> Function(Challenger) onUpdate;
+  final Player challenger;
+  final Future<void> Function(Player) onDelete;
+  final Future<void> Function(Player) onUpdate;
 
   @override
   Widget build(BuildContext context) {
@@ -32,27 +32,27 @@ class PlayerListItem extends StatelessWidget {
       subtitle: Text(
         'Status: ${challenger.status}',
         style: TextStyle(
-          color: challenger.status == ChallengerStatus.blocked
+          color: challenger.status == PlayerStatus.blocked
               ? Colors.red.shade300
               : Colors.green.shade300,
         ),
       ),
       trailing: IconButton(
-        tooltip: challenger.status == ChallengerStatus.blocked
+        tooltip: challenger.status == PlayerStatus.blocked
             ? 'Unblock challenger'
             : 'Block challenger',
         icon: Icon(
-          challenger.status == ChallengerStatus.blocked
+          challenger.status == PlayerStatus.blocked
               ? Icons.block
               : Icons.check_circle,
-          color: challenger.status == ChallengerStatus.blocked
+          color: challenger.status == PlayerStatus.blocked
               ? Colors.red.shade300
               : Colors.green.shade300,
         ),
         onPressed: () {
-          final newStatus = challenger.status == ChallengerStatus.blocked
-              ? ChallengerStatus.inProgress
-              : ChallengerStatus.blocked;
+          final newStatus = challenger.status == PlayerStatus.blocked
+              ? PlayerStatus.inProgress
+              : PlayerStatus.blocked;
           onUpdate(challenger.withStatus(newStatus));
         },
       ),
