@@ -1,24 +1,20 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fitd25/mixins/current_challenge_mixin.dart';
+import 'package:fitd25/providers/current_challenge_provider.dart';
 import 'package:fitd25/screens/admin/admin_challenge_selection_screen.dart';
 import 'package:fitd25/screens/admin/current_challenge_admin_screen.dart';
 import 'package:fitd25/screens/admin/edit_challenge_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AdminContentScreen extends StatefulWidget {
+class AdminContentScreen extends ConsumerWidget {
   const AdminContentScreen({super.key, required this.user});
 
   final User user;
 
   @override
-  State<AdminContentScreen> createState() => _AdminContentScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final challengeAsync = ref.watch(currentChallengeProvider);
 
-class _AdminContentScreenState extends State<AdminContentScreen>
-    with CurrentChallengeMixin {
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin'),
@@ -53,7 +49,7 @@ class _AdminContentScreenState extends State<AdminContentScreen>
                     ),
                     TextButton(
                       onPressed: () {
-                        FirebaseFirestore.instance.doc('/fitd/state').set({});
+                        clearCurrentChallenge(ref);
                         Navigator.of(context).pop();
                       },
                       child: const Text('Clear'),
@@ -76,10 +72,10 @@ class _AdminContentScreenState extends State<AdminContentScreen>
           MaterialPage(
             key: const ValueKey('AdminChallengeSelection'),
             child: AdminChallengeSelectionScreen(
-              key: ValueKey('AdminChallengeSelectionScreen${widget.user.uid}'),
+              key: ValueKey('AdminChallengeSelectionScreen${user.uid}'),
             ),
           ),
-          if (challenge != null)
+          if (challengeAsync.value != null)
             const MaterialPage(
               key: ValueKey('CurrentChallengeAdminScreen'),
               child: CurrentChallengeAdminScreen(),

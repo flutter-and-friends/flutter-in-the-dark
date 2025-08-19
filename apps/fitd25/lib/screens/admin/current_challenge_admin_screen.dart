@@ -1,32 +1,28 @@
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fitd25/mixins/current_challenge_mixin.dart';
-import 'package:fitd25/screens/admin/mixins/all_players_mixin.dart';
+import 'package:fitd25/providers/all_players_provider.dart';
+import 'package:fitd25/providers/current_challenge_provider.dart';
 import 'package:fitd25/screens/admin/widgets/player_list_item.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-class CurrentChallengeAdminScreen extends StatefulWidget {
+class CurrentChallengeAdminScreen extends ConsumerWidget {
   const CurrentChallengeAdminScreen({super.key});
 
   @override
-  State<CurrentChallengeAdminScreen> createState() =>
-      _CurrentChallengeAdminScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final challengeAsync = ref.watch(currentChallengeProvider);
+    final allPlayersAsync = ref.watch(allPlayersProvider);
 
-class _CurrentChallengeAdminScreenState
-    extends State<CurrentChallengeAdminScreen>
-    with CurrentChallengeMixin, AllPlayersMixin {
-  @override
-  void onChallengeCleared() {
-    super.onChallengeCleared();
-    clearAllPlayers();
-  }
+    ref.listen(currentChallengeProvider, (previous, next) {
+      if (previous?.value != null && next.value == null) {
+        ref.read(allPlayersProvider.notifier).clearAllPlayers();
+      }
+    });
 
-  @override
-  Widget build(BuildContext context) {
-    final challenge = this.challenge;
+    final challenge = challengeAsync.value;
     if (challenge == null) {
       return Center(
         child: Text(
@@ -43,7 +39,7 @@ class _CurrentChallengeAdminScreenState
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: _showClearAllConfirmationDialog,
+                onPressed: () => _showClearAllConfirmationDialog(context, ref),
                 icon: const Icon(Icons.delete_sweep),
                 label: const Text('Remove All Players'),
                 style: ElevatedButton.styleFrom(
@@ -54,24 +50,41 @@ class _CurrentChallengeAdminScreenState
             ),
             const SizedBox(width: 16),
             ElevatedButton(
-              onPressed: () =>
-                  _updateChallengeTime(const Duration(minutes: -1)),
+              onPressed: () => ref
+                  .read(currentChallengeProvider.notifier)
+                  .updateChallengeTime(const Duration(minutes: -1)),
               child: const Text('-1 min'),
             ),
             const SizedBox(width: 16),
             ElevatedButton(
-              onPressed: () => _updateChallengeTime(const Duration(minutes: 1)),
+              onPressed: () => ref
+                  .read(currentChallengeProvider.notifier)
+                  .updateChallengeTime(const Duration(minutes: 1)),
               child: const Text('+1 min'),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        for (final challenger in allPlayers)
-          PlayerListItem(
-            challenger: challenger,
-            onDelete: deleteChallenger,
-            onUpdate: updateChallenger,
-          ),
+        allPlayersAsync.when(
+          data: (allPlayers) {
+            return Column(
+              children: [
+                for (final challenger in allPlayers)
+                  PlayerListItem(
+                    challenger: challenger,
+                    onDelete: (player) => ref
+                        .read(allPlayersProvider.notifier)
+                        .deletePlayer(player),
+                    onUpdate: (player) => ref
+                        .read(allPlayersProvider.notifier)
+                        .updatePlayer(player),
+                  ),
+              ],
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) => Center(child: Text('Error: $error')),
+        ),
         const Divider(),
         ExpansionTile(
           title: Text(challenge.name),
@@ -115,7 +128,7 @@ class _CurrentChallengeAdminScreenState
     return newMap;
   }
 
-  void _showClearAllConfirmationDialog() {
+  void _showClearAllConfirmationDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -130,7 +143,7 @@ class _CurrentChallengeAdminScreenState
           ),
           TextButton(
             onPressed: () {
-              clearAllPlayers();
+              ref.read(allPlayersProvider.notifier).clearAllPlayers();
               Navigator.of(context).pop();
             },
             child: const Text('Remove All'),
@@ -138,15 +151,5 @@ class _CurrentChallengeAdminScreenState
         ],
       ),
     );
-  }
-
-  Future<void> _updateChallengeTime(Duration duration) async {
-    final challenge = this.challenge;
-    if (challenge == null) return;
-
-    final newEndTime = challenge.endTime.add(duration);
-    await FirebaseFirestore.instance.doc('/fitd/state').update({
-      'endTime': newEndTime,
-    });
   }
 }

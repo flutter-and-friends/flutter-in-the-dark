@@ -1,33 +1,17 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fitd25/data/challenge.dart';
+import 'package:fitd25/providers/all_challenges_provider.dart';
 import 'package:fitd25/screens/admin/edit_challenge_screen.dart';
 import 'package:fitd25/screens/admin/set_challenge_dialog.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 
-class AllChallengesSliverList extends StatefulWidget {
+class AllChallengesSliverList extends ConsumerWidget {
   const AllChallengesSliverList({super.key});
-
-  @override
-  State<AllChallengesSliverList> createState() =>
-      _AllChallengesSliverListState();
-}
-
-class _AllChallengesSliverListState extends State<AllChallengesSliverList> {
-  late final Stream<QuerySnapshot<Map<String, dynamic>>> _challengesStream;
-
-  @override
-  void initState() {
-    super.initState();
-    _challengesStream = FirebaseFirestore.instance
-        .collection('fitd')
-        .doc('state')
-        .collection('challenges')
-        .snapshots();
-  }
 
   Future<void> _showSetChallengeDialog(
     BuildContext context,
+    WidgetRef ref,
     ChallengeBase challenge,
   ) async {
     final now = DateTime.now();
@@ -49,33 +33,19 @@ class _AllChallengesSliverListState extends State<AllChallengesSliverList> {
       endTime: result['endTime']!,
     );
 
-    await FirebaseFirestore.instance
-        .doc('/fitd/state')
-        .set(timedChallenge.toJson());
+    await setCurrentChallenge(ref, timedChallenge);
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final challengesAsync = ref.watch(allChallengesProvider);
+
     return SliverMainAxisGroup(
       slivers: [
         const SliverToBoxAdapter(child: Center(child: Text('Challenges:'))),
         const SliverGap(10),
-        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: _challengesStream,
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return SliverToBoxAdapter(
-                child: Text('Error: ${snapshot.error}'),
-              );
-            }
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const SliverToBoxAdapter(
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            final challenges = snapshot.data!.docs
-                .map((doc) => ChallengeBase.fromJson(doc.data()))
-                .toList(growable: false);
+        challengesAsync.when(
+          data: (challenges) {
             return SliverList.list(
               children: [
                 for (final challenge in challenges)
@@ -86,7 +56,7 @@ class _AllChallengesSliverListState extends State<AllChallengesSliverList> {
                       children: [
                         ElevatedButton(
                           onPressed: () =>
-                              _showSetChallengeDialog(context, challenge),
+                              _showSetChallengeDialog(context, ref, challenge),
                           child: const Text('Set as current'),
                         ),
                         IconButton(
@@ -107,6 +77,12 @@ class _AllChallengesSliverListState extends State<AllChallengesSliverList> {
               ],
             );
           },
+          loading: () => const SliverToBoxAdapter(
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (error, stackTrace) => SliverToBoxAdapter(
+            child: Center(child: Text('Error: $error')),
+          ),
         ),
       ],
     );

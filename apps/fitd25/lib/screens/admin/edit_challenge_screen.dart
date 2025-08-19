@@ -1,19 +1,21 @@
 import 'dart:convert';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fitd25/data/challenge.dart';
+import 'package:fitd25/providers/all_challenges_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class EditChallengeScreen extends StatefulWidget {
+class EditChallengeScreen extends ConsumerStatefulWidget {
   final ChallengeBase? challenge;
 
   const EditChallengeScreen({super.key, this.challenge});
 
   @override
-  State<EditChallengeScreen> createState() => _EditChallengeScreenState();
+  ConsumerState<EditChallengeScreen> createState() =>
+      _EditChallengeScreenState();
 }
 
-class _EditChallengeScreenState extends State<EditChallengeScreen> {
+class _EditChallengeScreenState extends ConsumerState<EditChallengeScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _dartPadIdController;
@@ -142,9 +144,7 @@ class _EditChallengeScreenState extends State<EditChallengeScreen> {
             jsonDecode(_widgetJsonController.text) as Map<String, dynamic>,
       );
 
-      await FirebaseFirestore.instance
-          .doc('/fitd/state/challenges/${challenge.challengeId}')
-          .set(challenge.toJson());
+      await saveChallenge(ref, challenge);
 
       if (mounted) {
         Navigator.of(context).pop();

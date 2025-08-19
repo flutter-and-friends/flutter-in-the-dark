@@ -1,16 +1,17 @@
-import 'package:fitd25/mixins/current_challenger_mixin.dart';
+import 'package:fitd25/providers/challenger_provider.dart';
 import 'package:fitd25/screens/challenge_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class PlayerSelectionScreen extends StatefulWidget {
+class PlayerSelectionScreen extends ConsumerStatefulWidget {
   const PlayerSelectionScreen({super.key});
 
   @override
-  State<PlayerSelectionScreen> createState() => _PlayerSelectionScreenState();
+  ConsumerState<PlayerSelectionScreen> createState() =>
+      _PlayerSelectionScreenState();
 }
 
-class _PlayerSelectionScreenState extends State<PlayerSelectionScreen>
-    with CurrentChallengerMixin {
+class _PlayerSelectionScreenState extends ConsumerState<PlayerSelectionScreen> {
   final _nameController = TextEditingController();
   bool _isLoading = false;
 
@@ -27,7 +28,7 @@ class _PlayerSelectionScreenState extends State<PlayerSelectionScreen>
     });
 
     try {
-      await createChallenger(_nameController.text);
+      await createChallenger(ref, _nameController.text);
 
       if (mounted) {
         Navigator.of(context).pushReplacement(

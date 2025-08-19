@@ -8,6 +8,7 @@ import 'package:fitd25/screens/player_selection_screen.dart';
 import 'package:fitd25/screens/show_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:timeago_flutter/timeago_flutter.dart'
@@ -20,7 +21,7 @@ Future<void> main() async {
   setLocaleMessages('en', OverrideEnTimeAgo());
   setDefaultLocale('en');
   await initializeDateFormatting('sv_SE');
-  runApp(const MainApp());
+  runApp(const ProviderScope(child: MainApp()));
 }
 
 class MainApp extends StatelessWidget {
