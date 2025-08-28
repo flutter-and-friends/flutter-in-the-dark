@@ -19,7 +19,7 @@ class _EditChallengeScreenState extends State<EditChallengeScreen> {
   late TextEditingController _dartPadIdController;
   late TextEditingController _widgetJsonController;
   late TextEditingController _challengeIdController;
-  late List<String> _imageUrls;
+  late Map<String, String> _assets;
 
   @override
   void initState() {
@@ -38,7 +38,7 @@ class _EditChallengeScreenState extends State<EditChallengeScreen> {
     _challengeIdController = TextEditingController(
       text: widget.challenge?.challengeId ?? '',
     );
-    _imageUrls = List<String>.from(widget.challenge?.imageUrls ?? []);
+    _assets = Map<String, String>.from(widget.challenge?.assets ?? {});
   }
 
   @override
@@ -86,34 +86,35 @@ class _EditChallengeScreenState extends State<EditChallengeScreen> {
                 maxLines: 10,
               ),
               const SizedBox(height: 20),
-              const Text('Image URLs'),
-              ..._imageUrls.map(
-                (url) => ListTile(
-                  title: Text(url),
+              const Text('Assets'),
+              ..._assets.keys.map((name) {
+                return ListTile(
+                  title: Text(name),
                   trailing: IconButton(
-                    tooltip: 'Remove image URL',
+                    tooltip: 'Remove asset',
                     icon: const Icon(Icons.remove_circle),
                     onPressed: () {
                       setState(() {
-                        _imageUrls.remove(url);
+                        _assets.remove(name);
                       });
                     },
                   ),
-                ),
-              ),
+                );
+              }),
               Row(
                 children: [
                   Expanded(
                     child: TextFormField(
                       decoration: const InputDecoration(
-                        labelText: 'Add Image URL',
+                        labelText: 'Asset name',
                       ),
                       onFieldSubmitted: (value) {
-                        if (value.isNotEmpty) {
-                          setState(() {
-                            _imageUrls.add(value);
-                          });
-                        }
+                        // TODO: Popup with a text field with the content
+                        // if (value.isNotEmpty) {
+                        //   setState(() {
+                        //     _assets.add(value);
+                        //   });
+                        // }
                       },
                     ),
                   ),
@@ -137,7 +138,7 @@ class _EditChallengeScreenState extends State<EditChallengeScreen> {
         name: _nameController.text,
         dartPadId: _dartPadIdController.text,
         challengeId: _challengeIdController.text,
-        imageUrls: _imageUrls,
+        assets: _assets,
         widgetJson:
             jsonDecode(_widgetJsonController.text) as Map<String, dynamic>,
       );

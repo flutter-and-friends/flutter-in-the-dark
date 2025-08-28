@@ -7,14 +7,14 @@ class ChallengeBase {
   final String name;
   final String dartPadId;
   final String challengeId;
-  final List<String> imageUrls;
+  final Map<String, String> assets;
   final Map<String, dynamic> widgetJson;
 
   ChallengeBase({
     required this.name,
     required this.dartPadId,
     required this.challengeId,
-    required this.imageUrls,
+    required this.assets,
     required this.widgetJson,
   });
 
@@ -22,7 +22,7 @@ class ChallengeBase {
     'name': name,
     'dartPadId': dartPadId,
     'challengeId': challengeId,
-    'imageUrls': imageUrls,
+    'assets': assets,
     'widgetJson': widgetJson,
   };
 
@@ -46,14 +46,14 @@ class ChallengeBase {
       'name': String name,
       'dartPadId': String dartPadId,
       'challengeId': String challengeId,
-      'imageUrls': List<dynamic>? imageUrls,
+      'assets': Map<String, dynamic>? assets,
       'widgetJson': Map<String, dynamic> widgetJson,
     } = data;
     return ChallengeBase(
       name: name,
       dartPadId: dartPadId,
       challengeId: challengeId,
-      imageUrls: imageUrls?.cast() ?? const [],
+      assets: assets?.cast() ?? const {},
       widgetJson: widgetJson,
     );
   }
@@ -67,7 +67,7 @@ class Challenge extends ChallengeBase {
     required super.name,
     required super.dartPadId,
     required super.challengeId,
-    required super.imageUrls,
+    required super.assets,
     required super.widgetJson,
     required this.startTime,
     required this.endTime,
@@ -86,7 +86,7 @@ class Challenge extends ChallengeBase {
         'dartPadId': final String dartPadId,
         'challengeId': final String challengeId,
         'widgetJson': final Map<String, dynamic> widgetJson,
-        'imageUrls': final List<dynamic>? imageUrls,
+        'assets': final Map<String, dynamic>? assets,
       }:
         return Challenge(
           name: name,
@@ -94,7 +94,7 @@ class Challenge extends ChallengeBase {
           challengeId: challengeId,
           startTime: startTime.toDate(),
           endTime: endTime.toDate(),
-          imageUrls: imageUrls?.cast() ?? const [],
+          assets: assets?.cast() ?? const {},
           widgetJson: widgetJson,
         );
     }

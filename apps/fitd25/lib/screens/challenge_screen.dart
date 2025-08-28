@@ -4,6 +4,7 @@ import 'package:confetti/confetti.dart';
 import 'package:devtools_app_shared/ui.dart';
 import 'package:fitd25/dart_pad/dart_pad_widget.dart';
 import 'package:fitd25/data/challenger.dart';
+import 'package:fitd25/helpers/map_extensions.dart';
 import 'package:fitd25/mixins/current_challenge_mixin.dart';
 import 'package:fitd25/mixins/current_challenger_mixin.dart';
 import 'package:fitd25/screens/home_screen.dart';
@@ -60,9 +61,7 @@ class _ChallengeScreenState extends State<ChallengeScreen>
     // If the challenger document doesn't exist, we can redirect to the selection screen
     if (mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const PlayerSelectionScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const PlayerSelectionScreen()),
       );
     }
     return true;
@@ -180,21 +179,26 @@ class _ChallengeScreenState extends State<ChallengeScreen>
                   Column(
                     children: [
                       Text(
-                        'Images for challenge',
+                        'Assets for challenge',
                         style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                      if (challenge.imageUrls.isEmpty)
+                      if (challenge.assets.isEmpty)
                         const Center(
-                          child: Text('No images for this challenge'),
+                          child: Text('No assets for this challenge'),
                         )
                       else
                         Expanded(
                           child: ListView(
                             children: [
-                              for (final url in challenge.imageUrls)
+                              for (final (name, assetContent)
+                                  in challenge.assets.records)
                                 ListTile(
-                                  title: Text(url),
-                                  subtitle: Image.network(url),
+                                  onTap: () {
+                                    Clipboard.setData(
+                                      ClipboardData(text: assetContent),
+                                    );
+                                  },
+                                  title: Text(name),
                                 ),
                             ],
                           ),

@@ -43,7 +43,7 @@ class _AllChallengesSliverListState extends State<AllChallengesSliverList> {
       name: challenge.name,
       dartPadId: challenge.dartPadId,
       challengeId: challenge.challengeId,
-      imageUrls: challenge.imageUrls,
+      assets: challenge.assets,
       widgetJson: challenge.widgetJson,
       startTime: result['startTime']!,
       endTime: result['endTime']!,
