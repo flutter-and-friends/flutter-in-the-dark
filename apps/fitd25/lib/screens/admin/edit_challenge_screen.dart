@@ -41,6 +41,55 @@ class _EditChallengeScreenState extends State<EditChallengeScreen> {
     _assets = Map<String, String>.from(widget.challenge?.assets ?? {});
   }
 
+  Future<void> _showAddAssetDialog() async {
+    final nameController = TextEditingController();
+    final contentController = TextEditingController();
+
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Add Asset'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Asset Name'),
+              ),
+              TextField(
+                controller: contentController,
+                decoration: const InputDecoration(labelText: 'Asset Content'),
+                maxLines: null,
+                minLines: 5,
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Save'),
+              onPressed: () {
+                if (nameController.text.isNotEmpty &&
+                    contentController.text.isNotEmpty) {
+                  setState(() {
+                    _assets[nameController.text] = contentController.text;
+                  });
+                }
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,7 +135,12 @@ class _EditChallengeScreenState extends State<EditChallengeScreen> {
                 maxLines: 10,
               ),
               const SizedBox(height: 20),
-              const Text('Assets'),
+              Row(
+                children: [
+                  const Text('Assets'),
+                  IconButton(onPressed: _showAddAssetDialog, icon: const Icon(Icons.add))
+                ],
+              ),
               ..._assets.keys.map((name) {
                 return ListTile(
                   title: Text(name),
@@ -101,25 +155,6 @@ class _EditChallengeScreenState extends State<EditChallengeScreen> {
                   ),
                 );
               }),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      decoration: const InputDecoration(
-                        labelText: 'Asset name',
-                      ),
-                      onFieldSubmitted: (value) {
-                        // TODO: Popup with a text field with the content
-                        // if (value.isNotEmpty) {
-                        //   setState(() {
-                        //     _assets.add(value);
-                        //   });
-                        // }
-                      },
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _saveChallenge,

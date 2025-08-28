@@ -193,9 +193,17 @@ class _ChallengeScreenState extends State<ChallengeScreen>
                               for (final (name, assetContent)
                                   in challenge.assets.records)
                                 ListTile(
+                                  trailing: const Icon(Icons.copy),
                                   onTap: () {
                                     Clipboard.setData(
                                       ClipboardData(text: assetContent),
+                                    );
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Copied asset "$name" to clipboard',
+                                        ),
+                                      ),
                                     );
                                   },
                                   title: Text(name),
