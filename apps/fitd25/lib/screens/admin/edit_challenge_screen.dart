@@ -138,7 +138,10 @@ class _EditChallengeScreenState extends State<EditChallengeScreen> {
               Row(
                 children: [
                   const Text('Assets'),
-                  IconButton(onPressed: _showAddAssetDialog, icon: const Icon(Icons.add))
+                  IconButton(
+                    onPressed: _showAddAssetDialog,
+                    icon: const Icon(Icons.add),
+                  ),
                 ],
               ),
               ..._assets.keys.map((name) {

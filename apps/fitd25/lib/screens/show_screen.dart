@@ -1,5 +1,6 @@
 import 'package:fitd25/mixins/current_challenge_mixin.dart';
 import 'package:fitd25/screens/home_screen.dart';
+import 'package:fitd25/screens/waiting_for_challenge.dart';
 import 'package:fitd25/widgets/countdown_overlay.dart';
 import 'package:json_dynamic_widget/json_dynamic_widget.dart';
 import 'package:timeago_flutter/timeago_flutter.dart';
@@ -13,6 +14,11 @@ class ShowScreen extends StatefulWidget {
 
 class _ShowScreenState extends State<ShowScreen> with CurrentChallengeMixin {
   @override
+  void onChallengeStart() {
+    setState(() {});
+  }
+
+  @override
   void onChallengeEnd() {}
 
   @override
@@ -21,6 +27,10 @@ class _ShowScreenState extends State<ShowScreen> with CurrentChallengeMixin {
 
     if (challenge == null) {
       return const HomeScreen();
+    }
+
+    if (challenge.isInTheFuture) {
+      return WaitingForChallenge(challenge: challenge);
     }
 
     return Scaffold(
