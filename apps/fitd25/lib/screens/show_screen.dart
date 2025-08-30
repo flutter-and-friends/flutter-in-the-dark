@@ -34,7 +34,6 @@ class _ShowScreenState extends State<ShowScreen> with CurrentChallengeMixin {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(challenge.name)),
       body: Stack(
         alignment: Alignment.center,
         children: [
