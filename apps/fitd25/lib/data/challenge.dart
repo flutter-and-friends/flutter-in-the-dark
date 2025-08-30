@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:collection/collection.dart';
 import 'package:json_dynamic_widget/json_dynamic_widget.dart';
@@ -23,7 +25,7 @@ class ChallengeBase {
     'dartPadId': dartPadId,
     'challengeId': challengeId,
     'assets': assets,
-    'widgetJson': widgetJson,
+    'widgetJson': jsonEncode(widgetJson),
   };
 
   late final jsonWidgetData = JsonWidgetData.fromDynamic(widgetJson);
@@ -47,14 +49,14 @@ class ChallengeBase {
       'dartPadId': String dartPadId,
       'challengeId': String challengeId,
       'assets': Map<String, dynamic>? assets,
-      'widgetJson': Map<String, dynamic> widgetJson,
+      'widgetJson': String widgetJson,
     } = data;
     return ChallengeBase(
       name: name,
       dartPadId: dartPadId,
       challengeId: challengeId,
       assets: assets?.cast() ?? const {},
-      widgetJson: widgetJson,
+      widgetJson: jsonDecode(widgetJson) as Map<String, dynamic>,
     );
   }
 }
@@ -85,7 +87,7 @@ class Challenge extends ChallengeBase {
         'endTime': final Timestamp endTime,
         'dartPadId': final String dartPadId,
         'challengeId': final String challengeId,
-        'widgetJson': final Map<String, dynamic> widgetJson,
+        'widgetJson': final String widgetJson,
         'assets': final Map<String, dynamic>? assets,
       }:
         return Challenge(
@@ -95,7 +97,7 @@ class Challenge extends ChallengeBase {
           startTime: startTime.toDate(),
           endTime: endTime.toDate(),
           assets: assets?.cast() ?? const {},
-          widgetJson: widgetJson,
+          widgetJson: jsonDecode(widgetJson) as Map<String, dynamic>,
         );
     }
     return null;

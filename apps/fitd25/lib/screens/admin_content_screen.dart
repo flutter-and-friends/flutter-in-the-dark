@@ -21,6 +21,7 @@ class _AdminContentScreenState extends State<AdminContentScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: Container(),
         title: const Text('Admin'),
         actions: [
           IconButton(
