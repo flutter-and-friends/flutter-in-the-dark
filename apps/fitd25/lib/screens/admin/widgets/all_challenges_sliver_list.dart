@@ -34,7 +34,7 @@ class _AllChallengesSliverListState extends State<AllChallengesSliverList> {
 
     final result = await showDialog<Map<String, DateTime>>(
       context: context,
-      builder: (context) => SetChallengeDialog(initialDate: now),
+      builder: (context) => const SetChallengeDialog(),
     );
 
     if (result == null) return;
