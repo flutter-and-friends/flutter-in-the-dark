@@ -1,4 +1,5 @@
 import 'package:fitd25/data/challenge.dart';
+import 'package:fitd25/widgets/countdown_overlay.dart';
 import 'package:flutter/material.dart';
 import 'package:timeago_flutter/timeago_flutter.dart';
 
@@ -15,12 +16,18 @@ class WaitingForChallenge extends StatelessWidget {
         date: challenge.startTime,
         allowFromNow: true,
         builder: (context, time) {
-          return Center(
-            child: Text(
-              'Starting "${challenge.name}" in $time',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          );
+          final remainingTime = challenge.startTime.difference(DateTime.now());
+
+          if (remainingTime.isNegative || remainingTime.inSeconds > 10) {
+            return Center(
+              child: Text(
+                'Starting "${challenge.name}" in $time',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+            );
+          }
+
+          return CountdownOverlay(duration: remainingTime);
         },
       ),
     );
