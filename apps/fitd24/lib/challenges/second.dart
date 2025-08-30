@@ -69,11 +69,11 @@ class Second extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  FlutterLogo(size: 100),
-                  SizedBox(height: 12),
+                  const FlutterLogo(size: 100),
+                  const SizedBox(height: 12),
                   Text(
                     'Flutter Chat',
-                  style: theme.textTheme.headlineMedium,
+                    style: theme.textTheme.headlineMedium,
                   ),
                 ],
               ),

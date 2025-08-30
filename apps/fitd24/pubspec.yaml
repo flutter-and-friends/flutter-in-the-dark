@@ -13,7 +13,7 @@ dependencies:
       path: ff_card
   flutter:
     sdk: flutter
-
+  google_fonts: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

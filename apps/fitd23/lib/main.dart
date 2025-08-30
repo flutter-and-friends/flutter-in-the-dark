@@ -92,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 16),
               ElevatedButton(
                 style: ButtonStyle(
-                    backgroundColor: MaterialStateColor.resolveWith(
+                    backgroundColor: WidgetStateColor.resolveWith(
                   (states) => Colors.pink,
                 )),
                 onPressed: () => Navigator.pushNamed(context, FinalFinal.path),

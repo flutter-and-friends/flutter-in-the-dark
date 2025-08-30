@@ -1,5 +1,5 @@
-// ignore_for_file: implementation_imports, depend_on_referenced_packages
 import 'package:ff_card/ff_card.dart';
+// ignore: implementation_imports
 import 'package:ff_card/src/ff_card/ff_card_middle_section.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';

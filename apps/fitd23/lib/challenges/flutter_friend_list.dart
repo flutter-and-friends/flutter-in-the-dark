@@ -16,7 +16,7 @@ class _FlutterFriendListState extends State<FlutterFriendList> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-         backgroundColor: Colors.blueGrey,
+        backgroundColor: Colors.blueGrey,
         title: const Text("Flutter Friend List"),
         centerTitle: true,
       ),
