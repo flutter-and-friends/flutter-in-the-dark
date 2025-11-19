@@ -386,7 +386,7 @@ class JsonCircleAvatarBuilderModel extends JsonWidgetBuilderModel {
         result = JsonCircleAvatarBuilderModel(
           args,
           backgroundColor: () {
-            dynamic parsed = ThemeDecoder.decodeColor(
+            dynamic parsed = ThemeDecoder.instance.decodeColor(
               map['backgroundColor'],
               validate: false,
             );
@@ -395,7 +395,7 @@ class JsonCircleAvatarBuilderModel extends JsonWidgetBuilderModel {
           }(),
           backgroundImage: map['backgroundImage'],
           foregroundColor: () {
-            dynamic parsed = ThemeDecoder.decodeColor(
+            dynamic parsed = ThemeDecoder.instance.decodeColor(
               map['foregroundColor'],
               validate: false,
             );
@@ -438,9 +438,9 @@ class JsonCircleAvatarBuilderModel extends JsonWidgetBuilderModel {
   @override
   Map<String, dynamic> toJson() {
     return JsonClass.removeNull({
-      'backgroundColor': ThemeEncoder.encodeColor(backgroundColor),
+      'backgroundColor': ThemeEncoder.instance.encodeColor(backgroundColor),
       'backgroundImage': backgroundImage,
-      'foregroundColor': ThemeEncoder.encodeColor(foregroundColor),
+      'foregroundColor': ThemeEncoder.instance.encodeColor(foregroundColor),
       'foregroundImage': foregroundImage,
       'maxRadius': maxRadius,
       'minRadius': minRadius,
@@ -476,6 +476,5 @@ class CircleAvatarSchema {
       'radius': SchemaHelper.numberSchema,
       'child': SchemaHelper.objectSchema(JsonWidgetDataSchema.id),
     },
-    'required': [],
   };
 }

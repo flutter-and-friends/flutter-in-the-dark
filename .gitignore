@@ -32,6 +32,12 @@ migrate_working_dir/
 .pub/
 /build/
 
+/apps/fitd25/macos/Pods/
+/apps/fitd25/macos/Flutter/
+/apps/fitd25/macos/Podfile
+
+
+
 # Symbolication related
 app.*.symbols
 

@@ -37,7 +37,37 @@ class _ShowScreenState extends State<ShowScreen> with CurrentChallengeMixin {
       body: Stack(
         alignment: Alignment.center,
         children: [
-          challenge.jsonWidgetData.build(context: context),
+          Center(
+            child: AspectRatio(
+              aspectRatio: 430 / 764,
+              child: FittedBox(
+                child: SizedBox(
+                  width: 430,
+                  height: 764,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(32),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          blurRadius: 20,
+                          spreadRadius: 5,
+                        ),
+                      ],
+                    ),
+                    foregroundDecoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(32),
+                      border: Border.all(color: Colors.grey.shade900, width: 12),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(32),
+                      child: challenge.jsonWidgetData.build(context: context),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
           Positioned(
             top: 50,
             child: Timeago(
@@ -56,17 +86,44 @@ class _ShowScreenState extends State<ShowScreen> with CurrentChallengeMixin {
                 }
 
                 if (remainingTime.inSeconds > 10) {
-                  return Text(
-                    'Time remaining: $time',
-                    style: const TextStyle(
-                      fontSize: 48,
-                      backgroundColor: Colors.black54,
-                      color: Colors.white,
+                  return SafeArea(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(32),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.timer_outlined,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            time,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }
 
-                return Container();
+                return const SizedBox.shrink();
               },
             ),
           ),

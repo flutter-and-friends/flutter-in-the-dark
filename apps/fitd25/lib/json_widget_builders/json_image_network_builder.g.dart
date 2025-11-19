@@ -343,7 +343,7 @@ class JsonImageNetworkBuilderModel extends JsonWidgetBuilderModel {
         result = JsonImageNetworkBuilderModel(
           args,
           alignment: () {
-            dynamic parsed = ThemeDecoder.decodeAlignment(
+            dynamic parsed = ThemeDecoder.instance.decodeAlignment(
               map['alignment'],
               validate: false,
             );
@@ -362,7 +362,7 @@ class JsonImageNetworkBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           centerSlice: () {
-            dynamic parsed = ThemeDecoder.decodeRect(
+            dynamic parsed = ThemeDecoder.instance.decodeRect(
               map['centerSlice'],
               validate: false,
             );
@@ -370,7 +370,7 @@ class JsonImageNetworkBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           color: () {
-            dynamic parsed = ThemeDecoder.decodeColor(
+            dynamic parsed = ThemeDecoder.instance.decodeColor(
               map['color'],
               validate: false,
             );
@@ -378,7 +378,7 @@ class JsonImageNetworkBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           colorBlendMode: () {
-            dynamic parsed = ThemeDecoder.decodeBlendMode(
+            dynamic parsed = ThemeDecoder.instance.decodeBlendMode(
               map['colorBlendMode'],
               validate: false,
             );
@@ -391,7 +391,7 @@ class JsonImageNetworkBuilderModel extends JsonWidgetBuilderModel {
             whenNull: false,
           ),
           filterQuality: () {
-            dynamic parsed = ThemeDecoder.decodeFilterQuality(
+            dynamic parsed = ThemeDecoder.instance.decodeFilterQuality(
               map['filterQuality'],
               validate: false,
             );
@@ -400,7 +400,7 @@ class JsonImageNetworkBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           fit: () {
-            dynamic parsed = ThemeDecoder.decodeBoxFit(
+            dynamic parsed = ThemeDecoder.instance.decodeBoxFit(
               map['fit'],
               validate: false,
             );
@@ -430,7 +430,7 @@ class JsonImageNetworkBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           repeat: () {
-            dynamic parsed = ThemeDecoder.decodeImageRepeat(
+            dynamic parsed = ThemeDecoder.instance.decodeImageRepeat(
               map['repeat'],
               validate: false,
             );
@@ -466,20 +466,20 @@ class JsonImageNetworkBuilderModel extends JsonWidgetBuilderModel {
     return JsonClass.removeNull({
       'alignment': Alignment.center == alignment
           ? null
-          : ThemeEncoder.encodeAlignment(alignment),
+          : ThemeEncoder.instance.encodeAlignment(alignment),
       'cacheHeight': cacheHeight,
       'cacheWidth': cacheWidth,
-      'centerSlice': ThemeEncoder.encodeRect(centerSlice),
-      'color': ThemeEncoder.encodeColor(color),
-      'colorBlendMode': ThemeEncoder.encodeBlendMode(colorBlendMode),
+      'centerSlice': ThemeEncoder.instance.encodeRect(centerSlice),
+      'color': ThemeEncoder.instance.encodeColor(color),
+      'colorBlendMode': ThemeEncoder.instance.encodeBlendMode(colorBlendMode),
       'errorBuilder': errorBuilder,
       'excludeFromSemantics': false == excludeFromSemantics
           ? null
           : excludeFromSemantics,
       'filterQuality': FilterQuality.low == filterQuality
           ? null
-          : ThemeEncoder.encodeFilterQuality(filterQuality),
-      'fit': ThemeEncoder.encodeBoxFit(fit),
+          : ThemeEncoder.instance.encodeFilterQuality(filterQuality),
+      'fit': ThemeEncoder.instance.encodeBoxFit(fit),
       'frameBuilder': frameBuilder,
       'gaplessPlayback': false == gaplessPlayback ? null : gaplessPlayback,
       'headers': headers,
@@ -492,7 +492,7 @@ class JsonImageNetworkBuilderModel extends JsonWidgetBuilderModel {
       'opacity': opacity,
       'repeat': ImageRepeat.noRepeat == repeat
           ? null
-          : ThemeEncoder.encodeImageRepeat(repeat),
+          : ThemeEncoder.instance.encodeImageRepeat(repeat),
       'scale': 1.0 == scale ? null : scale,
       'semanticLabel': semanticLabel,
       'src': src,
@@ -543,6 +543,5 @@ class ImageNetworkSchema {
       'webHtmlElementStrategy': SchemaHelper.anySchema,
       'width': SchemaHelper.numberSchema,
     },
-    'required': ['src'],
   };
 }

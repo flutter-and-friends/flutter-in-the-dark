@@ -41,7 +41,7 @@ class _EditChallengeScreenState extends State<EditChallengeScreen> {
     _assets = Map<String, String>.from(widget.challenge?.assets ?? {});
   }
 
-  Future<void> _showAddAssetDialog() async {
+  Future<void> _showAddAssetDialog() {
     final nameController = TextEditingController();
     final contentController = TextEditingController();
 

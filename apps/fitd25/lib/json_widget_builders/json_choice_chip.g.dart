@@ -423,7 +423,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           avatarBorder: () {
-            dynamic parsed = ThemeDecoder.decodeShapeBorder(
+            dynamic parsed = ThemeDecoder.instance.decodeShapeBorder(
               map['avatarBorder'],
               validate: false,
             );
@@ -432,7 +432,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           avatarBoxConstraints: () {
-            dynamic parsed = ThemeDecoder.decodeBoxConstraints(
+            dynamic parsed = ThemeDecoder.instance.decodeBoxConstraints(
               map['avatarBoxConstraints'],
               validate: false,
             );
@@ -440,7 +440,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           backgroundColor: () {
-            dynamic parsed = ThemeDecoder.decodeColor(
+            dynamic parsed = ThemeDecoder.instance.decodeColor(
               map['backgroundColor'],
               validate: false,
             );
@@ -448,7 +448,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           checkmarkColor: () {
-            dynamic parsed = ThemeDecoder.decodeColor(
+            dynamic parsed = ThemeDecoder.instance.decodeColor(
               map['checkmarkColor'],
               validate: false,
             );
@@ -457,7 +457,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
           }(),
           chipAnimationStyle: map['chipAnimationStyle'],
           clipBehavior: () {
-            dynamic parsed = ThemeDecoder.decodeClip(
+            dynamic parsed = ThemeDecoder.instance.decodeClip(
               map['clipBehavior'],
               validate: false,
             );
@@ -467,7 +467,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
           }(),
           color: map['color'],
           disabledColor: () {
-            dynamic parsed = ThemeDecoder.decodeColor(
+            dynamic parsed = ThemeDecoder.instance.decodeColor(
               map['disabledColor'],
               validate: false,
             );
@@ -481,7 +481,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
           }(),
           focusNode: map['focusNode'],
           iconTheme: () {
-            dynamic parsed = ThemeDecoder.decodeIconThemeData(
+            dynamic parsed = ThemeDecoder.instance.decodeIconThemeData(
               map['iconTheme'],
               validate: false,
             );
@@ -502,7 +502,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           labelPadding: () {
-            dynamic parsed = ThemeDecoder.decodeEdgeInsetsGeometry(
+            dynamic parsed = ThemeDecoder.instance.decodeEdgeInsetsGeometry(
               map['labelPadding'],
               validate: false,
             );
@@ -510,7 +510,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           labelStyle: () {
-            dynamic parsed = ThemeDecoder.decodeTextStyle(
+            dynamic parsed = ThemeDecoder.instance.decodeTextStyle(
               map['labelStyle'],
               validate: false,
             );
@@ -518,7 +518,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           materialTapTargetSize: () {
-            dynamic parsed = ThemeDecoder.decodeMaterialTapTargetSize(
+            dynamic parsed = ThemeDecoder.instance.decodeMaterialTapTargetSize(
               map['materialTapTargetSize'],
               validate: false,
             );
@@ -526,7 +526,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           mouseCursor: () {
-            dynamic parsed = ThemeDecoder.decodeMouseCursor(
+            dynamic parsed = ThemeDecoder.instance.decodeMouseCursor(
               map['mouseCursor'],
               validate: false,
             );
@@ -535,7 +535,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
           }(),
           onSelected: map['onSelected'],
           padding: () {
-            dynamic parsed = ThemeDecoder.decodeEdgeInsetsGeometry(
+            dynamic parsed = ThemeDecoder.instance.decodeEdgeInsetsGeometry(
               map['padding'],
               validate: false,
             );
@@ -549,7 +549,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
           }(),
           selected: JsonClass.parseBool(map['selected'], whenNull: false),
           selectedColor: () {
-            dynamic parsed = ThemeDecoder.decodeColor(
+            dynamic parsed = ThemeDecoder.instance.decodeColor(
               map['selectedColor'],
               validate: false,
             );
@@ -557,7 +557,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           selectedShadowColor: () {
-            dynamic parsed = ThemeDecoder.decodeColor(
+            dynamic parsed = ThemeDecoder.instance.decodeColor(
               map['selectedShadowColor'],
               validate: false,
             );
@@ -565,7 +565,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           shadowColor: () {
-            dynamic parsed = ThemeDecoder.decodeColor(
+            dynamic parsed = ThemeDecoder.instance.decodeColor(
               map['shadowColor'],
               validate: false,
             );
@@ -573,7 +573,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           shape: () {
-            dynamic parsed = ThemeDecoder.decodeOutlinedBorder(
+            dynamic parsed = ThemeDecoder.instance.decodeOutlinedBorder(
               map['shape'],
               validate: false,
             );
@@ -582,7 +582,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
           }(),
           showCheckmark: JsonClass.maybeParseBool(map['showCheckmark']),
           side: () {
-            dynamic parsed = ThemeDecoder.decodeBorderSide(
+            dynamic parsed = ThemeDecoder.instance.decodeBorderSide(
               map['side'],
               validate: false,
             );
@@ -590,7 +590,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
             return parsed;
           }(),
           surfaceTintColor: () {
-            dynamic parsed = ThemeDecoder.decodeColor(
+            dynamic parsed = ThemeDecoder.instance.decodeColor(
               map['surfaceTintColor'],
               validate: false,
             );
@@ -599,7 +599,7 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
           }(),
           tooltip: map['tooltip'],
           visualDensity: () {
-            dynamic parsed = ThemeDecoder.decodeVisualDensity(
+            dynamic parsed = ThemeDecoder.instance.decodeVisualDensity(
               map['visualDensity'],
               validate: false,
             );
@@ -620,41 +620,44 @@ class JsonChoiceChipBuilderModel extends JsonWidgetBuilderModel {
       'avatar': avatar?.toJson(),
       'avatarBorder': const CircleBorder() == avatarBorder
           ? null
-          : ThemeEncoder.encodeShapeBorder(avatarBorder),
-      'avatarBoxConstraints': ThemeEncoder.encodeBoxConstraints(
+          : ThemeEncoder.instance.encodeShapeBorder(avatarBorder),
+      'avatarBoxConstraints': ThemeEncoder.instance.encodeBoxConstraints(
         avatarBoxConstraints,
       ),
-      'backgroundColor': ThemeEncoder.encodeColor(backgroundColor),
-      'checkmarkColor': ThemeEncoder.encodeColor(checkmarkColor),
+      'backgroundColor': ThemeEncoder.instance.encodeColor(backgroundColor),
+      'checkmarkColor': ThemeEncoder.instance.encodeColor(checkmarkColor),
       'chipAnimationStyle': chipAnimationStyle,
       'clipBehavior': Clip.none == clipBehavior
           ? null
-          : ThemeEncoder.encodeClip(clipBehavior),
+          : ThemeEncoder.instance.encodeClip(clipBehavior),
       'color': color,
-      'disabledColor': ThemeEncoder.encodeColor(disabledColor),
+      'disabledColor': ThemeEncoder.instance.encodeColor(disabledColor),
       'elevation': elevation,
       'focusNode': focusNode,
-      'iconTheme': ThemeEncoder.encodeIconThemeData(iconTheme),
+      'iconTheme': ThemeEncoder.instance.encodeIconThemeData(iconTheme),
       'label': label.toJson(),
-      'labelPadding': ThemeEncoder.encodeEdgeInsetsGeometry(labelPadding),
-      'labelStyle': ThemeEncoder.encodeTextStyle(labelStyle),
-      'materialTapTargetSize': ThemeEncoder.encodeMaterialTapTargetSize(
-        materialTapTargetSize,
+      'labelPadding': ThemeEncoder.instance.encodeEdgeInsetsGeometry(
+        labelPadding,
       ),
-      'mouseCursor': ThemeEncoder.encodeMouseCursor(mouseCursor),
+      'labelStyle': ThemeEncoder.instance.encodeTextStyle(labelStyle),
+      'materialTapTargetSize': ThemeEncoder.instance
+          .encodeMaterialTapTargetSize(materialTapTargetSize),
+      'mouseCursor': ThemeEncoder.instance.encodeMouseCursor(mouseCursor),
       'onSelected': onSelected,
-      'padding': ThemeEncoder.encodeEdgeInsetsGeometry(padding),
+      'padding': ThemeEncoder.instance.encodeEdgeInsetsGeometry(padding),
       'pressElevation': pressElevation,
       'selected': selected,
-      'selectedColor': ThemeEncoder.encodeColor(selectedColor),
-      'selectedShadowColor': ThemeEncoder.encodeColor(selectedShadowColor),
-      'shadowColor': ThemeEncoder.encodeColor(shadowColor),
-      'shape': ThemeEncoder.encodeOutlinedBorder(shape),
+      'selectedColor': ThemeEncoder.instance.encodeColor(selectedColor),
+      'selectedShadowColor': ThemeEncoder.instance.encodeColor(
+        selectedShadowColor,
+      ),
+      'shadowColor': ThemeEncoder.instance.encodeColor(shadowColor),
+      'shape': ThemeEncoder.instance.encodeOutlinedBorder(shape),
       'showCheckmark': showCheckmark,
-      'side': ThemeEncoder.encodeBorderSide(side),
-      'surfaceTintColor': ThemeEncoder.encodeColor(surfaceTintColor),
+      'side': ThemeEncoder.instance.encodeBorderSide(side),
+      'surfaceTintColor': ThemeEncoder.instance.encodeColor(surfaceTintColor),
       'tooltip': tooltip,
-      'visualDensity': ThemeEncoder.encodeVisualDensity(visualDensity),
+      'visualDensity': ThemeEncoder.instance.encodeVisualDensity(visualDensity),
 
       ...args,
     });
@@ -708,6 +711,5 @@ class ChoiceChipSchema {
       'tooltip': SchemaHelper.stringSchema,
       'visualDensity': SchemaHelper.objectSchema(VisualDensitySchema.id),
     },
-    'required': ['label', 'selected'],
   };
 }
