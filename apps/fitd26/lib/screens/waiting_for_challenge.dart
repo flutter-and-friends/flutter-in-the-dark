@@ -1,4 +1,4 @@
-import 'package:fitd26/data/challenge.dart';
+import 'package:fitd26/room/room_models.dart';
 import 'package:fitd26/widgets/countdown_overlay.dart';
 import 'package:flutter/material.dart';
 import 'package:timeago_flutter/timeago_flutter.dart';

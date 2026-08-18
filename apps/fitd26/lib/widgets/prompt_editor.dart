@@ -1,25 +1,27 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fitd26/data/challenger.dart';
+import 'package:fitd26/room/room_client.dart';
 import 'package:flutter/material.dart';
 
 /// The contestant "Prompting in the Dark" editor: a comfortable multi-line
-/// prompt writing surface that live-syncs (debounced) to the player's
-/// Firestore `prompt` field.
+/// prompt writing surface that live-syncs (debounced) to the room service.
+///
+/// NO Generate button (§6.D): the buzzer pushes every prompt server-side;
+/// the contestant never triggers generation.
 class PromptEditor extends StatefulWidget {
   const PromptEditor({
     super.key,
-    required this.player,
-    required this.onGenerate,
+    required this.playerId,
+    required this.token,
+    required this.initialPrompt,
+    required this.client,
     this.enabled = true,
   });
 
-  final Player player;
-
-  /// Invoked with the flushed prompt when the Generate action is pressed.
-  final void Function(String prompt) onGenerate;
-
+  final String playerId;
+  final String token;
+  final String initialPrompt;
+  final RoomClient client;
   final bool enabled;
 
   @override
@@ -29,75 +31,58 @@ class PromptEditor extends StatefulWidget {
 class PromptEditorState extends State<PromptEditor> {
   static const _debounce = Duration(milliseconds: 400);
 
-  final TextEditingController _controller = TextEditingController();
+  late final TextEditingController _controller;
   final FocusNode _focusNode = FocusNode();
   Timer? _debounceTimer;
   String _lastSyncedPrompt = '';
 
-  bool get _canGenerate =>
-      widget.enabled && _controller.text.trim().length >= 10;
-
   @override
   void initState() {
     super.initState();
-    _restorePrompt(widget.player.prompt);
-  }
-
-  @override
-  void didUpdateWidget(PromptEditor oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Restore from Firestore only when the change came from elsewhere
-    // (e.g. first load after auth): the doc value moved away from both what
-    // we last synced and what is currently in the field.
-    if (widget.player.id != oldWidget.player.id ||
-        (widget.player.prompt != oldWidget.player.prompt &&
-            widget.player.prompt != _lastSyncedPrompt &&
-            widget.player.prompt != _controller.text)) {
-      _restorePrompt(widget.player.prompt);
-    }
-  }
-
-  void _restorePrompt(String prompt) {
-    if (prompt == _controller.text) return;
-    _controller.value = TextEditingValue(
-      text: prompt,
-      selection: TextSelection.collapsed(offset: prompt.length),
+    _controller = TextEditingController(text: widget.initialPrompt);
+    _lastSyncedPrompt = widget.initialPrompt;
+    // Place the cursor at the end.
+    _controller.selection = TextSelection.collapsed(
+      offset: widget.initialPrompt.length,
     );
-    _lastSyncedPrompt = prompt;
   }
 
   void _onChanged(String text) {
-    setState(() {}); // refresh character count / Generate enablement
+    setState(() {}); // refresh character count
     _debounceTimer?.cancel();
     _debounceTimer = Timer(_debounce, () => syncNow());
   }
 
-  /// Flushes the current text to Firestore immediately (used by Generate and
-  /// dispose). Writes ONLY the `prompt` field (partial write, I-015).
+  /// Flushes the current text to the room service immediately.
   Future<void> syncNow() async {
     _debounceTimer?.cancel();
     final text = _controller.text;
     if (text == _lastSyncedPrompt) return;
     _lastSyncedPrompt = text;
-    await FirebaseFirestore.instance
-        .collection('fitd')
-        .doc('state')
-        .collection('challengers')
-        .doc(widget.player.id)
-        .update({'prompt': text});
+    try {
+      await widget.client.updatePrompt(
+        playerId: widget.playerId,
+        token: widget.token,
+        prompt: text,
+      );
+    } catch (_) {
+      // Best-effort: the debounce will retry on the next keystroke, and the
+      // buzzer flushes whatever made it. A dropped update shows up as a stale
+      // prompt on /show, which the admin sees.
+      _lastSyncedPrompt = '';
+    }
   }
 
   @override
   void dispose() {
     if (_controller.text != _lastSyncedPrompt) {
-      // Best-effort final flush; Firestore's offline cache will deliver it.
+      // Best-effort final flush.
       unawaited(
-        FirebaseFirestore.instance
-            .collection('fitd')
-            .doc('state')
-            .collection('challengers')
-            .doc(widget.player.id)
-            .update({'prompt': _controller.text}),
+        widget.client.updatePrompt(
+          playerId: widget.playerId,
+          token: widget.token,
+          prompt: _controller.text,
+        ),
       );
     }
     _debounceTimer?.cancel();
@@ -179,24 +164,11 @@ class PromptEditorState extends State<PromptEditor> {
                 ),
               ),
               const Spacer(),
-              FilledButton.icon(
-                onPressed: _canGenerate
-                    ? () async {
-                        await syncNow();
-                        widget.onGenerate(_controller.text);
-                      }
-                    : null,
-                icon: const Icon(Icons.auto_awesome),
-                label: const Text('Generate'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF238636),
-                  disabledBackgroundColor: const Color(0xFF21262D),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 16,
-                  ),
+              if (!widget.enabled)
+                const Text(
+                  "Time's up — your prompt is with the generator.",
+                  style: TextStyle(color: Colors.white38, fontSize: 12),
                 ),
-              ),
             ],
           ),
         ],

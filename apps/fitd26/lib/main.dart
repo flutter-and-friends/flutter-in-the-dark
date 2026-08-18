@@ -1,32 +1,32 @@
-import 'dart:async';
-
-import 'package:firebase_core/firebase_core.dart';
-import 'package:fitd26/firebase_options.dart';
-import 'package:fitd26/json_widget_builders/all_json_widget_builders.dart';
 import 'package:fitd26/override_en_timeago.dart';
+import 'package:fitd26/room/room_sync.dart';
 import 'package:fitd26/screens/admin_screen.dart';
 import 'package:fitd26/screens/player_selection_screen.dart';
 import 'package:fitd26/screens/show_screen.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:json_dynamic_widget/json_dynamic_widget.dart';
 import 'package:timeago_flutter/timeago_flutter.dart'
     show setDefaultLocale, setLocaleMessages;
 
 Future<void> main() async {
   usePathUrlStrategy();
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   setLocaleMessages('en', OverrideEnTimeAgo());
   setDefaultLocale('en');
   await initializeDateFormatting('sv_SE');
-  AllJsonWidgetBuilders.register();
-  runApp(const MainApp());
+
+  // One room-state connection shared by every route (replaces Firestore).
+  final roomSync = RoomSync()..start();
+
+  runApp(MainApp(roomSync: roomSync));
 }
 
 class MainApp extends StatelessWidget {
-  const MainApp({super.key});
+  const MainApp({super.key, required this.roomSync});
+
+  final RoomSync roomSync;
 
   @override
   Widget build(BuildContext context) {
@@ -42,12 +42,16 @@ class MainApp extends StatelessWidget {
       onGenerateRoute: (settings) {
         switch (settings.name) {
           case '/admin':
-            return MaterialPageRoute(builder: (context) => const AdminScreen());
+            return MaterialPageRoute(
+              builder: (context) => AdminScreen(roomSync: roomSync),
+            );
           case '/show':
-            return MaterialPageRoute(builder: (context) => const ShowScreen());
+            return MaterialPageRoute(
+              builder: (context) => ShowScreen(roomSync: roomSync),
+            );
           default:
             return MaterialPageRoute(
-              builder: (context) => const PlayerSelectionScreen(),
+              builder: (context) => PlayerSelectionScreen(roomSync: roomSync),
             );
         }
       },

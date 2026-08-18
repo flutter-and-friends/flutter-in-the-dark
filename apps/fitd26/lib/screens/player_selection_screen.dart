@@ -1,53 +1,68 @@
-import 'package:fitd26/mixins/current_challenger_mixin.dart';
+import 'package:fitd26/room/room_sync.dart';
+import 'package:fitd26/room/session_store.dart';
 import 'package:fitd26/screens/challenge_screen.dart';
 import 'package:flutter/material.dart';
 
+/// Challenger join: name field → Start challenge → lobby/challenge screen
+/// (unchanged from the POC flow).
 class PlayerSelectionScreen extends StatefulWidget {
-  const PlayerSelectionScreen({super.key});
+  const PlayerSelectionScreen({super.key, required this.roomSync});
+
+  final RoomSync roomSync;
 
   @override
   State<PlayerSelectionScreen> createState() => _PlayerSelectionScreenState();
 }
 
-class _PlayerSelectionScreenState extends State<PlayerSelectionScreen>
-    with CurrentChallengerMixin {
+class _PlayerSelectionScreenState extends State<PlayerSelectionScreen> {
   final _nameController = TextEditingController();
   bool _isLoading = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Already joined on this device (reload / background-resume): skip the
+    // name field entirely.
+    if (SessionStore.read() != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _goToChallenge());
+    }
+  }
+
+  void _goToChallenge() {
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => ChallengeScreen(roomSync: widget.roomSync),
+      ),
+    );
+  }
+
   Future<void> _startChallenge() async {
-    if (_nameController.text.isEmpty) {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Please enter your name')));
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     try {
-      await createChallenger(_nameController.text);
-
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const ChallengeScreen()),
-        );
-      }
-    } catch (e, stackTrace) {
-      debugPrint(e.toString());
-      debugPrintStack(stackTrace: stackTrace);
+      final result = await widget.roomSync.client.join(name);
+      SessionStore.write(
+        playerId: result.playerId,
+        token: result.token,
+        name: name,
+      );
+      _goToChallenge();
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to start challenge: $e')),
+          SnackBar(content: Text('Failed to join: $e')),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
