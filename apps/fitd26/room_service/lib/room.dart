@@ -70,11 +70,35 @@ class RoomState {
     // model (a bogus embedding model was persisted during WI-098 development).
     gen.candidates.removeWhere((c) => !isChatModel(c.id));
     if (gen.candidates.isEmpty) {
-      gen.candidates = [for (final id in knownModels) ModelCandidate(id: id)];
+      gen.candidates = [for (final id in knownModels) _candidateFor(id)];
     } else {
       final have = gen.candidates.map((c) => c.id).toSet();
       for (final id in knownModels) {
-        if (!have.contains(id)) gen.candidates.add(ModelCandidate(id: id));
+        if (!have.contains(id)) gen.candidates.add(_candidateFor(id));
+      }
+      // Backfill the served-effort annotation on existing candidates (it is
+      // derived from the pipeline map, not persisted, so a code change to the
+      // map is reflected on next boot).
+      for (var i = 0; i < gen.candidates.length; i++) {
+        final c = gen.candidates[i];
+        final e = Pipeline.effortFor(c.id);
+        if (c.effort != e) {
+          gen.candidates[i] = ModelCandidate(
+            id: c.id,
+            active: c.active,
+            successPct: c.successPct,
+            meanLatencyS: c.meanLatencyS,
+            proseLeakPct: c.proseLeakPct,
+            quality: c.quality,
+            runs: c.runs,
+            isChat: c.isChat,
+            concurrentSuccessPct: c.concurrentSuccessPct,
+            concurrentLatencyS: c.concurrentLatencyS,
+            concurrentWallS: c.concurrentWallS,
+            concurrentRuns: c.concurrentRuns,
+            effort: e,
+          );
+        }
       }
     }
     // Resolve the effective model: a persisted active selection wins; else a
@@ -113,6 +137,12 @@ class RoomState {
   /// Models that must never appear in the picker (embedding / transcription —
   /// they reject chat completions). Used to scrub stale persisted entries.
   static bool isChatModel(String id) => knownModels.contains(id);
+
+  /// Builds a candidate for [id], annotating it with the served
+  /// `reasoning_effort` from the pipeline's preferred-effort map (null for
+  /// models that use the provider default).
+  static ModelCandidate _candidateFor(String id) =>
+      ModelCandidate(id: id, effort: Pipeline.effortFor(id));
 
   /// Live model failover (admin). Re-points the pipeline at [model] for all
   /// new generation and broadcasts the change. In-flight work keeps the model

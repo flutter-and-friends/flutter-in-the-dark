@@ -145,6 +145,7 @@ class ModelCandidate {
     this.concurrentLatencyS,
     this.concurrentWallS,
     this.concurrentRuns = 0,
+    this.effort,
   });
 
   /// Full Berget model id, e.g. `moonshotai/Kimi-K3`.
@@ -173,6 +174,12 @@ class ModelCandidate {
   final double? concurrentWallS;
   final int concurrentRuns;
 
+  /// The `reasoning_effort` this model is served at when selected (e.g. Kimi
+  /// runs at "low" to avoid its reasoning-collapse). Null = provider default.
+  /// Populated server-side from the pipeline's preferred-effort map so the
+  /// picker can show "the picker's Kimi is the fast low variant".
+  final String? effort;
+
   /// False for non-chat (e.g. embedding/whisper) models that can never serve
   /// generateCode. Filtered from the picker; kept in state only so a stale
   /// persisted entry doesn't reappear as selectable.
@@ -192,6 +199,7 @@ class ModelCandidate {
     if (concurrentLatencyS != null) 'concurrentLatencyS': concurrentLatencyS,
     if (concurrentWallS != null) 'concurrentWallS': concurrentWallS,
     'concurrentRuns': concurrentRuns,
+    if (effort != null) 'effort': effort,
   };
 
   static ModelCandidate fromJson(Map<String, dynamic> json) => ModelCandidate(
@@ -207,6 +215,7 @@ class ModelCandidate {
     concurrentLatencyS: (json['concurrentLatencyS'] as num?)?.toDouble(),
     concurrentWallS: (json['concurrentWallS'] as num?)?.toDouble(),
     concurrentRuns: json['concurrentRuns'] as int? ?? 0,
+    effort: json['effort'] as String?,
   );
 }
 

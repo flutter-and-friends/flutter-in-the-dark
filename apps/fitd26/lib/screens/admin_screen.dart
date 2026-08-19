@@ -161,13 +161,39 @@ class _ModelPickerCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    c.shortName,
-                    style: TextStyle(
-                      fontWeight:
-                          c.active ? FontWeight.bold : FontWeight.normal,
-                      color: c.active ? Colors.greenAccent : null,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          c.shortName,
+                          style: TextStyle(
+                            fontWeight:
+                                c.active ? FontWeight.bold : FontWeight.normal,
+                            color: c.active ? Colors.greenAccent : null,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (c.effort != null) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: Colors.blueAccent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                                color: Colors.blueAccent.withValues(alpha: 0.4)),
+                          ),
+                          child: Text(
+                            '${c.effort} effort',
+                            style: const TextStyle(
+                                color: Colors.blueAccent, fontSize: 10),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   Text(
                     c.id,

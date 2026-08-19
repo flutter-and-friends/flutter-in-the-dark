@@ -40,6 +40,23 @@ class Pipeline {
 
   static const maxFixAttempts = 2;
 
+  /// Per-model preferred `reasoning_effort`, sent alongside the per-request
+  /// `model` override. Data-driven so a future model carries its own setting.
+  /// Kimi-K3/K2.6 MUST be served at `low`: at their default effort they are
+  /// slow reasoning models prone to intermittent throughput collapse (the
+  /// WI-098 "hang" — 7645 reasoning tokens), whereas `low` collapses the
+  /// reasoning bloat (measured: 49 vs 295 tokens) and yields fast, stable,
+  /// compilable code (~9s). Models absent from this map send NO effort param
+  /// and use the provider's own default (the right choice for gpt-oss/gemma/
+  /// GLM/Mistral — overriding only adds risk).
+  static const Map<String, String> preferredEffort = {
+    'moonshotai/Kimi-K3': 'low',
+    'moonshotai/Kimi-K2.6': 'low',
+  };
+
+  /// The preferred `reasoning_effort` for [model], or null to send none.
+  static String? effortFor(String model) => preferredEffort[model];
+
   /// A fresh client per pipeline run. A long-lived shared client wedges when
   /// a generation stream is abandoned mid-flight (the per-host connection
   /// pool exhausts and every subsequent send queues forever).
@@ -151,7 +168,9 @@ class Pipeline {
   }
 
   Future<String> _generate(String prompt, http.Client client) async {
-    print('[pipeline] generate START (${prompt.length} chars)');
+    final effort = effortFor(model);
+    print('[pipeline] generate START (${prompt.length} chars, model=$model'
+        '${effort != null ? ', effort=$effort' : ''})');
     final request = http.Request(
       'POST',
       Uri.parse('$backendBase/api/v3/generateCode'),
@@ -162,6 +181,7 @@ class Pipeline {
         'prompt': prompt,
         'attachments': <String>[],
         'model': model,
+        if (effort != null) 'reasoning_effort': effort,
       });
     final result = await _streamText(request, 'generateCode', client);
     print('[pipeline] generate DONE (${result.length} chars)');
@@ -181,6 +201,7 @@ class Pipeline {
         'column': 0,
         'source': source,
         'model': model,
+        if (effortFor(model) case final e?) 'reasoning_effort': e,
       });
     return _streamText(request, 'suggestFix', client);
   }

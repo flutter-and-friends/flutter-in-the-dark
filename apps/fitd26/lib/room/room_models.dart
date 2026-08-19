@@ -133,6 +133,7 @@ class ModelCandidate {
     this.concurrentLatencyS,
     this.concurrentWallS,
     this.concurrentRuns = 0,
+    this.effort,
   });
 
   final String id;
@@ -149,6 +150,10 @@ class ModelCandidate {
   final double? concurrentLatencyS;
   final double? concurrentWallS;
   final int concurrentRuns;
+
+  /// The `reasoning_effort` this model is served at when selected (e.g. Kimi
+  /// runs at "low"). Null = provider default.
+  final String? effort;
 
   /// False for non-chat (embedding/whisper) models — never selectable.
   final bool isChat;
@@ -169,6 +174,7 @@ class ModelCandidate {
     concurrentLatencyS: (json['concurrentLatencyS'] as num?)?.toDouble(),
     concurrentWallS: (json['concurrentWallS'] as num?)?.toDouble(),
     concurrentRuns: json['concurrentRuns'] as int? ?? 0,
+    effort: json['effort'] as String?,
   );
 }
 
