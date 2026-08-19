@@ -6,42 +6,54 @@ name: fitd26
 #
 #     docker compose up -d
 #
-# …brings up Traefik (TLS via Let's Encrypt), the release-built SPA on the
-# APEX https://flutterinthedark.dev/ , and the room-state service +
-# dart_services generation backend (the API) on
+# …brings up cloudflared (the public edge), Traefik (internal HTTP router),
+# the release-built SPA on the APEX https://flutterinthedark.dev/ , and the
+# room-state service + dart_services generation backend (the API) on
 # https://backend.flutterinthedark.dev/ (WI-100 host split: app on apex,
 # API on the backend subdomain — the app calls the API cross-origin; both
 # backends answer CORS for the apex origin).
 #
+# PUBLIC EXPOSURE = CLOUDFLARE TUNNEL (WI-101). cloudflared makes an
+# OUTBOUND-only connection to Cloudflare's edge; there are NO inbound
+# firewall ports, NO DNS A records to the house IP (the IP stays hidden),
+# and NO ACME/Let's Encrypt — Cloudflare terminates TLS at its edge.
+# cloudflared forwards both hostnames to Traefik's INTERNAL plain-HTTP
+# listener (:80, not publicly bound), which keeps all path/host routing.
+#
 # Prerequisites (see DEPLOY.md for the full checklist):
-#   1. DNS A records: BOTH flutterinthedark.dev (apex) AND
-#      backend.flutterinthedark.dev → this host's public IP. Both must be
-#      reachable on :80/:443 for the ACME HTTP-01 challenge.
-#   2. deploy/env/dart_services.env containing BERGET_REFRESH_TOKEN=<secret>
-#      (optionally BERGET_MODEL=…). NEVER commit this file. Verify blind:
-#      file existence + key name only, never print the value (W-083/W-149).
-#   3. Host firewall allows inbound 80+443 (80 is needed for the ACME
-#      HTTP-01 challenge AND redirects to 443).
+#   1. A named Cloudflare Tunnel (Zero Trust dashboard → Networks →
+#      Tunnels) with Public Hostnames:
+#        flutterinthedark.dev         → http://traefik:80
+#        backend.flutterinthedark.dev → http://traefik:80
+#      The dashboard auto-creates the proxied (orange-cloud) CNAMEs to
+#      <tunnel-id>.cfargotunnel.com — NO A records to the house IP.
+#   2. deploy/env/cloudflared.env containing TUNNEL_TOKEN=<token> from the
+#      dashboard. NEVER commit this file. Verify blind (W-083/W-149).
+#   3. deploy/env/dart_services.env containing BERGET_REFRESH_TOKEN=<secret>
+#      (optionally BERGET_MODEL=…). NEVER commit this file. Verify blind.
 #   4. TAILSCALE_IP set to this host's tailscale0 address (tailscale ip -4).
 #      The Tailscale node must have HTTPS certs enabled
 #      (`tailscale cert` / MagicDNS) for the admin listener to serve valid TLS.
 #
 # ┌─────────────────────────── THE /admin GATE ───────────────────────────┐
-# │ WI-093 D2 + 2026-08-19 clarification, UNCHANGED by WI-100: the gate   │
-# │ is STRUCTURAL, not a middleware rule.                                 │
+# │ WI-093 D2 + 2026-08-19 clarification, UNCHANGED by WI-100 and WI-101: │
+# │ the gate is STRUCTURAL, not a middleware rule.                        │
 # │                                                                       │
-# │   PUBLIC entrypoint (443, 0.0.0.0 — apex AND backend subdomain):      │
+# │   PUBLIC path (Cloudflare edge → cloudflared → Traefik :80 — apex AND │
+# │   backend subdomain):                                                 │
 # │     routers exist ONLY for                                            │
 # │       GET /api/state, GET /api/events, POST /api/join, POST /api/prompt│
 # │       dart_services API (backend.*), and the SPA pages / and /show    │
 # │       (apex).                                                         │
 # │     There is NO router for /api/admin/* and NO router for /admin —    │
 # │     Traefik answers 404 on BOTH public hosts. The route does not      │
-# │     exist.                                                            │
+# │     exist. The tunnel transport changes NOTHING about this: the       │
+# │     public path still has no admin router.                            │
 # │                                                                       │
 # │   TAILSCALE entrypoint (4443, bound to the host's 100.x address only):│
 # │     full API surface incl. /api/admin/* + the SPA incl. /admin.       │
 # │     Only reachable from devices on the tailnet (the admin phone).     │
+# │     INDEPENDENT of Cloudflare — does not go through the tunnel.       │
 # │                                                                       │
 # │ The room service itself is UNCHANGED: it has no app-level auth on     │
 # │ admin routes by design; the network gate above IS the auth.           │
@@ -51,7 +63,49 @@ name: fitd26
 # tailnet): see deploy/docker-compose.local.yml.
 
 services:
+  # --------------------------------------------------- public edge (tunnel)
+  # cloudflared is the ONLY public path in. It dials OUT to Cloudflare's
+  # edge (HTTPS/7844, outbound only — no inbound firewall ports, the house
+  # IP is never published) and Cloudflare routes the two Public Hostnames to
+  # it. Both hostnames forward to Traefik's internal HTTP listener below.
+  #
+  # Config is TOKEN-ONLY (WI-101 decision): the ingress/public-hostname map
+  # lives in the Zero Trust dashboard (Networks → Tunnels → <tunnel> →
+  # Public Hostnames), NOT a config file in this repo. That keeps the
+  # operator checklist shortest — create the tunnel, paste two hostnames →
+  # http://traefik:80, copy the token into deploy/env/cloudflared.env — and
+  # the dashboard auto-creates the proxied CNAMEs. The alternative (a
+  # committed config.yml + a credentials JSON) is more moving parts for no
+  # gain here; Traefik already owns every routing decision.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    env_file:
+      # Contains TUNNEL_TOKEN=<token> (the dashboard's "install token").
+      # Never committed; see deploy/env/cloudflared.env.example for the KEY
+      # NAME only. Verify blind (W-083/W-149).
+      - deploy/env/cloudflared.env
+    networks:
+      - fitd
+    depends_on:
+      - traefik
+    healthcheck:
+      # cloudflared serves its /ready + metrics on 2000 by default in the
+      # official image only when --metrics is set; the simplest liveness is
+      # the process itself plus `docker compose logs cloudflared` showing
+      # "Registered tunnel connection". Keep the check cheap and honest.
+      test: ["CMD", "cloudflared", "--version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   # ------------------------------------------------------------------ proxy
+  # Traefik is now an INTERNAL router: the public reaches it ONLY through
+  # cloudflared (no publicly-bound 80/443, no ACME). It keeps ALL host/path
+  # routing (apex → app, backend → room+dart_services) and the tailnet
+  # /admin listener. Cloudflare terminates public TLS; Traefik serves plain
+  # HTTP behind the (encrypted) tunnel.
   traefik:
     image: traefik:v3.4
     restart: unless-stopped
@@ -61,26 +115,26 @@ services:
       - --providers.docker=true
       # Only services we explicitly opt in get routed (this file).
       - --providers.docker.exposedbydefault=false
-      # PUBLIC: the only listener the venue network/internet can reach.
+      # INTERNAL HTTP listener for the public path. cloudflared is the only
+      # client (same Docker network). NOT published to the host — see ports.
       - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
+      # Trust forwarded headers ONLY from the cloudflared hop, not the whole
+      # world. Cloudflare's edge sets CF-Connecting-IP / X-Forwarded-Proto;
+      # cloudflared forwards them. Whitelist the Docker `fitd` subnet so
+      # Traefik honors X-Forwarded-* only from in-cluster peers (cloudflared)
+      # — a client spoofing those headers from anywhere else is ignored.
+      - --entrypoints.web.forwardedHeaders.trustedIPs=172.16.0.0/12
       # TAILSCALE: bound to the host's tailscale0 address only. The
       # published port mapping below does the same at the Docker layer
       # (100.x:4443:4443), so Docker's iptables rule also only accepts
-      # tailnet-source traffic.
+      # tailnet-source traffic. UNCHANGED by WI-101.
       - --entrypoints.tailnet.address=:4443
-      # Let's Encrypt (ACME HTTP-01 over the `web` entrypoint) for the
-      # public domain.
-      - --certificatesresolvers=letsencrypt.acme.email=${ACME_EMAIL:?set ACME_EMAIL in the environment or .env}
-      - --certificatesresolvers=letsencrypt.acme.storage=/letsencrypt/acme.json
-      - --certificatesresolvers=letsencrypt.acme.httpchallenge.entrypoint=web
       - --log.level=INFO
     ports:
-      # The public edge of the whole stack.
-      - "80:80"
-      - "443:443"
-      # The admin edge — published ONLY on the tailnet interface. Fails
-      # fast at `up` if TAILSCALE_IP is unset: that is intentional.
+      # The public edge of the whole stack is now cloudflared (above), so
+      # Traefik's :80 is NOT published. The ONLY published port is the
+      # admin edge — bound ONLY to the tailnet interface. Fails fast at
+      # `up` if TAILSCALE_IP is unset: that is intentional.
       - "${TAILSCALE_IP:?set TAILSCALE_IP to the host tailscale0 IPv4 (tailscale ip -4)}:4443:4443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -89,7 +143,6 @@ services:
       # validate a 100.x name).
       - ./deploy/traefik/tls.yml:/etc/traefik/tls.yml:ro
       - ${TAILSCALE_CERT_DIR:-~/.tailscale-certs}:/certs:ro
-      - traefik-acme:/letsencrypt
     networks:
       - fitd
     depends_on:
@@ -116,25 +169,23 @@ services:
     labels:
       - traefik.enable=true
       # --- PUBLIC, APEX host only (WI-100): static assets + the contestant
-      # pages. /admin HAS NO ROUTER HERE — the negative lookahead excludes
-      # it and every path under it, so the page 404s structurally, and even
-      # a hand-typed URL can't reach the admin API because /api/admin/* has
-      # no public router either. Static assets need their own
-      # (higher-priority) router: the SPA can't bootstrap without
+      # pages. Reached via cloudflared → the `web` (internal HTTP)
+      # entrypoint. /admin HAS NO ROUTER HERE — the negative lookahead
+      # excludes it and every path under it, so the page 404s structurally,
+      # and even a hand-typed URL can't reach the admin API because
+      # /api/admin/* has no public router either. Static assets need their
+      # own (higher-priority) router: the SPA can't bootstrap without
       # /flutter_bootstrap.js, /main.dart.js, /assets/* etc. ---
       - traefik.http.routers.app-public-static.rule=Host(`${APP_DOMAIN}`) && PathRegexp(`^/(?!admin(/|$))(assets|canvaskit|icons)(/|$)|^/(?!admin(/|$))[^/]*\.[a-zA-Z0-9]+$`)
       - traefik.http.routers.app-public-static.priority=15
-      - traefik.http.routers.app-public-static.entrypoints=websecure
-      - traefik.http.routers.app-public-static.tls.certresolver=letsencrypt
+      - traefik.http.routers.app-public-static.entrypoints=web
       - traefik.http.routers.app-public.rule=Host(`${APP_DOMAIN}`) && (Path(`/`) || PathPrefix(`/show`))
       - traefik.http.routers.app-public.priority=10
-      - traefik.http.routers.app-public.entrypoints=websecure
-      - traefik.http.routers.app-public.tls.certresolver=letsencrypt
-      # --- HTTP→HTTPS redirect for anything reaching :80 ---
-      - traefik.http.routers.app-http.rule=PathPrefix(`/`)
-      - traefik.http.routers.app-http.entrypoints=web
-      - traefik.http.routers.app-http.middlewares=redirect-https
-      - traefik.http.middlewares.redirect-https.redirectscheme.scheme=https
+      - traefik.http.routers.app-public.entrypoints=web
+      # NOTE: no HTTP→HTTPS redirect and no ACME — Cloudflare terminates
+      # TLS at the edge and the origin serves plain HTTP over the tunnel.
+      # (Cloudflare's "Always Use HTTPS" edge setting handles any http://
+      # upgrade before traffic ever reaches the origin.)
       # --- TAILSCALE: full SPA, /admin included ---
       - traefik.http.routers.app-admin.rule=PathPrefix(`/`)
       - traefik.http.routers.app-admin.priority=1
@@ -148,12 +199,12 @@ services:
       # DEPLOY.md): expose /admin on the PUBLIC domain behind Traefik
       # basic-auth instead. Add the labels below to the `app` service and
       # set BASIC_AUTH_USERS (htpasswd) in .env. The shipped config does
-      # NOT do this — the structural gate above is the decision.
+      # NOT do this — the structural gate above is the decision. (Public
+      # TLS is Cloudflare's; this router just rides the `web` entrypoint.)
       #
       #   - traefik.http.routers.app-admin-public.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/admin`)
       #   - traefik.http.routers.app-admin-public.priority=20
-      #   - traefik.http.routers.app-admin-public.entrypoints=websecure
-      #   - traefik.http.routers.app-admin-public.tls.certresolver=letsencrypt
+      #   - traefik.http.routers.app-admin-public.entrypoints=web
       #   - traefik.http.routers.app-admin-public.middlewares=admin-basicauth
       #   - traefik.http.middlewares.admin-basicauth.basicauth.users=${BASIC_AUTH_USERS}
       #   …and the matching room router for /api/admin/* (same middleware).
@@ -177,8 +228,7 @@ services:
       # has NO ROUTER HERE — POSTs to it 404 at the proxy. ---
       - traefik.http.routers.room-public.rule=Host(`${DOMAIN}`) && (Path(`/api/state`) || Path(`/api/events`) || Path(`/api/join`) || Path(`/api/prompt`) || Path(`/api/probe-generate`))
       - traefik.http.routers.room-public.priority=100
-      - traefik.http.routers.room-public.entrypoints=websecure
-      - traefik.http.routers.room-public.tls.certresolver=letsencrypt
+      - traefik.http.routers.room-public.entrypoints=web
       # --- TAILSCALE: admin API (plus everything public has) ---
       # /api/v3/* is excluded — those belong to dart_services (the
       # dart-services-admin router below matches them first by specificity).
@@ -223,8 +273,7 @@ services:
       - traefik.enable=true
       - traefik.http.routers.dart-services-public.rule=Host(`${DOMAIN}`) && (Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`))
       - traefik.http.routers.dart-services-public.priority=100
-      - traefik.http.routers.dart-services-public.entrypoints=websecure
-      - traefik.http.routers.dart-services-public.tls.certresolver=letsencrypt
+      - traefik.http.routers.dart-services-public.entrypoints=web
       # Same API on the tailnet entrypoint (admin machine drives
       # compile/generate probes from the tailnet).
       - traefik.http.routers.dart-services-admin.rule=Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`)
@@ -240,5 +289,4 @@ networks:
     driver: bridge
 
 volumes:
-  traefik-acme: # acme.json — account key + certs; back this up
   room-state:

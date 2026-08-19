@@ -6,7 +6,8 @@ One command on the event host:
 docker compose up -d
 ```
 
-…brings up the whole stack (WI-100 host split):
+…brings up the whole stack (WI-100 host split, WI-101 Cloudflare Tunnel
+public edge):
 
 - **App SPA** on the apex **`https://flutterinthedark.dev`** — the public
   URL contestants/audience open.
@@ -14,39 +15,53 @@ docker compose up -d
   service + the dart_services generation backend. The app calls this
   **cross-origin** (CORS is wired on both backends).
 
+Both public hosts are served over a **Cloudflare Tunnel** (WI-101).
+`cloudflared` dials **outbound-only** to Cloudflare's edge — there are **no
+inbound firewall ports**, **no DNS A records to the house IP** (the IP is
+hidden behind Cloudflare), and **no ACME/Let's Encrypt** (Cloudflare
+terminates public TLS at its edge). `cloudflared` forwards both hostnames
+to Traefik's **internal plain-HTTP** listener, which keeps all the host/path
+routing. The tailnet `:4443` admin listener is **independent of Cloudflare**
+and unchanged.
+
 ```
-                         internet / venue Wi-Fi                tailnet (admin phone)
-                                  │                                  │
-                      80/443 ─────▼──────────────        100.x:4443 ──▼──────────────
-                      ┌─────────────────────────┐        ┌──────────────────────────┐
-                      │  PUBLIC entrypoint      │        │  TAILSCALE entrypoint     │
-                      │  websecure (ACME TLS)   │        │  (tailscale-issued cert)  │
-                      │                         │        │                           │
-                      │  apex flutterinthedark  │        │  FULL SPA incl. /admin    │
-                      │    .dev: / /show+static │        │  /api/* incl. /api/admin/*│
-                      │  backend.flutterinthe-  │        │  dart_services API        │
-                      │    dark.dev: room +     │        │                           │
-                      │    dart_services API    │        │  (gate is STRUCTURAL:     │
-                      │                         │        │   admin routes simply do  │
-                      │  NO route to /admin or  │        │   not exist on either     │
-                      │  /api/admin/*  → 404    │        │   public host :443)       │
-                      └───────────┬─────────────┘        └─────────────┬────────────┘
-                                  └────────────────┬───────────────────┘
-                        ┌──────────────────────────┼──────────────────┐
-                        ▼                          ▼                  ▼
-                   app (nginx,              room (Dart shelf,   dart_services
-                   release SPA,             in-memory room +   (generation +
-                   SPA fallback)            SSE + pipeline)    compile, Berget)
-                        :80                      :8302               :8300
+        internet / venue Wi-Fi                        tailnet (admin phone)
+                  │                                            │
+        Cloudflare edge (TLS, certs, hides origin IP)          │
+                  │  outbound-only tunnel (cloudflared)        │
+        ┌─────────▼──────────┐                     100.x:4443 ─▼─────────────
+        │  cloudflared       │                     ┌──────────────────────────┐
+        │  (no inbound       │                     │  TAILSCALE entrypoint     │
+        │   ports; IP never  │                     │  (tailscale-issued cert)  │
+        │   published)       │                     │                           │
+        └─────────┬──────────┘                     │  FULL SPA incl. /admin    │
+                  │ http (internal, not publicly   │  /api/* incl. /api/admin/*│
+                  ▼  bound)                        │  dart_services API        │
+        ┌─────────────────────────┐               │                           │
+        │  Traefik `web` :80      │               │  (gate is STRUCTURAL:     │
+        │  (plain HTTP router —   │               │   admin routes simply do  │
+        │   apex → app,           │               │   not exist on the public │
+        │   backend → room+dart)  │               │   path)                   │
+        │                         │               └─────────────┬─────────────┘
+        │  NO route to /admin or  │                             │
+        │  /api/admin/*  → 404    │                             │
+        └───────────┬─────────────┘                             │
+                    └───────────────────────┬───────────────────┘
+                        ┌───────────────────┼──────────────────┐
+                        ▼                   ▼                  ▼
+                   app (nginx,         room (Dart shelf,  dart_services
+                   release SPA,        in-memory room +  (generation +
+                   SPA fallback)       SSE + pipeline)   compile, Berget)
+                        :80                 :8302              :8300
 ```
 
-### Host layout (WI-100, 2026-08-19)
+### Host layout (WI-100, 2026-08-19; transport = WI-101 Cloudflare Tunnel)
 
 | Host | Serves | Exposure |
 |---|---|---|
-| `flutterinthedark.dev` (apex) | App SPA: `/`, `/show` + static assets (`/assets`, `/canvaskit`, `/icons`, `*.js`, …) | public (ACME TLS) |
-| `backend.flutterinthedark.dev` | API: room (`/api/state` `/api/events` `/api/join` `/api/prompt` `/api/probe-generate`) + dart_services (`/api/v3/generateCode` `/compileAndServe` `/suggestFix`, `/compiled/*`, `/artifacts/*`) | public (ACME TLS) |
-| `<machine>.<tailnet>.ts.net:4443` | full SPA incl. `/admin` + full API incl. `/api/admin/*` | tailnet only |
+| `flutterinthedark.dev` (apex) | App SPA: `/`, `/show` + static assets (`/assets`, `/canvaskit`, `/icons`, `*.js`, …) | public via Cloudflare Tunnel (edge TLS) |
+| `backend.flutterinthedark.dev` | API: room (`/api/state` `/api/events` `/api/join` `/api/prompt` `/api/probe-generate`) + dart_services (`/api/v3/generateCode` `/compileAndServe` `/suggestFix`, `/compiled/*`, `/artifacts/*`) | public via Cloudflare Tunnel (edge TLS) |
+| `<machine>.<tailnet>.ts.net:4443` | full SPA incl. `/admin` + full API incl. `/api/admin/*` | tailnet only (NOT via Cloudflare) |
 
 ### Cross-origin (CORS) wiring
 
@@ -70,20 +85,32 @@ This is wired, not incidental:
 - **Tailnet alias**: `RoomClient` resolves same-origin whenever the page
   hostname ends in `.ts.net` — the `:4443` proxy fronts app + full API on
   one origin, so the admin phone keeps working with the same single image.
+- **Cloudflare does NOT strip or override these CORS headers.** Both hosts
+  ride the same tunnel/edge, and Cloudflare passes origin
+  `Access-Control-Allow-Origin` through untouched (it doesn't run a CORS
+  transform on a plain Tunnel). The apex→backend preflight and the SSE
+  `/api/events` stream behave exactly as the mirror verifies they do
+  directly. No extra Cloudflare config is needed for CORS — but confirm it
+  once live (the pre-event smoke test) because the mirror can't see
+  Cloudflare's edge.
 
-## The /admin gate (WI-093 D2, confirmed 2026-08-19; unchanged by WI-100)
+## The /admin gate (WI-093 D2, confirmed 2026-08-19; unchanged by WI-100 and WI-101)
 
 The gate is **structural, not a middleware rule.** The room service has **no
 app-level auth** on admin routes by design — the network boundary IS the auth.
 
-- **Public `:443`** (apex AND backend subdomain) has routers only for `/`,
-  `/show`, static assets, the read/contestant API (`/api/state`
-  `/api/events` `/api/join` `/api/prompt`), and the dart_services API.
-  There is **no router** for `/admin` or `/api/admin/*` → Traefik returns
-  its built-in **404** on BOTH public hosts. The route does not exist.
+- **The public path** (Cloudflare edge → cloudflared → Traefik `web` :80 —
+  apex AND backend subdomain) has routers only for `/`, `/show`, static
+  assets, the read/contestant API (`/api/state` `/api/events` `/api/join`
+  `/api/prompt`), and the dart_services API. There is **no router** for
+  `/admin` or `/api/admin/*` → Traefik returns its built-in **404** on BOTH
+  public hosts. The route does not exist. **The tunnel transport changes
+  nothing about this** — the public path still has no admin router.
 - **Tailnet `:4443`** (published only on the host's `tailscale0` 100.x
   address) carries the **full** SPA incl. `/admin` and the **full** API incl.
   `/api/admin/*`. Only devices on the tailnet (the admin phone) can reach it.
+  This listener is **independent of Cloudflare** — traffic never crosses the
+  tunnel.
 
 The admin page loading publicly but its actions failing is **not** the
 mechanism here — the page itself 404s publicly too (defense in depth). Both
@@ -97,16 +124,47 @@ public domain behind Traefik basic-auth. Commented labels are already in
 
 ## Prerequisites (operator, before `up`)
 
-1. **DNS** — point A records for BOTH `flutterinthedark.dev` (apex) AND
-   `backend.flutterinthedark.dev` at the event host's public IP. Both must
-   be reachable on :80/:443 — Traefik's per-router certresolver issues a
-   cert per host via HTTP-01. (The IP is "static-ish"; if it ever changes,
-   update the records — dynamic DNS is out of scope, just re-point them.)
-2. **Firewall** — allow inbound **80** and **443**. Port 80 is required for
-   the ACME HTTP-01 challenge *and* redirects to 443.
-3. **Secrets file** — create `deploy/env/dart_services.env` from
-   `deploy/env/dart_services.env.example` and set `BERGET_REFRESH_TOKEN`.
-   **Verify blind — never print the value** (W-083/W-149):
+> ### ⚠ Honesty note (SHADOW-040): mirror-verified ≠ internet-verified
+> This stack is verified **config-faithfully** — a Python mirror reproduces
+> Traefik's routing tables and the cloudflared-shaped ingress, and the full
+> gate matrix + SSE + e2e loop pass against it (`scratch/fitd26-deploy/`).
+> It has **NOT** run against a live Cloudflare tunnel. The genuinely
+> unverified ground is: **named-tunnel credentials, the tunnel DNS route
+> (the CNAME to `<tunnel-id>.cfargotunnel.com`), and real
+> cloudflared→origin connectivity.** Do the live smoke test (step 6 below)
+> before doors. This is the same candor WI-100 carried about ACME — the
+> transport changed, the "verify live before the event" requirement didn't.
+
+The public transport is a **Cloudflare Tunnel** — no inbound firewall ports,
+no DNS A record to the house IP, no ACME. Set it up once:
+
+1. **Create a named Cloudflare Tunnel.** Cloudflare Zero Trust dashboard →
+   **Networks → Tunnels → Create a tunnel** → choose **cloudflared** → name
+   it (e.g. `fitd26`). On the "install connector" step, copy the **token**
+   (the long string after `cloudflared … run --token`). You do NOT need to
+   install cloudflared by hand — the compose stack runs it.
+2. **Set the tunnel's Public Hostnames** (same tunnel → *Public Hostnames*
+   tab → *Add a public hostname*), one per host, both pointing at Traefik's
+   internal HTTP listener:
+   | Subdomain | Domain | Service Type | URL |
+   |---|---|---|---|
+   | *(apex — leave blank)* | `flutterinthedark.dev` | HTTP | `traefik:80` |
+   | `backend` | `flutterinthedark.dev` | HTTP | `traefik:80` |
+
+   Cloudflare **auto-creates the proxied (orange-cloud) CNAMEs** to
+   `<tunnel-id>.cfargotunnel.com` when you save each public hostname. **Do
+   NOT create A records to the house IP** — that would defeat the point.
+3. **Tunnel token secrets file** — create `deploy/env/cloudflared.env` from
+   `deploy/env/cloudflared.env.example` and set `TUNNEL_TOKEN` to the token
+   from step 1. **Verify blind — never print the value** (W-083/W-149):
+   ```bash
+   [ -f deploy/env/cloudflared.env ] && echo exists
+   grep -q '^TUNNEL_TOKEN=' deploy/env/cloudflared.env && echo key-present
+   chmod 600 deploy/env/cloudflared.env
+   ```
+4. **dart_services secrets file** — create `deploy/env/dart_services.env`
+   from `deploy/env/dart_services.env.example` and set
+   `BERGET_REFRESH_TOKEN`. Verify blind, as above:
    ```bash
    [ -f deploy/env/dart_services.env ] && echo exists
    grep -q '^BERGET_REFRESH_TOKEN=' deploy/env/dart_services.env && echo key-present
@@ -114,7 +172,7 @@ public domain behind Traefik basic-auth. Commented labels are already in
    ```
    Optional keys in the same file: `BERGET_MODEL` (default
    `openai/gpt-oss-120b`), `BERGET_API_URL` (default `https://api.berget.ai`).
-4. **Tailscale** —
+5. **Tailscale** (the /admin gate — **independent of Cloudflare**, unchanged):
    - Get the host's tailnet IPv4: `export TAILSCALE_IP=$(tailscale ip -4)`.
    - Enable HTTPS certs in the tailnet admin console (DNS → HTTPS
      Certificates), then issue the machine cert:
@@ -126,23 +184,35 @@ public domain behind Traefik basic-auth. Commented labels are already in
      ```
      (`deploy/traefik/tls.yml` reads `/certs/tailscale.{crt,key}`; the host
      dir is overridable via `TAILSCALE_CERT_DIR`.)
-5. **Environment** — in `.env` next to `docker-compose.yml` (or exported):
+6. **Environment** — in `.env` next to `docker-compose.yml` (or exported).
+   Note: **no `ACME_EMAIL`** anymore (no ACME):
    ```
    DOMAIN=backend.flutterinthedark.dev      # the API host
    APP_DOMAIN=flutterinthedark.dev          # the apex — serves the app SPA
    TAILNET_DOMAIN=<machine>.<tailnet>.ts.net
-   ACME_EMAIL=<you@example.com>
-   TAILSCALE_IP=<100.x from step 4>
+   TAILSCALE_IP=<100.x from step 5>
    # optional overrides:
    # BERGET_MODEL=openai/gpt-oss-120b
-   # TAILSCALE_CIDR=100.64.0.0/10   (only if the tailnet uses a subnet router)
    # DART_PAD_PATH=../dart-pad      (where the berget-backend checkout lives)
    ```
+
+**No inbound firewall ports, no port-forwarding, no dynamic DNS.** The only
+published port on the host is `:4443`, bound to the tailnet interface only.
+Everything public rides the outbound tunnel.
 
 ## The one command
 
 ```bash
 docker compose up -d
+```
+
+cloudflared connects **outbound** to Cloudflare and both hosts go live
+behind the edge. Confirm the tunnel came up:
+
+```bash
+docker compose logs cloudflared | grep -i "Registered tunnel connection"
+# expect one "Registered tunnel connection" line per Cloudflare edge PoP
+# (usually 4). Then the live smoke test — Verification below.
 ```
 
 First run builds three images (app, room, dart_services). The dart_services
@@ -199,11 +269,15 @@ open `https://flutterinthedark.dev/`, join, and watch the Network tab —
 `/api/state`, `/api/events`, `/api/join`, `/api/prompt` go to
 `backend.flutterinthedark.dev` and succeed from the apex origin.
 
-SSE must **stream** (first frame within ~1 s, connection stays open):
+SSE must **stream** through the tunnel (first frame within ~1 s, connection
+stays open):
 ```bash
 curl -sN https://backend.flutterinthedark.dev/api/events
 ```
 Traefik flushes SSE by default; the room also sends `X-Accel-Buffering: no`.
+Cloudflare passes SSE through (it doesn't buffer `text/event-stream`), but
+this is one of the things only the live tunnel proves — check it in the
+pre-event smoke test.
 
 The authoritative end-to-end gate + loop verification for this stack
 (join → prompt → buzzer → generate+compile → tri-state reveal) is scripted at
@@ -229,12 +303,26 @@ watch `/show`.
 - [ ] **Tailscale path** — from the admin phone on the tailnet, load
       `https://<machine>.<tailnet>.ts.net:4443/admin` and fire one
       `/api/admin/*` action. (WI-100: the app resolves the API same-origin
-      on `*.ts.net`, so this keeps working with the single image.)
-- [ ] **ACME first issuance** — hit BOTH `https://flutterinthedark.dev/`
-      and `https://backend.flutterinthedark.dev/` and confirm valid Let's
-      Encrypt certs for each (check `docker compose logs traefik` for
-      challenge errors the first time — both hosts need DNS + :80).
-- [ ] Back up the `traefik-acme` volume (holds the ACME account key + certs).
+      on `*.ts.net`, so this keeps working with the single image. This path
+      is independent of Cloudflare.)
+- [ ] **Cloudflare Tunnel live smoke (SHADOW-040 — the unverified ground)** —
+      this is the check the mirror CANNOT do for you:
+      - `docker compose logs cloudflared` shows **"Registered tunnel
+        connection"** (no auth/token errors — a bad `TUNNEL_TOKEN` fails
+        here, not at the edge).
+      - From a client NOT on the tailnet, hit BOTH
+        `https://flutterinthedark.dev/` and
+        `https://backend.flutterinthedark.dev/api/state` — both 200 over
+        Cloudflare-issued TLS. This proves the tunnel DNS route (the CNAME
+        to `<tunnel-id>.cfargotunnel.com`) AND cloudflared→origin
+        connectivity in one shot.
+      - Confirm **no A record** points either host at the house IP (Cloudflare
+        DNS should show only the two tunnel CNAMEs, proxied/orange-cloud).
+      - Stream `curl -sN https://backend.flutterinthedark.dev/api/events` —
+        first frame within ~1 s, stays open (SSE through the tunnel).
+      - Confirm `https://flutterinthedark.dev/admin` and
+        `https://backend.flutterinthedark.dev/api/admin/state` both **404**
+        on the public edge (the structural gate survived the transport swap).
 
 ## Ops notes
 
@@ -251,6 +339,34 @@ watch `/show`.
   (`http://dart-services:8300`) — not through the proxy.
 - The dev `relay_4501.py` dumb-pipe is **not** used here; Traefik's
   path-based routing replaces it.
+
+## Fallback: direct Traefik + ACME (the WI-099/100 path)
+
+If Cloudflare Tunnel ever disappoints (edge outage, dashboard lockout,
+policy change), the previous **direct public exposure** is recoverable as a
+documented fallback. The /admin gate and the host split are identical; only
+the public transport reverts from tunnel → direct port-forward.
+
+To fall back (inverse of this WI):
+1. **DNS**: A records for BOTH `flutterinthedark.dev` and
+   `backend.flutterinthedark.dev` → the host's public IP (and remove the
+   tunnel CNAMEs). Open inbound firewall **80 + 443**.
+2. **`docker-compose.yml`**:
+   - Remove the `cloudflared` service.
+   - Traefik: re-add `--entrypoints.websecure.address=:443`, the ACME
+     resolver flags (`--certificatesresolvers=letsencrypt.acme.{email,storage,httpchallenge.entrypoint=web}`), publish `80:80` and `443:443`,
+     and re-mount the `traefik-acme` volume + re-add the `traefik-acme`
+     volume. Set `ACME_EMAIL` in `.env`.
+   - Public routers (app-public[-static], room-public, dart-services-public):
+     `entrypoints=websecure` + `tls.certresolver=letsencrypt` (instead of
+     `entrypoints=web`). Re-add the HTTP→HTTPS redirect router on `web`.
+   - Drop `--entrypoints.web.forwardedHeaders.trustedIPs` (Cloudflare is no
+     longer the trusted forwarder).
+3. The exact prior config is in git at commit `7045107` (WI-100). The
+   tailnet `:4443` admin listener needs no change in either direction.
+
+Keep the Cloudflare decision as the default; this fallback exists so the
+event is never hostage to one vendor's edge.
 
 ## Local verification (no Docker / no TLS / no DNS)
 
