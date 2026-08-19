@@ -6,12 +6,17 @@ name: fitd26
 #
 #     docker compose up -d
 #
-# …brings up Traefik (TLS via Let's Encrypt), the release-built SPA, the
-# room-state service and the dart_services generation backend, all behind
-# https://backend.flutterinthedark.dev/ .
+# …brings up Traefik (TLS via Let's Encrypt), the release-built SPA on the
+# APEX https://flutterinthedark.dev/ , and the room-state service +
+# dart_services generation backend (the API) on
+# https://backend.flutterinthedark.dev/ (WI-100 host split: app on apex,
+# API on the backend subdomain — the app calls the API cross-origin; both
+# backends answer CORS for the apex origin).
 #
 # Prerequisites (see DEPLOY.md for the full checklist):
-#   1. DNS A record: backend.flutterinthedark.dev → this host's public IP.
+#   1. DNS A records: BOTH flutterinthedark.dev (apex) AND
+#      backend.flutterinthedark.dev → this host's public IP. Both must be
+#      reachable on :80/:443 for the ACME HTTP-01 challenge.
 #   2. deploy/env/dart_services.env containing BERGET_REFRESH_TOKEN=<secret>
 #      (optionally BERGET_MODEL=…). NEVER commit this file. Verify blind:
 #      file existence + key name only, never print the value (W-083/W-149).
@@ -22,15 +27,17 @@ name: fitd26
 #      (`tailscale cert` / MagicDNS) for the admin listener to serve valid TLS.
 #
 # ┌─────────────────────────── THE /admin GATE ───────────────────────────┐
-# │ WI-093 D2 + 2026-08-19 clarification: the gate is STRUCTURAL, not a   │
-# │ middleware rule.                                                      │
+# │ WI-093 D2 + 2026-08-19 clarification, UNCHANGED by WI-100: the gate   │
+# │ is STRUCTURAL, not a middleware rule.                                 │
 # │                                                                       │
-# │   PUBLIC entrypoint (443, 0.0.0.0):                                   │
+# │   PUBLIC entrypoint (443, 0.0.0.0 — apex AND backend subdomain):      │
 # │     routers exist ONLY for                                            │
 # │       GET /api/state, GET /api/events, POST /api/join, POST /api/prompt│
-# │       dart_services API, and the SPA pages / and /show.               │
+# │       dart_services API (backend.*), and the SPA pages / and /show    │
+# │       (apex).                                                         │
 # │     There is NO router for /api/admin/* and NO router for /admin —    │
-# │     Traefik answers 404. The route does not exist.                    │
+# │     Traefik answers 404 on BOTH public hosts. The route does not      │
+# │     exist.                                                            │
 # │                                                                       │
 # │   TAILSCALE entrypoint (4443, bound to the host's 100.x address only):│
 # │     full API surface incl. /api/admin/* + the SPA incl. /admin.       │
@@ -108,18 +115,18 @@ services:
     restart: unless-stopped
     labels:
       - traefik.enable=true
-      # --- PUBLIC: static assets + the contestant pages. /admin HAS NO
-      # ROUTER HERE — the negative lookahead excludes it and every path
-      # under it, so the page 404s structurally, and even a hand-typed URL
-      # can't reach the admin API because /api/admin/* has no public
-      # router either. Static assets need their own (higher-priority)
-      # router: the SPA can't bootstrap without /flutter_bootstrap.js,
-      # /main.dart.js, /assets/* etc. ---
-      - traefik.http.routers.app-public-static.rule=Host(`${DOMAIN}`) && PathRegexp(`^/(?!admin(/|$))(assets|canvaskit|icons)(/|$)|^/(?!admin(/|$))[^/]*\.[a-zA-Z0-9]+$`)
+      # --- PUBLIC, APEX host only (WI-100): static assets + the contestant
+      # pages. /admin HAS NO ROUTER HERE — the negative lookahead excludes
+      # it and every path under it, so the page 404s structurally, and even
+      # a hand-typed URL can't reach the admin API because /api/admin/* has
+      # no public router either. Static assets need their own
+      # (higher-priority) router: the SPA can't bootstrap without
+      # /flutter_bootstrap.js, /main.dart.js, /assets/* etc. ---
+      - traefik.http.routers.app-public-static.rule=Host(`${APP_DOMAIN}`) && PathRegexp(`^/(?!admin(/|$))(assets|canvaskit|icons)(/|$)|^/(?!admin(/|$))[^/]*\.[a-zA-Z0-9]+$`)
       - traefik.http.routers.app-public-static.priority=15
       - traefik.http.routers.app-public-static.entrypoints=websecure
       - traefik.http.routers.app-public-static.tls.certresolver=letsencrypt
-      - traefik.http.routers.app-public.rule=Host(`${DOMAIN}`) && (Path(`/`) || PathPrefix(`/show`))
+      - traefik.http.routers.app-public.rule=Host(`${APP_DOMAIN}`) && (Path(`/`) || PathPrefix(`/show`))
       - traefik.http.routers.app-public.priority=10
       - traefik.http.routers.app-public.entrypoints=websecure
       - traefik.http.routers.app-public.tls.certresolver=letsencrypt
@@ -143,7 +150,7 @@ services:
       # set BASIC_AUTH_USERS (htpasswd) in .env. The shipped config does
       # NOT do this — the structural gate above is the decision.
       #
-      #   - traefik.http.routers.app-admin-public.rule=Host(`${DOMAIN}`) && PathPrefix(`/admin`)
+      #   - traefik.http.routers.app-admin-public.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/admin`)
       #   - traefik.http.routers.app-admin-public.priority=20
       #   - traefik.http.routers.app-admin-public.entrypoints=websecure
       #   - traefik.http.routers.app-admin-public.tls.certresolver=letsencrypt

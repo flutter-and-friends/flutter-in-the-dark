@@ -3,17 +3,21 @@
 #   docker compose -f docker-compose.yml -f deploy/docker-compose.local.yml up -d
 #
 # What changes vs production:
-#   - NO TLS, NO ACME, NO DNS — plain HTTP on 127.0.0.1:8080.
+#   - NO TLS, NO ACME, NO DNS — plain HTTP on loopback.
 #   - Loopback (127.0.0.1:4443) stands in for the tailnet entrypoint
 #     (Traefik serves it over plain HTTP locally; same router set).
-#   - Host routing is dropped (single hostname: localhost).
+#   - Host routing is dropped; PORTS stand in for the WI-100 host split:
+#       :8080  = the APEX (app SPA only — exactly the public contestant set)
+#       :4503  = the BACKEND (room + dart_services API only, NO app routers)
+#     …so a locally-built app pointed at http://<host>:4503 exercises the
+#     same cross-origin (CORS) path production does.
 #
 # The structural gate is UNCHANGED and still verifiable:
-#   public  :8080  → /admin and /api/admin/* 404 (no router)
-#   "tailnet" :4443 → /admin and /api/admin/* work
+#   apex :8080 and backend :4503 → /admin and /api/admin/* 404 (no router)
+#   "tailnet" :4443              → /admin and /api/admin/* work
 #
-# TAILSCALE_IP / ACME_EMAIL are NOT needed here. DOMAIN/TAILNET_DOMAIN are
-# irrelevant (rules below match any host).
+# TAILSCALE_IP / ACME_EMAIL are NOT needed here. DOMAIN/APP_DOMAIN/
+# TAILNET_DOMAIN are irrelevant (rules below match any host).
 
 services:
   traefik:
@@ -21,12 +25,14 @@ services:
       - --api.insecure=false
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      # No websecure/ACME locally.
+      # :80  = apex (app) · :4503 = backend (API) · :4443 = tailnet alias.
+      - --entrypoints.apex.address=:80
+      - --entrypoints.backend.address=:4503
       - --entrypoints.tailnet.address=:4443
       - --log.level=INFO
     ports:
       - "127.0.0.1:8080:80"
+      - "127.0.0.1:4503:4503"
       - "127.0.0.1:4443:4443"
     volumes:
       # Drop the tailnet TLS file-config + certs: plain HTTP locally.
@@ -35,12 +41,14 @@ services:
   app:
     labels:
       - traefik.enable=true
+      # App on the APEX entrypoint only — the backend entrypoint has NO app
+      # routers (mirrors production, where backend.* has no app routers).
       - traefik.http.routers.app-public-static.rule=PathRegexp(`^/(?!admin(/|$))(assets|canvaskit|icons)(/|$)|^/(?!admin(/|$))[^/]*\.[a-zA-Z0-9]+$`)
       - traefik.http.routers.app-public-static.priority=15
-      - traefik.http.routers.app-public-static.entrypoints=web
+      - traefik.http.routers.app-public-static.entrypoints=apex
       - traefik.http.routers.app-public.rule=Path(`/`) || PathPrefix(`/show`)
       - traefik.http.routers.app-public.priority=10
-      - traefik.http.routers.app-public.entrypoints=web
+      - traefik.http.routers.app-public.entrypoints=apex
       - traefik.http.routers.app-admin.rule=PathPrefix(`/`)
       - traefik.http.routers.app-admin.priority=1
       - traefik.http.routers.app-admin.entrypoints=tailnet
@@ -49,9 +57,11 @@ services:
   room:
     labels:
       - traefik.enable=true
+      # Room API on the BACKEND entrypoint only (no apex routers — the apex
+      # serves the SPA; the app calls the API cross-origin on :4503).
       - traefik.http.routers.room-public.rule=Path(`/api/state`) || Path(`/api/events`) || Path(`/api/join`) || Path(`/api/prompt`) || Path(`/api/probe-generate`)
       - traefik.http.routers.room-public.priority=100
-      - traefik.http.routers.room-public.entrypoints=web
+      - traefik.http.routers.room-public.entrypoints=backend
       - traefik.http.routers.room-admin.rule=PathPrefix(`/api`) && !PathPrefix(`/api/v3`)
       - traefik.http.routers.room-admin.priority=100
       - traefik.http.routers.room-admin.entrypoints=tailnet
@@ -62,7 +72,7 @@ services:
       - traefik.enable=true
       - traefik.http.routers.dart-services-public.rule=Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`)
       - traefik.http.routers.dart-services-public.priority=100
-      - traefik.http.routers.dart-services-public.entrypoints=web
+      - traefik.http.routers.dart-services-public.entrypoints=backend
       - traefik.http.routers.dart-services-admin.rule=Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`)
       - traefik.http.routers.dart-services-admin.priority=100
       - traefik.http.routers.dart-services-admin.entrypoints=tailnet

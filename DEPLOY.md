@@ -6,9 +6,13 @@ One command on the event host:
 docker compose up -d
 ```
 
-…brings up the whole stack behind `https://backend.flutterinthedark.dev/`:
-Traefik (TLS via Let's Encrypt) → the release SPA, the room-state service,
-and the dart_services generation backend.
+…brings up the whole stack (WI-100 host split):
+
+- **App SPA** on the apex **`https://flutterinthedark.dev`** — the public
+  URL contestants/audience open.
+- **API** on **`https://backend.flutterinthedark.dev`** — the room-state
+  service + the dart_services generation backend. The app calls this
+  **cross-origin** (CORS is wired on both backends).
 
 ```
                          internet / venue Wi-Fi                tailnet (admin phone)
@@ -18,13 +22,14 @@ and the dart_services generation backend.
                       │  PUBLIC entrypoint      │        │  TAILSCALE entrypoint     │
                       │  websecure (ACME TLS)   │        │  (tailscale-issued cert)  │
                       │                         │        │                           │
-                      │  / /show + static       │        │  FULL SPA incl. /admin    │
-                      │  /api/state|events|join │        │  /api/* incl. /api/admin/*│
-                      │      |prompt            │        │  dart_services API        │
-                      │  dart_services API      │        │                           │
-                      │                         │        │  (gate is STRUCTURAL:     │
-                      │  NO route to /admin or  │        │   admin routes simply do  │
-                      │  /api/admin/*  → 404    │        │   not exist on :443)      │
+                      │  apex flutterinthedark  │        │  FULL SPA incl. /admin    │
+                      │    .dev: / /show+static │        │  /api/* incl. /api/admin/*│
+                      │  backend.flutterinthe-  │        │  dart_services API        │
+                      │    dark.dev: room +     │        │                           │
+                      │    dart_services API    │        │  (gate is STRUCTURAL:     │
+                      │                         │        │   admin routes simply do  │
+                      │  NO route to /admin or  │        │   not exist on either     │
+                      │  /api/admin/*  → 404    │        │   public host :443)       │
                       └───────────┬─────────────┘        └─────────────┬────────────┘
                                   └────────────────┬───────────────────┘
                         ┌──────────────────────────┼──────────────────┐
@@ -35,16 +40,47 @@ and the dart_services generation backend.
                         :80                      :8302               :8300
 ```
 
-## The /admin gate (WI-093 D2, confirmed 2026-08-19)
+### Host layout (WI-100, 2026-08-19)
+
+| Host | Serves | Exposure |
+|---|---|---|
+| `flutterinthedark.dev` (apex) | App SPA: `/`, `/show` + static assets (`/assets`, `/canvaskit`, `/icons`, `*.js`, …) | public (ACME TLS) |
+| `backend.flutterinthedark.dev` | API: room (`/api/state` `/api/events` `/api/join` `/api/prompt` `/api/probe-generate`) + dart_services (`/api/v3/generateCode` `/compileAndServe` `/suggestFix`, `/compiled/*`, `/artifacts/*`) | public (ACME TLS) |
+| `<machine>.<tailnet>.ts.net:4443` | full SPA incl. `/admin` + full API incl. `/api/admin/*` | tailnet only |
+
+### Cross-origin (CORS) wiring
+
+The app on the apex calls the API on `backend.*` — a different origin.
+This is wired, not incidental:
+
+- The release build bakes `--dart-define=ROOM_URL=https://backend.flutterinthedark.dev`
+  and `--dart-define=DART_SERVICES_URL=…` (see `deploy/Dockerfile.app`), so
+  `RoomClient` resolves both the room API base AND the compiled-widget
+  iframe base (`/compiled/<id>`) to the backend host.
+- The **room service** answers CORS on every route
+  (`Access-Control-Allow-Origin: *`, OPTIONS preflight handled, SSE
+  `/api/events` carries the header and streams cross-origin — EventSource
+  is CORS-enabled and sends no credentials, so `*` is valid).
+- **dart_services** sets `Access-Control-Allow-Origin: *` on API JSON and
+  `/compiled/*` responses, and the fork clears the default
+  `X-Frame-Options: SAMEORIGIN` (WI-093) — the `/compiled/<id>` iframes
+  embed cross-origin from the apex. `*` is kept deliberately: this is a
+  public, unauthenticated, event-scale generation API. Decision noted
+  (WI-100).
+- **Tailnet alias**: `RoomClient` resolves same-origin whenever the page
+  hostname ends in `.ts.net` — the `:4443` proxy fronts app + full API on
+  one origin, so the admin phone keeps working with the same single image.
+
+## The /admin gate (WI-093 D2, confirmed 2026-08-19; unchanged by WI-100)
 
 The gate is **structural, not a middleware rule.** The room service has **no
 app-level auth** on admin routes by design — the network boundary IS the auth.
 
-- **Public `:443`** has routers only for `/`, `/show`, static assets, the
-  read/contestant API (`/api/state` `/api/events` `/api/join` `/api/prompt`),
-  and the dart_services API. There is **no router** for `/admin` or
-  `/api/admin/*` → Traefik returns its built-in **404**. The route does not
-  exist.
+- **Public `:443`** (apex AND backend subdomain) has routers only for `/`,
+  `/show`, static assets, the read/contestant API (`/api/state`
+  `/api/events` `/api/join` `/api/prompt`), and the dart_services API.
+  There is **no router** for `/admin` or `/api/admin/*` → Traefik returns
+  its built-in **404** on BOTH public hosts. The route does not exist.
 - **Tailnet `:4443`** (published only on the host's `tailscale0` 100.x
   address) carries the **full** SPA incl. `/admin` and the **full** API incl.
   `/api/admin/*`. Only devices on the tailnet (the admin phone) can reach it.
@@ -61,9 +97,11 @@ public domain behind Traefik basic-auth. Commented labels are already in
 
 ## Prerequisites (operator, before `up`)
 
-1. **DNS** — point an A record `backend.flutterinthedark.dev` at the event
-   host's public IP. (The IP is "static-ish"; if it ever changes, update the
-   record — dynamic DNS is out of scope, just re-point it.)
+1. **DNS** — point A records for BOTH `flutterinthedark.dev` (apex) AND
+   `backend.flutterinthedark.dev` at the event host's public IP. Both must
+   be reachable on :80/:443 — Traefik's per-router certresolver issues a
+   cert per host via HTTP-01. (The IP is "static-ish"; if it ever changes,
+   update the records — dynamic DNS is out of scope, just re-point them.)
 2. **Firewall** — allow inbound **80** and **443**. Port 80 is required for
    the ACME HTTP-01 challenge *and* redirects to 443.
 3. **Secrets file** — create `deploy/env/dart_services.env` from
@@ -90,7 +128,8 @@ public domain behind Traefik basic-auth. Commented labels are already in
      dir is overridable via `TAILSCALE_CERT_DIR`.)
 5. **Environment** — in `.env` next to `docker-compose.yml` (or exported):
    ```
-   DOMAIN=backend.flutterinthedark.dev
+   DOMAIN=backend.flutterinthedark.dev      # the API host
+   APP_DOMAIN=flutterinthedark.dev          # the apex — serves the app SPA
    TAILNET_DOMAIN=<machine>.<tailnet>.ts.net
    ACME_EMAIL=<you@example.com>
    TAILSCALE_IP=<100.x from step 4>
@@ -120,18 +159,45 @@ docker save fitd26-dart-services:local | ssh <event-host> docker load
 
 ## Verification (from an external client, not inside a container)
 
-Run these **through the public entrypoint** (e.g. `curl
-https://backend.flutterinthedark.dev/...` from a laptop NOT on the tailnet):
+Run these from a laptop NOT on the tailnet. App checks hit the apex
+(`https://flutterinthedark.dev`), API checks hit
+`https://backend.flutterinthedark.dev`:
 
-| Check | Public (`:443`) | Tailnet (`:4443`) |
-|---|---|---|
-| `GET /api/state` | **200** | 200 |
-| `GET /api/events` (SSE) | **200**, streams | 200 |
-| `POST /api/join` | **200** | 200 |
-| `GET /` , `GET /show` | **200** (SPA) | 200 |
-| static (`/main.dart.js`, `/manifest.json`) | **200** | 200 |
-| `POST /api/admin/*` | **404** (no router) | 200 |
-| `GET /admin` | **404** (no router) | 200 (SPA) |
+| Check | apex | backend.* | Tailnet (`:4443`) |
+|---|---|---|---|
+| `GET /` , `GET /show` | **200** (SPA) | 404 (no app router) | 200 |
+| static (`/main.dart.js`, `/manifest.json`) | **200** | 404 | 200 |
+| `GET /api/state` | 404 (no API router) | **200** | 200 |
+| `GET /api/events` (SSE) | 404 | **200**, streams | 200 |
+| `POST /api/join` | 404 | **200** | 200 |
+| `POST /api/admin/*` | **404** | **404** | 200 |
+| `GET /admin` | **404** | **404** | 200 (SPA) |
+
+Cross-origin app→API (what the apex SPA actually does):
+
+```bash
+# CORS preflight for a contestant POST, from the apex origin:
+curl -i -X OPTIONS https://backend.flutterinthedark.dev/api/join \
+  -H 'Origin: https://flutterinthedark.dev' \
+  -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: content-type'
+# → 200 with Access-Control-Allow-Origin covering the apex.
+
+# The actual GET carries the CORS header on the response:
+curl -i https://backend.flutterinthedark.dev/api/state \
+  -H 'Origin: https://flutterinthedark.dev'
+# → 200 + Access-Control-Allow-Origin.
+
+# A compiled widget iframe, fetched as the apex page will embed it:
+curl -i https://backend.flutterinthedark.dev/compiled/<id> \
+  -H 'Origin: https://flutterinthedark.dev'
+# → 200, Access-Control-Allow-Origin: *, and NO X-Frame-Options.
+```
+
+The real browser check (per W-162: bundle-greps and curls are not proof):
+open `https://flutterinthedark.dev/`, join, and watch the Network tab —
+`/api/state`, `/api/events`, `/api/join`, `/api/prompt` go to
+`backend.flutterinthedark.dev` and succeed from the apex origin.
 
 SSE must **stream** (first frame within ~1 s, connection stays open):
 ```bash
@@ -162,10 +228,12 @@ watch `/show`.
       I-358). Re-confirm with the production model before doors.
 - [ ] **Tailscale path** — from the admin phone on the tailnet, load
       `https://<machine>.<tailnet>.ts.net:4443/admin` and fire one
-      `/api/admin/*` action.
-- [ ] **ACME first issuance** — hit `https://backend.flutterinthedark.dev/`
-      and confirm a valid Let's Encrypt cert (check
-      `docker compose logs traefik` for challenge errors the first time).
+      `/api/admin/*` action. (WI-100: the app resolves the API same-origin
+      on `*.ts.net`, so this keeps working with the single image.)
+- [ ] **ACME first issuance** — hit BOTH `https://flutterinthedark.dev/`
+      and `https://backend.flutterinthedark.dev/` and confirm valid Let's
+      Encrypt certs for each (check `docker compose logs traefik` for
+      challenge errors the first time — both hosts need DNS + :80).
 - [ ] Back up the `traefik-acme` volume (holds the ACME account key + certs).
 
 ## Ops notes
@@ -188,8 +256,14 @@ watch `/show`.
 
 ```bash
 docker compose -f docker-compose.yml -f deploy/docker-compose.local.yml up -d
-# public  → http://127.0.0.1:8080
-# "tailnet" → http://127.0.0.1:4443   (loopback stands in for the tailnet)
+# apex (app)    → http://127.0.0.1:8080
+# backend (API) → http://127.0.0.1:4503   (room + dart_services only)
+# "tailnet"     → http://127.0.0.1:4443   (loopback stands in for the tailnet)
 ```
-The structural gate is identical: `:8080` has no `/admin` or `/api/admin/*`
-route; `:4443` does. No `TAILSCALE_IP` / `ACME_EMAIL` needed locally.
+The WI-100 split is mirrored with ports: `:8080` serves ONLY the app,
+`:4503` ONLY the API — so a locally-built app pointed at
+`--dart-define=ROOM_URL=http://<host>:4503`
+`--dart-define=DART_SERVICES_URL=http://<host>:4503` exercises the same
+cross-origin (CORS) path production does. The structural gate is
+identical: `:8080` and `:4501` have no `/admin` or `/api/admin/*` route;
+`:4443` does. No `TAILSCALE_IP` / `ACME_EMAIL` needed locally.

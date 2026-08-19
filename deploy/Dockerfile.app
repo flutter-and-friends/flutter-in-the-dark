@@ -4,13 +4,24 @@
 #
 #   docker build -f deploy/Dockerfile.app -t fitd26-app:local .
 #
-# ROOM_URL / DART_SERVICES_URL are built as the `same-origin` SENTINEL: the
-# app then resolves both backends to web.window.location.origin — i.e. it
-# calls the API on whatever host:port served it (the proxy). One build thus
-# serves the public domain, the Tailscale alias, and local verification
-# unchanged. (An EMPTY dart-define does NOT work: String.fromEnvironment
-# can't distinguish empty from unset, and the app checks isNotEmpty — so the
-# loopback fallback would fire. The sentinel is what makes same-origin win.)
+# WI-100 host split: the app SPA is served from the APEX
+# https://flutterinthedark.dev while the API stays on
+# https://backend.flutterinthedark.dev — DIFFERENT origins. ROOM_URL /
+# DART_SERVICES_URL are therefore baked to the backend host explicitly
+# (same-origin resolution would hit the apex, which has no API routers).
+# Both backends answer CORS for the apex origin (room: shelf middleware;
+# dart_services: ACAO * — and no X-Frame-Options, so the /compiled/*
+# iframes embed cross-origin).
+#
+# The TAILNET alias still works with this same image: RoomClient resolves
+# same-origin when the page's hostname is on the tailnet (*.ts.net) —
+# the :4443 proxy fronts app + full API (incl. /api/admin/*) on ONE origin,
+# so the admin phone MUST use the https://<machine>.<tailnet>.ts.net:4443
+# URL (it already does). Everywhere else the baked backend URL wins.
+#
+# (An EMPTY dart-define does NOT work as a "fall back" value:
+# String.fromEnvironment can't distinguish empty from unset, and the app
+# checks isNotEmpty — so the loopback fallback would fire.)
 
 FROM ghcr.io/cirruslabs/flutter:3.47.0 AS build
 WORKDIR /src
@@ -26,8 +37,8 @@ RUN flutter pub get
 # icon references (W-156 class of bug: tree-shaken icons white-screen the
 # release build while dev looks fine).
 RUN flutter build web --release --no-tree-shake-icons \
-      --dart-define=ROOM_URL=same-origin \
-      --dart-define=DART_SERVICES_URL=same-origin
+      --dart-define=ROOM_URL=https://backend.flutterinthedark.dev \
+      --dart-define=DART_SERVICES_URL=https://backend.flutterinthedark.dev
 
 FROM nginx:1.27-alpine
 COPY deploy/nginx-app.conf /etc/nginx/conf.d/default.conf
