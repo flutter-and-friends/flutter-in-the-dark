@@ -68,15 +68,20 @@ class _ModelPickerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gen = state.generation;
-    // Best-first: models with a measured success rate sort ahead of unmeasured
-    // ones so "the next best one" is always at the top. Non-chat models
-    // (embeddings/whisper) can never serve generation — hide them entirely.
+    // Best-first by the CONCURRENT (4-way load) success rate — the real event
+    // condition — falling back to serial, so "the next best one" under load is
+    // always at the top. Non-chat models (embeddings/whisper) are hidden.
+    double scoreFor(ModelCandidate c) =>
+        c.concurrentSuccessPct ?? c.successPct ?? -1;
     final sorted = [...gen.candidates.where((c) => c.isChat)]
       ..sort((a, b) {
-        final sa = a.successPct ?? -1;
-        final sb = b.successPct ?? -1;
+        final sa = scoreFor(a);
+        final sb = scoreFor(b);
         if (sa != sb) return sb.compareTo(sa);
-        return a.id.compareTo(b.id);
+        // Tiebreak: faster under load wins.
+        final la = a.concurrentLatencyS ?? a.meanLatencyS ?? 1e9;
+        final lb = b.concurrentLatencyS ?? b.meanLatencyS ?? 1e9;
+        return la.compareTo(lb);
       });
 
     return Card(
@@ -100,8 +105,9 @@ class _ModelPickerCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Reliability on realistic (sentence-length) prompts. '
-              'Pick the next best one to fail over.',
+              'Headline numbers are measured under 4-way CONCURRENT load (4 '
+              'contestants at the buzzer) — hit% + avg time. Pick the next '
+              'best one to fail over.',
               style: TextStyle(color: Colors.white24, fontSize: 12),
             ),
             const SizedBox(height: 12),
@@ -113,12 +119,16 @@ class _ModelPickerCard extends StatelessWidget {
   }
 
   Widget _modelRow(BuildContext context, ModelCandidate c) {
-    final hasNumbers = c.successPct != null;
+    // Headline = concurrent (4-way load) numbers when present; else serial.
+    final hasConcurrent = c.concurrentSuccessPct != null;
+    final hasSerial = c.successPct != null;
+    final hasNumbers = hasConcurrent || hasSerial;
+    final headlinePct = c.concurrentSuccessPct ?? c.successPct;
     final successColor = !hasNumbers
         ? Colors.white38
-        : c.successPct! >= 90
+        : headlinePct! >= 90
         ? Colors.greenAccent
-        : c.successPct! >= 60
+        : headlinePct >= 60
         ? Colors.orangeAccent
         : Colors.redAccent;
 
@@ -170,43 +180,59 @@ class _ModelPickerCard extends StatelessWidget {
             Expanded(
               flex: 4,
               child: hasNumbers
-                  ? Wrap(
-                      spacing: 12,
-                      runSpacing: 2,
-                      crossAxisAlignment: WrapCrossAlignment.center,
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _stat(
-                          '${c.successPct!.toStringAsFixed(0)}%',
-                          'ok',
-                          successColor,
+                        // Headline: concurrent (4-way load) hit% + avg time.
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 2,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            _stat(
+                              '${headlinePct!.toStringAsFixed(0)}%',
+                              hasConcurrent ? 'ok ×4' : 'ok',
+                              successColor,
+                            ),
+                            if ((c.concurrentLatencyS ?? c.meanLatencyS) !=
+                                null)
+                              _stat(
+                                '${(c.concurrentLatencyS ?? c.meanLatencyS)!.toStringAsFixed(0)}s',
+                                'avg',
+                                Colors.white70,
+                              ),
+                            if (c.concurrentWallS != null)
+                              _stat(
+                                '${c.concurrentWallS!.toStringAsFixed(0)}s',
+                                'worst',
+                                c.concurrentWallS! > 60
+                                    ? Colors.orangeAccent
+                                    : Colors.white70,
+                              ),
+                            Text(
+                              hasConcurrent
+                                  ? '(${c.concurrentRuns}×4-way)'
+                                  : '(${c.runs} serial)',
+                              style: const TextStyle(
+                                color: Colors.white24,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
                         ),
-                        if (c.meanLatencyS != null)
-                          _stat(
-                            '${c.meanLatencyS!.toStringAsFixed(0)}s',
-                            'lat',
-                            Colors.white70,
+                        // Secondary: serial baseline (when both are measured).
+                        if (hasConcurrent && hasSerial)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              'serial: ${c.successPct!.toStringAsFixed(0)}% ok · '
+                              '${(c.meanLatencyS ?? 0).toStringAsFixed(0)}s',
+                              style: const TextStyle(
+                                color: Colors.white38,
+                                fontSize: 11,
+                              ),
+                            ),
                           ),
-                        if (c.proseLeakPct != null)
-                          _stat(
-                            '${c.proseLeakPct!.toStringAsFixed(0)}%',
-                            'leak',
-                            c.proseLeakPct! > 10
-                                ? Colors.redAccent
-                                : Colors.white70,
-                          ),
-                        if (c.quality != null)
-                          _stat(
-                            c.quality!.toStringAsFixed(1),
-                            'qual',
-                            Colors.white70,
-                          ),
-                        Text(
-                          '(${c.runs} runs)',
-                          style: const TextStyle(
-                            color: Colors.white24,
-                            fontSize: 11,
-                          ),
-                        ),
                       ],
                     )
                   : const Text(

@@ -141,6 +141,10 @@ class ModelCandidate {
     this.quality,
     this.runs = 0,
     this.isChat = true,
+    this.concurrentSuccessPct,
+    this.concurrentLatencyS,
+    this.concurrentWallS,
+    this.concurrentRuns = 0,
   });
 
   /// Full Berget model id, e.g. `moonshotai/Kimi-K3`.
@@ -158,6 +162,17 @@ class ModelCandidate {
   final double? quality;
   final int runs;
 
+  /// Measured under 4-way CONCURRENT load (the real event condition — 4
+  /// contestants firing at the buzzer). These are the headline numbers in the
+  /// picker; the serial [successPct]/[meanLatencyS] are the secondary baseline.
+  final double? concurrentSuccessPct;
+  final double? concurrentLatencyS;
+
+  /// Worst-case first-fire -> last-complete span across the concurrent waves —
+  /// the "room waits this long for all 4" number.
+  final double? concurrentWallS;
+  final int concurrentRuns;
+
   /// False for non-chat (e.g. embedding/whisper) models that can never serve
   /// generateCode. Filtered from the picker; kept in state only so a stale
   /// persisted entry doesn't reappear as selectable.
@@ -172,6 +187,11 @@ class ModelCandidate {
     if (quality != null) 'quality': quality,
     'runs': runs,
     if (!isChat) 'isChat': isChat,
+    if (concurrentSuccessPct != null)
+      'concurrentSuccessPct': concurrentSuccessPct,
+    if (concurrentLatencyS != null) 'concurrentLatencyS': concurrentLatencyS,
+    if (concurrentWallS != null) 'concurrentWallS': concurrentWallS,
+    'concurrentRuns': concurrentRuns,
   };
 
   static ModelCandidate fromJson(Map<String, dynamic> json) => ModelCandidate(
@@ -183,6 +203,10 @@ class ModelCandidate {
     quality: (json['quality'] as num?)?.toDouble(),
     runs: json['runs'] as int? ?? 0,
     isChat: json['isChat'] as bool? ?? true,
+    concurrentSuccessPct: (json['concurrentSuccessPct'] as num?)?.toDouble(),
+    concurrentLatencyS: (json['concurrentLatencyS'] as num?)?.toDouble(),
+    concurrentWallS: (json['concurrentWallS'] as num?)?.toDouble(),
+    concurrentRuns: json['concurrentRuns'] as int? ?? 0,
   );
 }
 

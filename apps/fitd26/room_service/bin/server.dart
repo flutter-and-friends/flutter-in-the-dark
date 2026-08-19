@@ -237,6 +237,10 @@ Future<void> main(List<String> args) async {
       proseLeakPct: dbl('proseLeakPct'),
       quality: dbl('quality'),
       runs: (body['runs'] as num?)?.toInt(),
+      concurrentSuccessPct: dbl('concurrentSuccessPct'),
+      concurrentLatencyS: dbl('concurrentLatencyS'),
+      concurrentWallS: dbl('concurrentWallS'),
+      concurrentRuns: (body['concurrentRuns'] as num?)?.toInt(),
     );
     return _json({'ok': true});
   });

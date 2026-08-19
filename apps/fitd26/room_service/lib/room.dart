@@ -144,6 +144,10 @@ class RoomState {
     double? proseLeakPct,
     double? quality,
     int? runs,
+    double? concurrentSuccessPct,
+    double? concurrentLatencyS,
+    double? concurrentWallS,
+    int? concurrentRuns,
   }) {
     final gen = _room.generation;
     var cand = gen.candidates.where((c) => c.id == model).firstOrNull;
@@ -165,9 +169,16 @@ class RoomState {
           proseLeakPct: proseLeakPct ?? cand.proseLeakPct,
           quality: quality ?? cand.quality,
           runs: runs ?? cand.runs,
+          concurrentSuccessPct:
+              concurrentSuccessPct ?? cand.concurrentSuccessPct,
+          concurrentLatencyS: concurrentLatencyS ?? cand.concurrentLatencyS,
+          concurrentWallS: concurrentWallS ?? cand.concurrentWallS,
+          concurrentRuns: concurrentRuns ?? cand.concurrentRuns,
         );
     print('[room] modelStats: $model -> ok=${successPct ?? cand.successPct} '
-        'lat=${meanLatencyS ?? cand.meanLatencyS} runs=${runs ?? cand.runs}');
+        'lat=${meanLatencyS ?? cand.meanLatencyS} runs=${runs ?? cand.runs} '
+        'conc=${concurrentSuccessPct ?? cand.concurrentSuccessPct}@'
+        '${concurrentLatencyS ?? cand.concurrentLatencyS}');
     _changed();
   }
 

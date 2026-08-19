@@ -129,6 +129,10 @@ class ModelCandidate {
     this.quality,
     this.runs = 0,
     this.isChat = true,
+    this.concurrentSuccessPct,
+    this.concurrentLatencyS,
+    this.concurrentWallS,
+    this.concurrentRuns = 0,
   });
 
   final String id;
@@ -138,6 +142,13 @@ class ModelCandidate {
   final double? proseLeakPct;
   final double? quality;
   final int runs;
+
+  /// Measured under 4-way concurrent load (the real event condition). These
+  /// are the headline numbers; serial successPct/meanLatencyS are secondary.
+  final double? concurrentSuccessPct;
+  final double? concurrentLatencyS;
+  final double? concurrentWallS;
+  final int concurrentRuns;
 
   /// False for non-chat (embedding/whisper) models — never selectable.
   final bool isChat;
@@ -154,6 +165,10 @@ class ModelCandidate {
     quality: (json['quality'] as num?)?.toDouble(),
     runs: json['runs'] as int? ?? 0,
     isChat: json['isChat'] as bool? ?? true,
+    concurrentSuccessPct: (json['concurrentSuccessPct'] as num?)?.toDouble(),
+    concurrentLatencyS: (json['concurrentLatencyS'] as num?)?.toDouble(),
+    concurrentWallS: (json['concurrentWallS'] as num?)?.toDouble(),
+    concurrentRuns: json['concurrentRuns'] as int? ?? 0,
   );
 }
 
