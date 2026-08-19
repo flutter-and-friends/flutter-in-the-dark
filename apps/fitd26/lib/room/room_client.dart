@@ -178,6 +178,10 @@ class RoomClient {
       _post('/api/admin/removeChallenger', {'playerId': playerId});
 
   Future<void> removeAllChallengers() => _post('/api/admin/removeAll', {});
+
+  /// Live generation-model failover. Applies to new generation immediately.
+  Future<void> setModel({required String model}) =>
+      _post('/api/admin/model', {'model': model});
 }
 
 class RoomConnectionException implements Exception {

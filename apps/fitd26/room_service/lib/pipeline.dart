@@ -21,10 +21,22 @@ class PipelineException implements Exception {
 /// Talks to the dart_services fork over plain HTTP (in-container, no CORS
 /// concerns). Streaming endpoints are consumed as chunked byte streams.
 class Pipeline {
-  Pipeline({required this.backendBase});
+  Pipeline({required this.backendBase, String? initialModel})
+    : model = initialModel ?? defaultModel;
 
   /// e.g. `http://127.0.0.1:8300`
   final String backendBase;
+
+  /// The generation model used when the operator hasn't picked one. Matches
+  /// the dart_services boot-time default so behaviour is unchanged when the
+  /// picker is never touched.
+  static const defaultModel = 'google/gemma-4-31B-it';
+
+  /// The generation model currently selected for new work. Owned here (not in
+  /// dart_services) so the admin can fail over live without a backend restart
+  /// — the value is passed to dart_services as a per-request `model` override
+  /// on every generateCode/suggestFix call. Mutated by [RoomState.setModel].
+  String model;
 
   static const maxFixAttempts = 2;
 
@@ -149,6 +161,7 @@ class Pipeline {
         'appType': 'flutter',
         'prompt': prompt,
         'attachments': <String>[],
+        'model': model,
       });
     final result = await _streamText(request, 'generateCode', client);
     print('[pipeline] generate DONE (${result.length} chars)');
@@ -167,6 +180,7 @@ class Pipeline {
         'line': 0,
         'column': 0,
         'source': source,
+        'model': model,
       });
     return _streamText(request, 'suggestFix', client);
   }

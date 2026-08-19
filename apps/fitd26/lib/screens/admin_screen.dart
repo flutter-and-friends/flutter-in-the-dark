@@ -41,6 +41,8 @@ class _AdminScreenState extends State<AdminScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                _ModelPickerCard(roomSync: widget.roomSync, state: state),
+                const SizedBox(height: 16),
                 _AudienceViewCard(roomSync: widget.roomSync, state: state),
                 const SizedBox(height: 16),
                 _TriStateCard(roomSync: widget.roomSync, state: state),
@@ -50,6 +52,188 @@ class _AdminScreenState extends State<AdminScreen> {
                 _PlayersCard(roomSync: widget.roomSync, state: state),
               ],
             ),
+    );
+  }
+}
+
+/// Live generation-model failover. Shows every candidate model with its
+/// realistic-prompt reliability numbers (success %, latency, prose-leak,
+/// quality) and switches the active model without a restart (WI-098).
+class _ModelPickerCard extends StatelessWidget {
+  const _ModelPickerCard({required this.roomSync, required this.state});
+
+  final RoomSync roomSync;
+  final RoomState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final gen = state.generation;
+    // Best-first: models with a measured success rate sort ahead of unmeasured
+    // ones so "the next best one" is always at the top. Non-chat models
+    // (embeddings/whisper) can never serve generation — hide them entirely.
+    final sorted = [...gen.candidates.where((c) => c.isChat)]
+      ..sort((a, b) {
+        final sa = a.successPct ?? -1;
+        final sb = b.successPct ?? -1;
+        if (sa != sb) return sb.compareTo(sa);
+        return a.id.compareTo(b.id);
+      });
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Generation model',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'applies live — no restart',
+                  style: TextStyle(color: Colors.white38, fontSize: 12),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Reliability on realistic (sentence-length) prompts. '
+              'Pick the next best one to fail over.',
+              style: TextStyle(color: Colors.white24, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            for (final c in sorted) _modelRow(context, c),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _modelRow(BuildContext context, ModelCandidate c) {
+    final hasNumbers = c.successPct != null;
+    final successColor = !hasNumbers
+        ? Colors.white38
+        : c.successPct! >= 90
+        ? Colors.greenAccent
+        : c.successPct! >= 60
+        ? Colors.orangeAccent
+        : Colors.redAccent;
+
+    return InkWell(
+      onTap: c.active ? null : () => roomSync.client.setModel(model: c.id),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: c.active ? Colors.greenAccent : Colors.white12,
+            width: c.active ? 1.5 : 1,
+          ),
+          color: c.active
+              ? Colors.greenAccent.withValues(alpha: 0.08)
+              : Colors.transparent,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              c.active ? Icons.radio_button_checked : Icons.radio_button_off,
+              color: c.active ? Colors.greenAccent : Colors.white38,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    c.shortName,
+                    style: TextStyle(
+                      fontWeight:
+                          c.active ? FontWeight.bold : FontWeight.normal,
+                      color: c.active ? Colors.greenAccent : null,
+                    ),
+                  ),
+                  Text(
+                    c.id,
+                    style: const TextStyle(color: Colors.white38, fontSize: 11),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              flex: 4,
+              child: hasNumbers
+                  ? Wrap(
+                      spacing: 12,
+                      runSpacing: 2,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        _stat(
+                          '${c.successPct!.toStringAsFixed(0)}%',
+                          'ok',
+                          successColor,
+                        ),
+                        if (c.meanLatencyS != null)
+                          _stat(
+                            '${c.meanLatencyS!.toStringAsFixed(0)}s',
+                            'lat',
+                            Colors.white70,
+                          ),
+                        if (c.proseLeakPct != null)
+                          _stat(
+                            '${c.proseLeakPct!.toStringAsFixed(0)}%',
+                            'leak',
+                            c.proseLeakPct! > 10
+                                ? Colors.redAccent
+                                : Colors.white70,
+                          ),
+                        if (c.quality != null)
+                          _stat(
+                            c.quality!.toStringAsFixed(1),
+                            'qual',
+                            Colors.white70,
+                          ),
+                        Text(
+                          '(${c.runs} runs)',
+                          style: const TextStyle(
+                            color: Colors.white24,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    )
+                  : const Text(
+                      'not benchmarked yet',
+                      style: TextStyle(color: Colors.white24, fontSize: 12),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _stat(String value, String label, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+        Text(label, style: const TextStyle(color: Colors.white38, fontSize: 10)),
+      ],
     );
   }
 }

@@ -40,7 +40,15 @@ Future<void> main(List<String> args) async {
   final port = int.parse(results['port'] as String);
   final stateFilePath = results['state-file'] as String;
 
-  final pipeline = gen.Pipeline(backendBase: results['backend'] as String);
+  // Seed the pipeline's model from the env (so the boot default matches
+  // dart_services' BERGET_MODEL); the admin picker overrides it live after.
+  final initialModel = Platform.environment['BERGET_MODEL'];
+  final pipeline = gen.Pipeline(
+    backendBase: results['backend'] as String,
+    initialModel: (initialModel != null && initialModel.isNotEmpty)
+        ? initialModel
+        : null,
+  );
   final room = RoomState(
     pipeline: pipeline,
     stateFile: stateFilePath.isEmpty ? null : File(stateFilePath),
@@ -84,14 +92,13 @@ Future<void> main(List<String> args) async {
   // ------------------------------------------------------------ contestant
 
   // Debug probe: does an outbound HTTP call from inside the service work?
+  // Uses the room's OWN pipeline so it exercises the currently-selected model
+  // (a fresh Pipeline would silently drop the admin's live model override).
   router.get('/api/probe-generate', (Request request) async {
     final sw = Stopwatch()..start();
     try {
-      final req = gen.Pipeline(
-        backendBase: results['backend'] as String,
-      );
       final prompt = request.url.queryParameters['prompt'] ?? 'a red button';
-      final text = await req.probeGenerate(prompt);
+      final text = await pipeline.probeGenerate(prompt);
       return _json({'ok': true, 'ms': sw.elapsedMilliseconds, 'len': text});
     } catch (e) {
       return _json({'ok': false, 'ms': sw.elapsedMilliseconds, 'error': '$e'});
@@ -201,6 +208,36 @@ Future<void> main(List<String> args) async {
 
   router.post('/api/admin/removeAll', (Request request) {
     room.removeAllChallengers();
+    return _json({'ok': true});
+  });
+
+  // Live generation-model failover. The picker is operator-only by the same
+  // Tailscale gate as every other /api/admin/* route. Takes effect for new
+  // generation immediately; no restart.
+  router.post('/api/admin/model', (Request request) async {
+    final body = await _readJson(request);
+    final model = body['model'] as String? ?? '';
+    if (model.isEmpty) return _badRequest('model is required');
+    room.setModel(model);
+    return _json({'ok': true, 'activeModel': model});
+  });
+
+  // Benchmark backfill: pushes realistic-prompt reliability numbers for a model
+  // into the picker. Called by the bake-off harness after a run; also usable
+  // ad hoc. All numeric fields optional — only provided ones update.
+  router.post('/api/admin/modelStats', (Request request) async {
+    final body = await _readJson(request);
+    final model = body['model'] as String? ?? '';
+    if (model.isEmpty) return _badRequest('model is required');
+    double? dbl(String k) => (body[k] as num?)?.toDouble();
+    room.updateModelStats(
+      model,
+      successPct: dbl('successPct'),
+      meanLatencyS: dbl('meanLatencyS'),
+      proseLeakPct: dbl('proseLeakPct'),
+      quality: dbl('quality'),
+      runs: (body['runs'] as num?)?.toInt(),
+    );
     return _json({'ok': true});
   });
 

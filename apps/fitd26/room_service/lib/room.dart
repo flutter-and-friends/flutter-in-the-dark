@@ -37,7 +37,10 @@ class RoomState {
 
   void load() {
     final file = stateFile;
-    if (file == null || !file.existsSync()) return;
+    if (file == null || !file.existsSync()) {
+      _initGeneration();
+      return;
+    }
     try {
       _room = Room.fromJson(
         (jsonDecode(file.readAsStringSync()) as Map).cast<String, dynamic>(),
@@ -54,6 +57,118 @@ class RoomState {
       stderr.writeln('room: failed to load ${file.path}: $e — starting fresh');
       _room = Room();
     }
+    _initGeneration();
+  }
+
+  /// Seeds the generation block on boot and reconciles it with whatever was
+  /// persisted: guarantees every known model appears as a candidate, the
+  /// active flag matches the pipeline's model, and the pipeline reflects the
+  /// persisted/active selection. Benchmark numbers survive restarts.
+  void _initGeneration() {
+    final gen = _room.generation;
+    // One-time scrub: drop any persisted candidate that isn't a known chat
+    // model (a bogus embedding model was persisted during WI-098 development).
+    gen.candidates.removeWhere((c) => !isChatModel(c.id));
+    if (gen.candidates.isEmpty) {
+      gen.candidates = [for (final id in knownModels) ModelCandidate(id: id)];
+    } else {
+      final have = gen.candidates.map((c) => c.id).toSet();
+      for (final id in knownModels) {
+        if (!have.contains(id)) gen.candidates.add(ModelCandidate(id: id));
+      }
+    }
+    // Resolve the effective model: a persisted active selection wins; else a
+    // persisted activeModel string; else the pipeline's boot default. If the
+    // persisted selection is somehow a non-chat model, fall back to default.
+    var effective = gen.candidates
+        .where((c) => c.active)
+        .map((c) => c.id)
+        .firstOrNull ??
+        (gen.activeModel.isNotEmpty ? gen.activeModel : pipeline.model);
+    if (!isChatModel(effective)) effective = pipeline.model;
+    if (!isChatModel(effective)) effective = Pipeline.defaultModel;
+    pipeline.model = effective;
+    gen.activeModel = effective;
+    for (final c in gen.candidates) {
+      c.active = c.id == effective;
+    }
+  }
+
+  /// Every Berget CHAT model the operator may pick, in the order shown.
+  /// Benchmark numbers are attached as runs complete; unknown models still
+  /// appear so the picker always offers the full failover set. Non-chat models
+  /// (embeddings, whisper) are deliberately excluded — they can never serve
+  /// generateCode.
+  static const knownModels = [
+    'google/gemma-4-31B-it',
+    'moonshotai/Kimi-K2.6',
+    'moonshotai/Kimi-K3',
+    'zai-org/GLM-4.7-FP8',
+    'openai/gpt-oss-120b',
+    'meta-llama/Llama-3.3-70B-Instruct',
+    'Qwen/Qwen3.8-27B-FP8',
+    'mistralai/Mistral-Small-3.2-24B-Instruct-2506',
+  ];
+
+  /// Models that must never appear in the picker (embedding / transcription —
+  /// they reject chat completions). Used to scrub stale persisted entries.
+  static bool isChatModel(String id) => knownModels.contains(id);
+
+  /// Live model failover (admin). Re-points the pipeline at [model] for all
+  /// new generation and broadcasts the change. In-flight work keeps the model
+  /// it started with; the next pipeline run uses the new one. No restart.
+  void setModel(String model) {
+    pipeline.model = model;
+    final gen = _room.generation;
+    gen.activeModel = model;
+    var found = false;
+    for (final c in gen.candidates) {
+      c.active = c.id == model;
+      if (c.active) found = true;
+    }
+    if (!found) {
+      gen.candidates.add(
+        ModelCandidate(id: model, active: true, isChat: isChatModel(model)),
+      );
+    }
+    _changed();
+  }
+
+  /// Replaces the benchmark numbers shown for [model] in the picker (called by
+  /// POST /api/admin/modelStats after a benchmark run). Creates the candidate
+  /// if it isn't known yet. Nulls leave the corresponding number unset.
+  void updateModelStats(
+    String model, {
+    double? successPct,
+    double? meanLatencyS,
+    double? proseLeakPct,
+    double? quality,
+    int? runs,
+  }) {
+    final gen = _room.generation;
+    var cand = gen.candidates.where((c) => c.id == model).firstOrNull;
+    if (cand == null) {
+      cand = ModelCandidate(
+        id: model,
+        active: gen.activeModel == model,
+        isChat: isChatModel(model),
+      );
+      gen.candidates.add(cand);
+      print('[room] modelStats: new candidate $model (chat=${cand.isChat})');
+    }
+    gen.candidates[gen.candidates.indexWhere((c) => c.id == model)] =
+        ModelCandidate(
+          id: model,
+          active: cand.active,
+          successPct: successPct ?? cand.successPct,
+          meanLatencyS: meanLatencyS ?? cand.meanLatencyS,
+          proseLeakPct: proseLeakPct ?? cand.proseLeakPct,
+          quality: quality ?? cand.quality,
+          runs: runs ?? cand.runs,
+        );
+    print('[room] modelStats: $model -> ok=${successPct ?? cand.successPct} '
+        'lat=${meanLatencyS ?? cand.meanLatencyS} runs=${runs ?? cand.runs}');
+    _changed();
   }
 
   void _persist() {

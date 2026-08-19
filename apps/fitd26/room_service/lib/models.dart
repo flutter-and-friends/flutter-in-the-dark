@@ -129,11 +129,92 @@ class ShowState {
   }
 }
 
+/// One selectable generation model + the realistic-prompt reliability numbers
+/// the admin picker shows next to it. [active] marks the model new work uses.
+class ModelCandidate {
+  ModelCandidate({
+    required this.id,
+    this.active = false,
+    this.successPct,
+    this.meanLatencyS,
+    this.proseLeakPct,
+    this.quality,
+    this.runs = 0,
+    this.isChat = true,
+  });
+
+  /// Full Berget model id, e.g. `moonshotai/Kimi-K3`.
+  final String id;
+  bool active;
+
+  /// % of realistic-prompt runs that produced clean, compilable code.
+  final double? successPct;
+  final double? meanLatencyS;
+
+  /// % of runs that leaked prose / left a ``` fence remnant.
+  final double? proseLeakPct;
+
+  /// Mean rubric quality (0-10) across scored runs.
+  final double? quality;
+  final int runs;
+
+  /// False for non-chat (e.g. embedding/whisper) models that can never serve
+  /// generateCode. Filtered from the picker; kept in state only so a stale
+  /// persisted entry doesn't reappear as selectable.
+  final bool isChat;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'active': active,
+    if (successPct != null) 'successPct': successPct,
+    if (meanLatencyS != null) 'meanLatencyS': meanLatencyS,
+    if (proseLeakPct != null) 'proseLeakPct': proseLeakPct,
+    if (quality != null) 'quality': quality,
+    'runs': runs,
+    if (!isChat) 'isChat': isChat,
+  };
+
+  static ModelCandidate fromJson(Map<String, dynamic> json) => ModelCandidate(
+    id: json['id'] as String,
+    active: json['active'] as bool? ?? false,
+    successPct: (json['successPct'] as num?)?.toDouble(),
+    meanLatencyS: (json['meanLatencyS'] as num?)?.toDouble(),
+    proseLeakPct: (json['proseLeakPct'] as num?)?.toDouble(),
+    quality: (json['quality'] as num?)?.toDouble(),
+    runs: json['runs'] as int? ?? 0,
+    isChat: json['isChat'] as bool? ?? true,
+  );
+}
+
+/// The admin model-picker state: which model is live + the candidate list with
+/// benchmark numbers. Broadcast over the room `state` event so /admin renders
+/// it without a separate fetch.
+class GenerationState {
+  String activeModel = '';
+  List<ModelCandidate> candidates = [];
+
+  Map<String, dynamic> toJson() => {
+    'activeModel': activeModel,
+    'candidates': [for (final c in candidates) c.toJson()],
+  };
+
+  static GenerationState fromJson(Map<String, dynamic> json) {
+    final g = GenerationState();
+    g.activeModel = json['activeModel'] as String? ?? '';
+    g.candidates = [
+      for (final c in (json['candidates'] as List? ?? const []))
+        ModelCandidate.fromJson((c as Map).cast<String, dynamic>()),
+    ];
+    return g;
+  }
+}
+
 class Room {
   int revision = 0;
   Challenge? challenge;
   final Map<String, Challenger> challengers = {};
   ShowState show = ShowState();
+  GenerationState generation = GenerationState();
 
   /// Admin's tri-state selection applied to every challenger at once
   /// (allWithChallenge / allPlayers scope).
@@ -153,6 +234,7 @@ class Room {
       for (final c in challengers.values) c.toJson(),
     ],
     'show': show.toJson(),
+    'generation': generation.toJson(),
     'globalContent': globalContent.name,
     'playerContent': {for (final e in playerContent.entries) e.key: e.value.name},
   };
@@ -169,6 +251,9 @@ class Room {
     }
     if (json['show'] case final Map<String, dynamic> s) {
       room.show = ShowState.fromJson(s);
+    }
+    if (json['generation'] case final Map<String, dynamic> g) {
+      room.generation = GenerationState.fromJson(g);
     }
     if (json['globalContent'] case final String g) {
       room.globalContent = DisplayContent.values.byName(g);

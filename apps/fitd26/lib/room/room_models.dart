@@ -117,6 +117,63 @@ class ShowState {
   );
 }
 
+/// One selectable generation model + its realistic-prompt reliability numbers,
+/// mirrored from the room service. Shown in the /admin model picker.
+class ModelCandidate {
+  ModelCandidate({
+    required this.id,
+    required this.active,
+    this.successPct,
+    this.meanLatencyS,
+    this.proseLeakPct,
+    this.quality,
+    this.runs = 0,
+    this.isChat = true,
+  });
+
+  final String id;
+  final bool active;
+  final double? successPct;
+  final double? meanLatencyS;
+  final double? proseLeakPct;
+  final double? quality;
+  final int runs;
+
+  /// False for non-chat (embedding/whisper) models — never selectable.
+  final bool isChat;
+
+  /// Short display name (the part after the `/`).
+  String get shortName => id.contains('/') ? id.split('/').last : id;
+
+  static ModelCandidate fromJson(Map<String, dynamic> json) => ModelCandidate(
+    id: json['id'] as String,
+    active: json['active'] as bool? ?? false,
+    successPct: (json['successPct'] as num?)?.toDouble(),
+    meanLatencyS: (json['meanLatencyS'] as num?)?.toDouble(),
+    proseLeakPct: (json['proseLeakPct'] as num?)?.toDouble(),
+    quality: (json['quality'] as num?)?.toDouble(),
+    runs: json['runs'] as int? ?? 0,
+    isChat: json['isChat'] as bool? ?? true,
+  );
+}
+
+/// The admin model-picker state: live model + candidates with benchmark data.
+class GenerationState {
+  GenerationState({required this.activeModel, required this.candidates});
+
+  final String activeModel;
+  final List<ModelCandidate> candidates;
+
+  static GenerationState fromJson(Map<String, dynamic> json) =>
+      GenerationState(
+        activeModel: json['activeModel'] as String? ?? '',
+        candidates: [
+          for (final c in (json['candidates'] as List? ?? const []))
+            ModelCandidate.fromJson((c as Map).cast<String, dynamic>()),
+        ],
+      );
+}
+
 class RoomState {
   RoomState({
     required this.revision,
@@ -125,6 +182,7 @@ class RoomState {
     required this.show,
     required this.globalContent,
     required this.playerContent,
+    required this.generation,
   });
 
   final int revision;
@@ -133,6 +191,7 @@ class RoomState {
   final ShowState show;
   final DisplayContent globalContent;
   final Map<String, DisplayContent> playerContent;
+  final GenerationState generation;
 
   DisplayContent contentFor(String challengerId) =>
       playerContent[challengerId] ?? globalContent;
@@ -156,6 +215,9 @@ class RoomState {
     ],
     show: ShowState.fromJson(
       (json['show'] as Map? ?? const {}).cast<String, dynamic>(),
+    ),
+    generation: GenerationState.fromJson(
+      (json['generation'] as Map? ?? const {}).cast<String, dynamic>(),
     ),
     globalContent: DisplayContent.values.byName(
       json['globalContent'] as String? ?? 'prompt',
