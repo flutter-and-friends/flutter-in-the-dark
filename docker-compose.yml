@@ -1,0 +1,237 @@
+name: fitd26
+
+# fitd26 production stack — "Flutter in the Dark" event deployment.
+#
+# One command on the event host:
+#
+#     docker compose up -d
+#
+# …brings up Traefik (TLS via Let's Encrypt), the release-built SPA, the
+# room-state service and the dart_services generation backend, all behind
+# https://backend.flutterinthedark.dev/ .
+#
+# Prerequisites (see DEPLOY.md for the full checklist):
+#   1. DNS A record: backend.flutterinthedark.dev → this host's public IP.
+#   2. deploy/env/dart_services.env containing BERGET_REFRESH_TOKEN=<secret>
+#      (optionally BERGET_MODEL=…). NEVER commit this file. Verify blind:
+#      file existence + key name only, never print the value (W-083/W-149).
+#   3. Host firewall allows inbound 80+443 (80 is needed for the ACME
+#      HTTP-01 challenge AND redirects to 443).
+#   4. TAILSCALE_IP set to this host's tailscale0 address (tailscale ip -4).
+#      The Tailscale node must have HTTPS certs enabled
+#      (`tailscale cert` / MagicDNS) for the admin listener to serve valid TLS.
+#
+# ┌─────────────────────────── THE /admin GATE ───────────────────────────┐
+# │ WI-093 D2 + 2026-08-19 clarification: the gate is STRUCTURAL, not a   │
+# │ middleware rule.                                                      │
+# │                                                                       │
+# │   PUBLIC entrypoint (443, 0.0.0.0):                                   │
+# │     routers exist ONLY for                                            │
+# │       GET /api/state, GET /api/events, POST /api/join, POST /api/prompt│
+# │       dart_services API, and the SPA pages / and /show.               │
+# │     There is NO router for /api/admin/* and NO router for /admin —    │
+# │     Traefik answers 404. The route does not exist.                    │
+# │                                                                       │
+# │   TAILSCALE entrypoint (4443, bound to the host's 100.x address only):│
+# │     full API surface incl. /api/admin/* + the SPA incl. /admin.       │
+# │     Only reachable from devices on the tailnet (the admin phone).     │
+# │                                                                       │
+# │ The room service itself is UNCHANGED: it has no app-level auth on     │
+# │ admin routes by design; the network gate above IS the auth.           │
+# └───────────────────────────────────────────────────────────────────────┘
+#
+# Local/dev-host override (no TLS, no DNS, loopback stands in for the
+# tailnet): see deploy/docker-compose.local.yml.
+
+services:
+  # ------------------------------------------------------------------ proxy
+  traefik:
+    image: traefik:v3.4
+    restart: unless-stopped
+    command:
+      # Traefik's own API/dashboard stays OFF (nothing extra to attack).
+      - --api.insecure=false
+      - --providers.docker=true
+      # Only services we explicitly opt in get routed (this file).
+      - --providers.docker.exposedbydefault=false
+      # PUBLIC: the only listener the venue network/internet can reach.
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      # TAILSCALE: bound to the host's tailscale0 address only. The
+      # published port mapping below does the same at the Docker layer
+      # (100.x:4443:4443), so Docker's iptables rule also only accepts
+      # tailnet-source traffic.
+      - --entrypoints.tailnet.address=:4443
+      # Let's Encrypt (ACME HTTP-01 over the `web` entrypoint) for the
+      # public domain.
+      - --certificatesresolvers=letsencrypt.acme.email=${ACME_EMAIL:?set ACME_EMAIL in the environment or .env}
+      - --certificatesresolvers=letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers=letsencrypt.acme.httpchallenge.entrypoint=web
+      - --log.level=INFO
+    ports:
+      # The public edge of the whole stack.
+      - "80:80"
+      - "443:443"
+      # The admin edge — published ONLY on the tailnet interface. Fails
+      # fast at `up` if TAILSCALE_IP is unset: that is intentional.
+      - "${TAILSCALE_IP:?set TAILSCALE_IP to the host tailscale0 IPv4 (tailscale ip -4)}:4443:4443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Static file config: the tailnet-entrypoint TLS cert (issued by
+      # Tailscale itself for the machine's ts.net name — no public CA can
+      # validate a 100.x name).
+      - ./deploy/traefik/tls.yml:/etc/traefik/tls.yml:ro
+      - ${TAILSCALE_CERT_DIR:-~/.tailscale-certs}:/certs:ro
+      - traefik-acme:/letsencrypt
+    networks:
+      - fitd
+    depends_on:
+      - app
+      - room
+      - dart-services
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # -------------------------------------------------------------- SPA (app)
+  # Release Flutter web build (`flutter build web --release
+  # --no-tree-shake-icons`), served by nginx with SPA deep-link fallback.
+  # The fallback must NOT swallow API paths — API routers run at priority
+  # 100 and win before anything reaches nginx (I-114).
+  app:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.app
+    image: fitd26-app:local
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      # --- PUBLIC: static assets + the contestant pages. /admin HAS NO
+      # ROUTER HERE — the negative lookahead excludes it and every path
+      # under it, so the page 404s structurally, and even a hand-typed URL
+      # can't reach the admin API because /api/admin/* has no public
+      # router either. Static assets need their own (higher-priority)
+      # router: the SPA can't bootstrap without /flutter_bootstrap.js,
+      # /main.dart.js, /assets/* etc. ---
+      - traefik.http.routers.app-public-static.rule=Host(`${DOMAIN}`) && PathRegexp(`^/(?!admin(/|$))(assets|canvaskit|icons)(/|$)|^/(?!admin(/|$))[^/]*\.[a-zA-Z0-9]+$`)
+      - traefik.http.routers.app-public-static.priority=15
+      - traefik.http.routers.app-public-static.entrypoints=websecure
+      - traefik.http.routers.app-public-static.tls.certresolver=letsencrypt
+      - traefik.http.routers.app-public.rule=Host(`${DOMAIN}`) && (Path(`/`) || PathPrefix(`/show`))
+      - traefik.http.routers.app-public.priority=10
+      - traefik.http.routers.app-public.entrypoints=websecure
+      - traefik.http.routers.app-public.tls.certresolver=letsencrypt
+      # --- HTTP→HTTPS redirect for anything reaching :80 ---
+      - traefik.http.routers.app-http.rule=PathPrefix(`/`)
+      - traefik.http.routers.app-http.entrypoints=web
+      - traefik.http.routers.app-http.middlewares=redirect-https
+      - traefik.http.middlewares.redirect-https.redirectscheme.scheme=https
+      # --- TAILSCALE: full SPA, /admin included ---
+      - traefik.http.routers.app-admin.rule=PathPrefix(`/`)
+      - traefik.http.routers.app-admin.priority=1
+      - traefik.http.routers.app-admin.entrypoints=tailnet
+      # TLS cert comes from the file provider (deploy/traefik/tls.yml →
+      # /certs/tailscale.{crt,key}), issued by `tailscale cert`.
+      - traefik.http.routers.app-admin.tls=true
+      - traefik.http.services.app.loadbalancer.server.port=80
+      # ----------------------------------------------------------
+      # FALLBACK if the tailnet is flaky at the venue (documented in
+      # DEPLOY.md): expose /admin on the PUBLIC domain behind Traefik
+      # basic-auth instead. Add the labels below to the `app` service and
+      # set BASIC_AUTH_USERS (htpasswd) in .env. The shipped config does
+      # NOT do this — the structural gate above is the decision.
+      #
+      #   - traefik.http.routers.app-admin-public.rule=Host(`${DOMAIN}`) && PathPrefix(`/admin`)
+      #   - traefik.http.routers.app-admin-public.priority=20
+      #   - traefik.http.routers.app-admin-public.entrypoints=websecure
+      #   - traefik.http.routers.app-admin-public.tls.certresolver=letsencrypt
+      #   - traefik.http.routers.app-admin-public.middlewares=admin-basicauth
+      #   - traefik.http.middlewares.admin-basicauth.basicauth.users=${BASIC_AUTH_USERS}
+      #   …and the matching room router for /api/admin/* (same middleware).
+    networks:
+      - fitd
+
+  # ------------------------------------------------------- room-state svc
+  room:
+    build:
+      context: apps/fitd26/room_service
+      dockerfile: ../../deploy/Dockerfile.room
+    image: fitd26-room:local
+    restart: unless-stopped
+    environment:
+      # Boot default model for the generation pipeline; the admin picker
+      # overrides it live afterwards. Should match BERGET_MODEL.
+      BERGET_MODEL: ${BERGET_MODEL:-openai/gpt-oss-120b}
+    labels:
+      - traefik.enable=true
+      # --- PUBLIC: read-only room API + contestant writes. /api/admin/*
+      # has NO ROUTER HERE — POSTs to it 404 at the proxy. ---
+      - traefik.http.routers.room-public.rule=Host(`${DOMAIN}`) && (Path(`/api/state`) || Path(`/api/events`) || Path(`/api/join`) || Path(`/api/prompt`) || Path(`/api/probe-generate`))
+      - traefik.http.routers.room-public.priority=100
+      - traefik.http.routers.room-public.entrypoints=websecure
+      - traefik.http.routers.room-public.tls.certresolver=letsencrypt
+      # --- TAILSCALE: admin API (plus everything public has) ---
+      # /api/v3/* is excluded — those belong to dart_services (the
+      # dart-services-admin router below matches them first by specificity).
+      - traefik.http.routers.room-admin.rule=PathPrefix(`/api`) && !PathPrefix(`/api/v3`)
+      - traefik.http.routers.room-admin.priority=100
+      - traefik.http.routers.room-admin.entrypoints=tailnet
+      - traefik.http.routers.room-admin.tls=true
+      - traefik.http.services.room.loadbalancer.server.port=8302
+    volumes:
+      # Room state survives container restarts (rejoin with the stored
+      # token; /tmp lifetime does not).
+      - room-state:/data
+    networks:
+      - fitd
+    depends_on:
+      - dart-services
+
+  # ------------------------------------------------- generation backend
+  # The dart-pad fork (branch berget-backend). Building from source needs
+  # the Flutter SDK + grind-built artifacts; deploy/Dockerfile.dart-services
+  # does that as a multi-stage build, but it is slow (~15–25 min). Fast
+  # path: pre-build the image on any machine with Docker:
+  #
+  #   cd dart-pad/pkgs/dart_services
+  #   docker build -f <fitd-repo>/deploy/Dockerfile.dart-services -t fitd26-dart-services:local .
+  #   docker save fitd26-dart-services:local | ssh event-host docker load
+  #
+  # …and `docker compose up -d` will use it as-is (compose builds only when
+  # the image is absent).
+  dart-services:
+    build:
+      context: ${DART_PAD_PATH:-../dart-pad}/pkgs/dart_services
+      dockerfile: ${DART_PAD_DOCKERFILE:-../../flutter-in-the-dark/deploy/Dockerfile.dart-services}
+    image: fitd26-dart-services:local
+    restart: unless-stopped
+    env_file:
+      # Contains BERGET_REFRESH_TOKEN (+ optional BERGET_MODEL/BERGET_API_URL).
+      # Never committed; see deploy/env/dart_services.env.example for the KEY
+      # NAMES only.
+      - deploy/env/dart_services.env
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dart-services-public.rule=Host(`${DOMAIN}`) && (Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`))
+      - traefik.http.routers.dart-services-public.priority=100
+      - traefik.http.routers.dart-services-public.entrypoints=websecure
+      - traefik.http.routers.dart-services-public.tls.certresolver=letsencrypt
+      # Same API on the tailnet entrypoint (admin machine drives
+      # compile/generate probes from the tailnet).
+      - traefik.http.routers.dart-services-admin.rule=Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`)
+      - traefik.http.routers.dart-services-admin.priority=100
+      - traefik.http.routers.dart-services-admin.entrypoints=tailnet
+      - traefik.http.routers.dart-services-admin.tls=true
+      - traefik.http.services.dart-services.loadbalancer.server.port=8300
+    networks:
+      - fitd
+
+networks:
+  fitd:
+    driver: bridge
+
+volumes:
+  traefik-acme: # acme.json — account key + certs; back this up
+  room-state:

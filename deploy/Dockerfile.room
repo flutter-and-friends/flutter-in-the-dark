@@ -1,0 +1,24 @@
+# fitd26 room-state service (Dart shelf).
+#
+# Build context: apps/fitd26/room_service (see docker-compose.yml).
+#
+#   docker build -f ../../deploy/Dockerfile.room -t fitd26-room:local .
+
+FROM dart:3.13 AS build
+WORKDIR /app
+COPY pubspec.yaml pubspec.lock ./
+RUN dart pub get
+COPY bin bin
+COPY lib lib
+RUN dart compile exe bin/server.dart -o bin/server
+
+FROM debian:bookworm-slim
+RUN useradd --system --uid 10001 --no-create-home fitd
+WORKDIR /app
+COPY --from=build /app/bin/server /app/server
+# The room calls dart_services over the in-cluster network (service name).
+# State file lands on the `room-state` volume mounted at /data.
+RUN mkdir -p /data && chown fitd /data
+USER fitd
+EXPOSE 8302
+CMD ["/app/server", "--port", "8302", "--backend", "http://dart-services:8300", "--state-file", "/data/room-state.json"]

@@ -9,11 +9,19 @@ import 'room_models.dart';
 /// Client for the fitd26 room-state service (replaces Firestore).
 ///
 /// Base URL resolution mirrors the generation client:
-///  - `--dart-define=ROOM_URL=...` always wins;
+///  - `--dart-define=ROOM_URL=same-origin` → the app is served behind the
+///    reverse proxy, so the API is on the SAME origin
+///    (`web.window.location.origin`). This is the production/release build.
+///  - `--dart-define=ROOM_URL=<explicit-url>` → used verbatim (escape hatch).
 ///  - loopback app → `http://127.0.0.1:8302`;
 ///  - any other device → same host, port 4501 (the published relay port;
 ///    the relay forwards `/api/(state|events|join|prompt)` to 8302, and
 ///    `/api/admin/*` ONLY on the Tailscale-facing listener).
+///
+/// NOTE: an EMPTY dart-define does NOT mean same-origin —
+/// `String.fromEnvironment` cannot distinguish "set to empty" from "unset",
+/// and both yield the empty string, which fails `isNotEmpty`. Use the
+/// `same-origin` sentinel for the proxied build.
 class RoomClient {
   RoomClient({String? baseUrl}) : baseUrl = baseUrl ?? defaultBaseUrl;
 
@@ -21,7 +29,11 @@ class RoomClient {
 
   static const String _envBaseUrl = String.fromEnvironment('ROOM_URL');
 
+  /// Sentinel selecting same-origin API access behind the reverse proxy.
+  static const String _sameOrigin = 'same-origin';
+
   static String get defaultBaseUrl {
+    if (_envBaseUrl == _sameOrigin) return web.window.location.origin;
     if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
     final host = web.window.location.hostname;
     if (host == '127.0.0.1' || host == 'localhost') {
@@ -34,6 +46,7 @@ class RoomClient {
   /// as [defaultBaseUrl] but to dart_services.
   static String get compileBaseUrl {
     const env = String.fromEnvironment('DART_SERVICES_URL');
+    if (env == _sameOrigin) return web.window.location.origin;
     if (env.isNotEmpty) return env;
     final host = web.window.location.hostname;
     if (host == '127.0.0.1' || host == 'localhost') {
