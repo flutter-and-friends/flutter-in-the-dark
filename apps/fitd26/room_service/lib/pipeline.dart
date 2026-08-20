@@ -30,7 +30,13 @@ class Pipeline {
   /// The generation model used when the operator hasn't picked one. Matches
   /// the dart_services boot-time default so behaviour is unchanged when the
   /// picker is never touched.
-  static const defaultModel = 'google/gemma-4-31B-it';
+  ///
+  /// Kimi-K3 is the event default (user decision 2026-08-19): served at
+  /// `reasoning_effort=low` (see [preferredEffort]) it is the speed/quality
+  /// sweet spot — at low effort the reasoning bloat collapses (49 vs 295
+  /// tokens) yielding fast, stable, compilable code (~9s), versus the
+  /// intermittent throughput collapse it shows at default effort (WI-098).
+  static const defaultModel = 'moonshotai/Kimi-K3';
 
   /// The generation model currently selected for new work. Owned here (not in
   /// dart_services) so the admin can fail over live without a backend restart
