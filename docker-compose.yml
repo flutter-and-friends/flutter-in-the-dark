@@ -246,8 +246,14 @@ services:
     restart: unless-stopped
     environment:
       # Boot default model for the generation pipeline; the admin picker
-      # overrides it live afterwards. Should match BERGET_MODEL.
-      BERGET_MODEL: ${BERGET_MODEL:-openai/gpt-oss-120b}
+      # overrides it live afterwards. MUST match dart_services' BERGET_MODEL
+      # (deploy/env/dart_services.env) and Pipeline.defaultModel — Kimi-K3 is
+      # the event default (WI-098 / 2026-08-19), served at reasoning_effort=low.
+      # The old gpt-oss-120b fallback only ever stayed invisible because the
+      # persisted room-state.json wins over this seed; on a fresh host (no
+      # state file) it would boot the room on a DIFFERENT model than
+      # dart_services and silently drop the `low` effort setting.
+      BERGET_MODEL: ${BERGET_MODEL:-moonshotai/Kimi-K3}
     labels:
       - traefik.enable=true
       # --- PUBLIC: read-only room API + contestant writes. /api/admin/*
