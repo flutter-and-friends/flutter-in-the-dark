@@ -1,0 +1,104 @@
+# fitd26 — STATIC Traefik routing (file provider), replacing docker-label
+# auto-discovery. Mirrors the PodCase pattern (volumes/traefik/fileConfig.yml).
+#
+# WHY: on macOS the container runtime's daemon socket lives in a VM and cannot
+# be reliably bind-mounted into the Traefik container (Docker Desktop bridges
+# it inconsistently per-image; rootless Podman doesn't share the namespace).
+# The docker provider therefore can't read container labels. A static file
+# provider removes that dependency entirely — Traefik needs NO daemon access,
+# which also shrinks its attack surface. Routes are stable (compose service
+# names resolve on the internal `fitd` network regardless of restarts).
+#
+# WHEN YOU ADD/REMOVE A SERVICE OR CHANGE A ROUTE: edit this file. It is the
+# single source of truth for routing now. Traefik is started with
+# `--providers.file.watch=true`, so saving this file reloads routes live — no
+# container restart needed.
+#
+# Domain templating uses Traefik's `{{env "VAR"}}` (same as PodCase), read from
+# the traefik container's environment (compose passes DOMAIN / APP_DOMAIN /
+# TAILNET_DOMAIN through). DOMAIN = the API host (backend.*), APP_DOMAIN = the
+# apex serving the SPA.
+
+http:
+  routers:
+    # ================================================================= PUBLIC
+    # Reached via Cloudflare edge → cloudflared → the `web` entrypoint (:80).
+    # The /admin gate is STRUCTURAL: NO router here matches /admin or
+    # /api/admin, so they 404 on both public hosts. The route does not exist.
+
+    # --- App SPA static assets (apex). Negative lookahead excludes /admin.
+    #     Translated from traefik.http.routers.app-public-static (priority 15).
+    app-public-static:
+      rule: "Host(`{{env \"APP_DOMAIN\"}}`) && PathRegexp(`^/(?!admin(/|$))(assets|canvaskit|icons)(/|$)|^/(?!admin(/|$))[^/]*\\.[a-zA-Z0-9]+$`)"
+      entryPoints: [web]
+      service: app
+      priority: 15
+
+    # --- App SPA pages / and /show (apex). From app-public (priority 10).
+    app-public:
+      rule: "Host(`{{env \"APP_DOMAIN\"}}`) && (Path(`/`) || PathPrefix(`/show`))"
+      entryPoints: [web]
+      service: app
+      priority: 10
+
+    # --- Room service PUBLIC endpoints (backend host). From room-public (100).
+    #     Only the contestant/spectator-facing endpoints; /api/admin is absent.
+    room-public:
+      rule: "Host(`{{env \"DOMAIN\"}}`) && (Path(`/api/state`) || Path(`/api/events`) || Path(`/api/join`) || Path(`/api/prompt`) || Path(`/api/probe-generate`))"
+      entryPoints: [web]
+      service: room
+      priority: 100
+
+    # --- dart_services PUBLIC endpoints (backend host). From dart-services-public (100).
+    dart-services-public:
+      rule: "Host(`{{env \"DOMAIN\"}}`) && (Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`))"
+      entryPoints: [web]
+      service: dart-services
+      priority: 100
+
+    # ============================================================ TAILNET /admin
+    # Bound ONLY to the host tailscale0 address (entrypoint `tailnet`, :4443,
+    # TLS via tls.yml). This is where ALL admin traffic lives — unreachable
+    # from the public web entrypoint by construction.
+
+    # --- App SPA served in full on the tailnet admin edge (including /admin).
+    #     From app-admin (priority 1, PathPrefix `/`).
+    app-admin:
+      rule: "PathPrefix(`/`)"
+      entryPoints: [tailnet]
+      service: app
+      priority: 1
+      tls: {}
+
+    # --- Room service ADMIN endpoints (tailnet). From room-admin (100):
+    #     /api/* EXCEPT /api/v3 (which belongs to dart_services).
+    room-admin:
+      rule: "PathPrefix(`/api`) && !PathPrefix(`/api/v3`)"
+      entryPoints: [tailnet]
+      service: room
+      priority: 100
+      tls: {}
+
+    # --- dart_services endpoints on the tailnet edge. From dart-services-admin (100).
+    dart-services-admin:
+      rule: "Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`)"
+      entryPoints: [tailnet]
+      service: dart-services
+      priority: 100
+      tls: {}
+
+  services:
+    # Backends addressed by COMPOSE SERVICE NAME on the internal `fitd` network.
+    # Ports match the old loadbalancer.server.port labels.
+    app:
+      loadBalancer:
+        servers:
+          - url: "http://app:80"
+    room:
+      loadBalancer:
+        servers:
+          - url: "http://room:8302"
+    dart-services:
+      loadBalancer:
+        servers:
+          - url: "http://dart-services:8300"

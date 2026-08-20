@@ -117,9 +117,16 @@ services:
       # check 404s and the container reads (unhealthy) even though routing is
       # fine. Ping is internal-only (not routed publicly).
       - --ping=true
-      - --providers.docker=true
-      # Only services we explicitly opt in get routed (this file).
-      - --providers.docker.exposedbydefault=false
+      # STATIC FILE PROVIDER (replaces --providers.docker). On macOS the
+      # container runtime's daemon socket lives in a VM and can't be reliably
+      # bind-mounted in (Docker Desktop bridges it inconsistently per-image;
+      # rootless Podman doesn't share the namespace), so label auto-discovery
+      # fails with an empty "Error response from daemon:". Routing is declared
+      # statically in deploy/traefik/dynamic.yml (same pattern as PodCase).
+      # Traefik needs NO daemon access -> smaller attack surface. watch=true
+      # reloads routes when dynamic.yml is saved (no restart needed).
+      - --providers.file.filename=/etc/traefik/dynamic.yml
+      - --providers.file.watch=true
       # INTERNAL HTTP listener for the public path. cloudflared is the only
       # client (same Docker network). NOT published to the host — see ports.
       - --entrypoints.web.address=:80
@@ -141,20 +148,19 @@ services:
       # admin edge — bound ONLY to the tailnet interface. Fails fast at
       # `up` if TAILSCALE_IP is unset: that is intentional.
       - "${TAILSCALE_IP:?set TAILSCALE_IP to the host tailscale0 IPv4 (tailscale ip -4)}:4443:4443"
+    # No docker socket mount — the file provider needs no daemon access.
+    environment:
+      # Passed to the {{env "VAR"}} templating in dynamic.yml.
+      # DOMAIN = the API host (backend.*), APP_DOMAIN = the apex (SPA),
+      # TAILNET_DOMAIN = the machine's ts.net name (for the admin edge).
+      DOMAIN: ${DOMAIN}
+      APP_DOMAIN: ${APP_DOMAIN}
+      TAILNET_DOMAIN: ${TAILNET_DOMAIN:-}
     volumes:
-      # The Docker socket SOURCE varies by host. On a Linux event host it is
-      # /var/run/docker.sock. On Docker Desktop for Mac the daemon socket is
-      # NOT at /var/run/docker.sock (that path doesn't exist on macOS) — it's
-      # at ~/.docker/run/docker.sock (context desktop-linux). Mounting the
-      # nonexistent /var/run/docker.sock makes Docker create a junk mount and
-      # Traefik's daemon reads fail with an empty "Error response from daemon".
-      # Default suits the Linux event host; on a Mac set DOCKER_SOCK in .env to
-      # $HOME/.docker/run/docker.sock (the container target stays the standard
-      # /var/run/docker.sock, so Traefik needs no other change).
-      - "${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock:ro"
-      # Static file config: the tailnet-entrypoint TLS cert (issued by
-      # Tailscale itself for the machine's ts.net name — no public CA can
-      # validate a 100.x name).
+      # Static routing table (the file provider above).
+      - ./deploy/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      # Tailnet-entrypoint TLS cert (issued by Tailscale itself for the
+      # machine's ts.net name — no public CA can validate a 100.x name).
       - ./deploy/traefik/tls.yml:/etc/traefik/tls.yml:ro
       - ${TAILSCALE_CERT_DIR:-~/.tailscale-certs}:/certs:ro
     networks:
