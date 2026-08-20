@@ -215,7 +215,10 @@ services:
   room:
     build:
       context: apps/fitd26/room_service
-      dockerfile: ../../deploy/Dockerfile.room
+      # dockerfile: is resolved relative to `context`, so from
+      # apps/fitd26/room_service we must go up THREE levels to the repo root
+      # (../../ would land on apps/deploy/, which doesn't exist).
+      dockerfile: ../../../deploy/Dockerfile.room
     image: fitd26-room:local
     restart: unless-stopped
     environment:
@@ -261,7 +264,16 @@ services:
   dart-services:
     build:
       context: ${DART_PAD_PATH:-../dart-pad}/pkgs/dart_services
-      dockerfile: ${DART_PAD_DOCKERFILE:-../../flutter-in-the-dark/deploy/Dockerfile.dart-services}
+      # The Dockerfile lives in THIS flutter repo's deploy/ dir, NOT in the
+      # dart-pad checkout that is the build context. dockerfile: is resolved
+      # relative to `context`, and there is no folder-name-agnostic RELATIVE
+      # path from the dart-pad checkout back into this repo (the sibling
+      # checkout's folder name varies: flutter-in-the-dark vs
+      # flutter_in_the_dark). So DART_PAD_DOCKERFILE must be an ABSOLUTE path
+      # to deploy/Dockerfile.dart-services in THIS checkout. Set it in .env —
+      # there is deliberately no default, so a missing value fails loudly at
+      # build time instead of silently resolving somewhere wrong.
+      dockerfile: ${DART_PAD_DOCKERFILE:?set DART_PAD_DOCKERFILE to the ABSOLUTE path of deploy/Dockerfile.dart-services in the flutter checkout, e.g. /Users/you/flutter_in_the_dark/deploy/Dockerfile.dart-services}
     image: fitd26-dart-services:local
     restart: unless-stopped
     env_file:
