@@ -142,7 +142,16 @@ services:
       # `up` if TAILSCALE_IP is unset: that is intentional.
       - "${TAILSCALE_IP:?set TAILSCALE_IP to the host tailscale0 IPv4 (tailscale ip -4)}:4443:4443"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # The Docker socket SOURCE varies by host. On a Linux event host it is
+      # /var/run/docker.sock. On Docker Desktop for Mac the daemon socket is
+      # NOT at /var/run/docker.sock (that path doesn't exist on macOS) — it's
+      # at ~/.docker/run/docker.sock (context desktop-linux). Mounting the
+      # nonexistent /var/run/docker.sock makes Docker create a junk mount and
+      # Traefik's daemon reads fail with an empty "Error response from daemon".
+      # Default suits the Linux event host; on a Mac set DOCKER_SOCK in .env to
+      # $HOME/.docker/run/docker.sock (the container target stays the standard
+      # /var/run/docker.sock, so Traefik needs no other change).
+      - "${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock:ro"
       # Static file config: the tailnet-entrypoint TLS cert (issued by
       # Tailscale itself for the machine's ts.net name — no public CA can
       # validate a 100.x name).
