@@ -1,7 +1,8 @@
 # dart_services (dart-pad fork, branch berget-backend) for fitd26.
 #
-# Build context: pkgs/dart_services INSIDE the dart-pad checkout
-# (see docker-compose.yml `dart-services.build.context`).
+# Build context: the dart-pad repo ROOT (see docker-compose.yml
+# `dart-services.build.context`). The root is required because dart_services is
+# a pub workspace member — `dart pub get` needs the workspace-root pubspec.
 #
 #   docker build -f <fitd-repo>/deploy/Dockerfile.dart-services \
 #     -t fitd26-dart-services:local .
@@ -59,8 +60,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git ca-certificates unzip \
     && rm -rf /var/lib/apt/lists/* \
     && git config --global --add safe.directory /opt/flutter
+# dart_services is a pub WORKSPACE MEMBER (its pubspec has `resolution:
+# workspace` and depends on the sibling `dartpad_shared` via a path dep), so
+# the build context MUST be the dart-pad repo ROOT — building from the package
+# subdir leaves no workspace-root pubspec (or dartpad_shared) in reach and
+# `dart pub get` fails with "found no workspace root". Copy the whole repo,
+# then work from the package dir (mirrors upstream pkgs/dart_services/Dockerfile).
 WORKDIR /app
 COPY . .
+WORKDIR /app/pkgs/dart_services
 RUN dart pub get
 RUN dart compile exe bin/server.dart -o bin/server
 # The grind tasks resolve the Flutter SDK via FLUTTER_ROOT and run pub
@@ -79,9 +87,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=flutter /opt/flutter /opt/flutter
 ENV FLUTTER_ROOT=/opt/flutter
 WORKDIR /app
-COPY --from=build /app/bin/server /app/server
-COPY --from=build /app/project_templates /app/project_templates
-COPY --from=build /app/artifacts /app/artifacts
+COPY --from=build /app/pkgs/dart_services/bin/server /app/server
+COPY --from=build /app/pkgs/dart_services/project_templates /app/project_templates
+COPY --from=build /app/pkgs/dart_services/artifacts /app/artifacts
 USER fitd
 EXPOSE 8300
 # BERGET_REFRESH_TOKEN (required), BERGET_MODEL, BERGET_API_URL come from

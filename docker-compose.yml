@@ -263,7 +263,11 @@ services:
   # the image is absent).
   dart-services:
     build:
-      context: ${DART_PAD_PATH:-../dart-pad}/pkgs/dart_services
+      # Context is the dart-pad repo ROOT (not pkgs/dart_services): dart_services
+      # is a pub workspace member (`resolution: workspace`, path-dep on sibling
+      # dartpad_shared), so `dart pub get` needs the workspace-root pubspec in
+      # reach. Building from the package subdir fails with "no workspace root".
+      context: ${DART_PAD_PATH:-../dart-pad}
       # The Dockerfile lives in THIS flutter repo's deploy/ dir, NOT in the
       # dart-pad checkout that is the build context. dockerfile: is resolved
       # relative to `context`, and there is no folder-name-agnostic RELATIVE
