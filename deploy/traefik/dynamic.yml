@@ -29,10 +29,14 @@ http:
     # --- App SPA static assets (apex). Negative lookahead excludes /admin.
     #     Translated from traefik.http.routers.app-public-static (priority 15).
     app-public-static:
-      # Single-quoted YAML: no YAML escaping, so the Go template + regex read
-      # literally. `{{env "APP_DOMAIN"}}` needs no backslash-escapes, and the
-      # regex uses a single \. (a backtick raw string) rather than \\.
-      rule: 'Host(`{{env "APP_DOMAIN"}}`) && PathRegexp(`^/(?!admin(/|$))(assets|canvaskit|icons)(/|$)|^/(?!admin(/|$))[^/]*\.[a-zA-Z0-9]+$`)'
+      # RE2 (Go regexp) has NO negative lookahead `(?!...)`, so the original
+      # label regex could never compile. The lookahead only existed to exclude
+      # /admin from the public web entrypoint — but /admin has NO router on web
+      # at all, so the exclusion is already structural. Two clean RE2 regexes
+      # suffice: the asset dirs, and root-level files-with-extensions
+      # (main.dart.js, flutter_bootstrap.js, manifest.json, ...). Neither
+      # matches an /admin path (admin is a page route, not an asset).
+      rule: 'Host(`{{env "APP_DOMAIN"}}`) && (PathRegexp(`^/(assets|canvaskit|icons)(/|$)`) || PathRegexp(`^/[^/]*\.[a-zA-Z0-9]+$`))'
       entryPoints: [web]
       service: app
       priority: 15
