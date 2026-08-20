@@ -27,8 +27,12 @@ FROM debian:bookworm-slim AS flutter
 ARG FLUTTER_VERSION
 ARG FLUTTER_SHA256
 ARG TARGETARCH
+# unzip is required on the arm64 path: git-cloned Flutter's first-run
+# bootstrap extracts the Dart SDK with `unzip` (absent -> "Unable to extract
+# Dart SDK" and the build dies). amd64 untars a complete SDK so it doesn't
+# hit this, but unzip is tiny and harmless there.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      curl xz-utils ca-certificates git \
+      curl xz-utils ca-certificates git unzip \
     && rm -rf /var/lib/apt/lists/*
 RUN case "$TARGETARCH" in \
       amd64) \
@@ -52,7 +56,7 @@ COPY --from=flutter /opt/flutter /opt/flutter
 ENV FLUTTER_ROOT=/opt/flutter
 ENV PATH="/opt/flutter/bin:${PATH}"
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      git ca-certificates \
+      git ca-certificates unzip \
     && rm -rf /var/lib/apt/lists/* \
     && git config --global --add safe.directory /opt/flutter
 WORKDIR /app

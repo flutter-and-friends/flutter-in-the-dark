@@ -33,7 +33,7 @@ ARG FLUTTER_VERSION=3.47.0
 ARG FLUTTER_SHA256=26cd99d3d94b1367e6b50535a18aeef0282c10a535bbe3ec493534dcdab75296
 ARG TARGETARCH
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      curl xz-utils ca-certificates git \
+      curl xz-utils ca-certificates git unzip \
     && rm -rf /var/lib/apt/lists/*
 RUN case "$TARGETARCH" in \
       amd64) \
