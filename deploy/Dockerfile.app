@@ -23,7 +23,33 @@
 # String.fromEnvironment can't distinguish empty from unset, and the app
 # checks isNotEmpty — so the loopback fallback would fire.)
 
-FROM ghcr.io/cirruslabs/flutter:3.47.0 AS build
+# Flutter SDK from source (NOT a prebuilt image). ghcr.io/cirruslabs/flutter
+# lags Flutter releases — it had no 3.47.0 tag (only up to 3.44.0) when the
+# app needed 3.47.0, breaking the build with "not found". Mirror the proven
+# pattern in Dockerfile.dart-services: amd64 uses the checksum-pinned official
+# tarball; arm64 has no upstream tarball so we clone the stable tag.
+FROM debian:bookworm-slim AS build
+ARG FLUTTER_VERSION=3.47.0
+ARG FLUTTER_SHA256=26cd99d3d94b1367e6b50535a18aeef0282c10a535bbe3ec493534dcdab75296
+ARG TARGETARCH
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      curl xz-utils ca-certificates git \
+    && rm -rf /var/lib/apt/lists/*
+RUN case "$TARGETARCH" in \
+      amd64) \
+        curl -fsSL "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" -o /tmp/flutter.tar.xz \
+        && echo "${FLUTTER_SHA256}  /tmp/flutter.tar.xz" | sha256sum -c - \
+        && tar -xJf /tmp/flutter.tar.xz -C /opt \
+        && rm /tmp/flutter.tar.xz ;; \
+      arm64) \
+        git clone --depth 1 --branch "${FLUTTER_VERSION}" \
+          https://github.com/flutter/flutter.git /opt/flutter ;; \
+      *) echo "unsupported TARGETARCH=$TARGETARCH" >&2; exit 1 ;; \
+    esac \
+ && git config --global --add safe.directory /opt/flutter \
+ && /opt/flutter/bin/flutter --version \
+ && /opt/flutter/bin/flutter precache --web
+ENV PATH="/opt/flutter/bin:${PATH}"
 WORKDIR /src
 
 # Melos workspace: root pubspec + the app. Resolve at the root so the
