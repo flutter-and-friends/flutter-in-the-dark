@@ -112,6 +112,11 @@ services:
     command:
       # Traefik's own API/dashboard stays OFF (nothing extra to attack).
       - --api.insecure=false
+      # Enable the lightweight /ping endpoint so the container healthcheck
+      # (`traefik healthcheck --ping`) has something to hit. Without this the
+      # check 404s and the container reads (unhealthy) even though routing is
+      # fine. Ping is internal-only (not routed publicly).
+      - --ping=true
       - --providers.docker=true
       # Only services we explicitly opt in get routed (this file).
       - --providers.docker.exposedbydefault=false
