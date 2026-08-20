@@ -125,7 +125,10 @@ services:
       # statically in deploy/traefik/dynamic.yml (same pattern as PodCase).
       # Traefik needs NO daemon access -> smaller attack surface. watch=true
       # reloads routes when dynamic.yml is saved (no restart needed).
-      - --providers.file.filename=/etc/traefik/dynamic.yml
+      # DIRECTORY, not filename: the single-file form loads ONLY dynamic.yml,
+      # so tls.yml (the tailnet cert) was silently ignored and Traefik served
+      # its self-signed DEFAULT CERT on :4443. The directory form loads both.
+      - --providers.file.directory=/etc/traefik
       - --providers.file.watch=true
       # INTERNAL HTTP listener for the public path. cloudflared is the only
       # client (same Docker network). NOT published to the host — see ports.
