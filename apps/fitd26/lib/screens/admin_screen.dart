@@ -1,5 +1,6 @@
 import 'package:fitd26/room/room_models.dart';
 import 'package:fitd26/room/room_sync.dart';
+import 'package:fitd26/widgets/challenge_picker.dart';
 import 'package:flutter/material.dart';
 
 /// The host's control screen. Reached ONLY via the Tailscale-facing listener
@@ -440,12 +441,29 @@ class _ChallengeCardState extends State<_ChallengeCard> {
   final _widgetUrlController = TextEditingController();
   final _minutesController = TextEditingController(text: '5');
 
+  /// Assets attached to the last catalog pick. Cleared by the TextFields'
+  /// `onChanged` below, so hand-editing the name/URL never silently carries
+  /// a stale pick's assets into `setChallenge`.
+  Map<String, String> _pickedAssets = const {};
+
   @override
   void dispose() {
     _nameController.dispose();
     _widgetUrlController.dispose();
     _minutesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickFromCatalog() async {
+    final pick = await showChallengePicker(context, widget.roomSync.client);
+    if (pick == null || !mounted) return;
+    setState(() {
+      // Assigning .text fires onChanged (which clears _pickedAssets), so
+      // set _pickedAssets AFTER the controllers.
+      _nameController.text = pick.name;
+      _widgetUrlController.text = pick.widgetUrl;
+      _pickedAssets = pick.assets;
+    });
   }
 
   Future<void> _setChallenge() async {
@@ -456,6 +474,7 @@ class _ChallengeCardState extends State<_ChallengeCard> {
       widgetUrl: _widgetUrlController.text.trim(),
       startTime: now,
       endTime: now.add(Duration(minutes: minutes)),
+      assets: _pickedAssets,
     );
     if (mounted) {
       ScaffoldMessenger.of(
@@ -509,6 +528,7 @@ class _ChallengeCardState extends State<_ChallengeCard> {
             ],
             TextField(
               controller: _nameController,
+              onChanged: (_) => setState(() => _pickedAssets = const {}),
               decoration: const InputDecoration(
                 labelText: 'Challenge name',
                 border: OutlineInputBorder(),
@@ -517,9 +537,21 @@ class _ChallengeCardState extends State<_ChallengeCard> {
             const SizedBox(height: 8),
             TextField(
               controller: _widgetUrlController,
+              onChanged: (_) => setState(() => _pickedAssets = const {}),
               decoration: const InputDecoration(
                 labelText: 'Pre-compiled widget URL (/compiled/<id>)',
                 border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _pickFromCatalog,
+              icon: const Icon(Icons.list_alt),
+              label: Text(
+                _pickedAssets.isEmpty
+                    ? 'Pick from catalog'
+                    : 'Pick from catalog · ${_pickedAssets.length} assets '
+                          'attached',
               ),
             ),
             const SizedBox(height: 8),

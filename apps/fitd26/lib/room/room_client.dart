@@ -129,6 +129,24 @@ class RoomClient {
     return controller.stream;
   }
 
+  // ----------------------------------------------------------- catalog GET
+
+  /// The server-side challenge catalog for the admin picker.
+  Future<List<ChallengeInfo>> fetchChallenges() async {
+    final response = await web.window
+        .fetch('$baseUrl/api/admin/challenges'.toJS)
+        .toDart;
+    final text = (await response.text().toDart).toDart;
+    if (!response.ok) {
+      throw RoomPostException(response.status, text);
+    }
+    final json = (jsonDecode(text) as Map).cast<String, dynamic>();
+    return [
+      for (final c in (json['challenges'] as List? ?? const []))
+        ChallengeInfo.fromJson((c as Map).cast<String, dynamic>()),
+    ];
+  }
+
   // ------------------------------------------------------------------ POST
 
   Future<Map<String, dynamic>> _post(
@@ -191,6 +209,17 @@ class RoomClient {
   });
 
   Future<void> clearChallenge() => _post('/api/admin/clear', {});
+
+  /// Compiles the catalog challenge [name] and returns its `/compiled/<id>`
+  /// URL. Slow on first call (the service builds it on demand). Throws
+  /// [RoomPostException] on non-200 (`{"error":"compile_failed","problems":
+  /// [...]}`) — the caller surfaces `problems` to the admin.
+  Future<String> compileChallenge(String name) async {
+    final result = await _post('/api/admin/challenges/compile', {
+      'name': name,
+    });
+    return result['url'] as String;
+  }
 
   Future<void> adjustTime({required Duration delta}) =>
       _post('/api/admin/adjustTime', {'seconds': delta.inSeconds});

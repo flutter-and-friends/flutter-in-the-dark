@@ -103,6 +103,30 @@ class Challenge {
   );
 }
 
+/// One entry in the server-side challenge catalog
+/// (`GET /api/admin/challenges`). [widgetUrl] is `null` when the challenge
+/// has not been compiled yet — `RoomClient.compileChallenge` builds it on
+/// demand (slow on first call) and returns the URL.
+class ChallengeInfo {
+  const ChallengeInfo({
+    required this.name,
+    this.assets = const {},
+    this.widgetUrl,
+  });
+
+  final String name;
+  final Map<String, String> assets;
+  final String? widgetUrl;
+
+  static ChallengeInfo fromJson(Map<String, dynamic> json) => ChallengeInfo(
+    name: json['name'] as String,
+    assets:
+        (json['assets'] as Map<String, dynamic>?)?.cast<String, String>() ??
+        const {},
+    widgetUrl: json['widgetUrl'] as String?,
+  );
+}
+
 class ShowState {
   ShowState({required this.viewMode, this.focusedPlayerId});
 

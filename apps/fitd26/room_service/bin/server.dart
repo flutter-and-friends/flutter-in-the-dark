@@ -18,10 +18,12 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
+import 'package:http/http.dart' as http;
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
 
+import 'package:fitd26_room/challenges.dart';
 import 'package:fitd26_room/models.dart';
 import 'package:fitd26_room/pipeline.dart' as gen;
 import 'package:fitd26_room/room.dart';
@@ -55,6 +57,10 @@ Future<void> main(List<String> args) async {
   );
   room.load();
   room.resumePipelines();
+
+  // Catalog feeding the admin's challenge picker; compiled widget URLs are
+  // cached in memory (a restart just means one recompile on next pick).
+  final challenges = ChallengeRegistry();
 
   final router = Router();
 
@@ -133,6 +139,75 @@ Future<void> main(List<String> args) async {
   });
 
   // ----------------------------------------------------------------- admin
+
+  // Challenge picker catalog: every seeded entry, with `widgetUrl` filled in
+  // for the ones already compiled (and cached) this process lifetime.
+  router.get('/api/admin/challenges', (Request request) {
+    return _json({'challenges': challenges.list()});
+  });
+
+  // Compiles a catalog entry against the backend and caches the resulting
+  // widgetUrl. The picker calls this when the admin picks a challenge whose
+  // widgetUrl is still null; a cached one returns immediately.
+  router.post('/api/admin/challenges/compile', (Request request) async {
+    final body = await _readJson(request);
+    final name = body['name'] as String? ?? '';
+    final entry = challenges.byName(name);
+    if (entry == null) {
+      return Response.notFound(
+        jsonEncode({'error': 'unknown challenge'}),
+        headers: {'Content-Type': 'application/json; charset=utf-8'},
+      );
+    }
+    final cached = challenges.compiledUrlFor(name);
+    if (cached != null) {
+      return _json({'ok': true, 'url': cached});
+    }
+
+    // Fresh client per call (same reason as Pipeline._client: a shared client
+    // wedges on an abandoned stream; compile isn't streaming, but the pool
+    // exhaustion lesson applies). 120 s timeout mirrors Pipeline._compile.
+    final client = http.Client();
+    try {
+      final response = await client
+          .post(
+            Uri.parse('${pipeline.backendBase}/api/v3/compileAndServe'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'source': entry.source}),
+          )
+          .timeout(const Duration(seconds: 120));
+
+      if (response.statusCode == 200) {
+        final url = (jsonDecode(response.body) as Map<String, dynamic>)['url'];
+        if (url is String) {
+          challenges.cacheCompiled(name, url);
+          return _json({'ok': true, 'url': url});
+        }
+        return Response.badRequest(
+          body: jsonEncode({
+            'error': 'compile_failed',
+            'problems': ['backend 200 body missing "url": ${response.body}'],
+          }),
+          headers: {'Content-Type': 'application/json; charset=utf-8'},
+        );
+      }
+
+      // Failure: forward the backend's problems when parseable; never cache.
+      List<dynamic> problems;
+      try {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        problems = body['problems'] as List? ?? [response.body];
+      } on FormatException {
+        problems = [response.body];
+      }
+      return Response.badRequest(
+        body: jsonEncode({'error': 'compile_failed', 'problems': problems}),
+        headers: {'Content-Type': 'application/json; charset=utf-8'},
+      );
+    } finally {
+      client.close();
+    }
+  });
 
   router.post('/api/admin/challenge', (Request request) async {
     final body = await _readJson(request);
@@ -255,7 +330,8 @@ Future<void> main(List<String> args) async {
   stdout.writeln(
     'fitd26-room listening on 0.0.0.0:$port '
     '(backend: ${results['backend']}, admin auth: none (Tailscale gate), '
-    'state file: ${stateFilePath.isEmpty ? 'none' : stateFilePath})',
+    'state file: ${stateFilePath.isEmpty ? 'none' : stateFilePath}, '
+    'challenges seeded: ${ChallengeRegistry.seed.length})',
   );
 }
 

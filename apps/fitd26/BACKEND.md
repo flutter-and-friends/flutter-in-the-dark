@@ -177,6 +177,8 @@ restores the same identity without re-joining.
 ## can reach /admin at all; see "Interface split" below)
 
 ```
+GET  /api/admin/challenges         → 200 {"challenges":[{"name","assets":{},"widgetUrl":"/compiled/<id>"|null}]}
+POST /api/admin/challenges/compile {"name"} → 200 {"ok":true,"url":"/compiled/<id>"} | 404 {"error":"unknown challenge"} | 400 {"error":"compile_failed","problems":[...]}
 POST /api/admin/challenge        {"name","widgetUrl","startTime","endTime"(ms),"assets"}
 POST /api/admin/clear            {}                                  (clear challenge)
 POST /api/admin/adjustTime       {"seconds"}                         (± end time)
