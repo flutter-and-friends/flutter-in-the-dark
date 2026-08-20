@@ -90,7 +90,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && git config --global --add safe.directory /opt/flutter \
-    && useradd --system --uid 10001 --no-create-home fitd
+    && useradd --system --uid 10001 --create-home fitd
 COPY --from=flutter /opt/flutter /opt/flutter
 ENV FLUTTER_ROOT=/opt/flutter
 WORKDIR /app
@@ -103,7 +103,12 @@ COPY --from=build /app/pkgs/dart_services/artifacts /app/artifacts
 # /opt/flutter. Everything COPYed so far is root-owned, so the fitd user would
 # get an empty/unwritable SDK and jsonDecode('') -> "Unexpected end of input".
 # Hand the SDK and app dir to fitd before dropping privileges.
-RUN chown -R fitd:fitd /opt/flutter /app
+# ALSO: flutter needs a writable $HOME for ~/.config/flutter (persistent tool
+# state) — with --no-create-home /home/fitd doesn't exist and flutter dies with
+# "failed to create a directory at /home/fitd/.config/flutter". --create-home
+# makes it; chown guarantees ownership; HOME makes the lookup explicit.
+RUN chown -R fitd:fitd /opt/flutter /app /home/fitd
+ENV HOME=/home/fitd
 USER fitd
 EXPOSE 8300
 # BERGET_REFRESH_TOKEN (required), BERGET_MODEL, BERGET_API_URL come from
