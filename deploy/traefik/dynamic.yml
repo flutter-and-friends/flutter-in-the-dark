@@ -29,14 +29,17 @@ http:
     # --- App SPA static assets (apex). Negative lookahead excludes /admin.
     #     Translated from traefik.http.routers.app-public-static (priority 15).
     app-public-static:
-      rule: "Host(`{{env \"APP_DOMAIN\"}}`) && PathRegexp(`^/(?!admin(/|$))(assets|canvaskit|icons)(/|$)|^/(?!admin(/|$))[^/]*\\.[a-zA-Z0-9]+$`)"
+      # Single-quoted YAML: no YAML escaping, so the Go template + regex read
+      # literally. `{{env "APP_DOMAIN"}}` needs no backslash-escapes, and the
+      # regex uses a single \. (a backtick raw string) rather than \\.
+      rule: 'Host(`{{env "APP_DOMAIN"}}`) && PathRegexp(`^/(?!admin(/|$))(assets|canvaskit|icons)(/|$)|^/(?!admin(/|$))[^/]*\.[a-zA-Z0-9]+$`)'
       entryPoints: [web]
       service: app
       priority: 15
 
     # --- App SPA pages / and /show (apex). From app-public (priority 10).
     app-public:
-      rule: "Host(`{{env \"APP_DOMAIN\"}}`) && (Path(`/`) || PathPrefix(`/show`))"
+      rule: 'Host(`{{env "APP_DOMAIN"}}`) && (Path(`/`) || PathPrefix(`/show`))'
       entryPoints: [web]
       service: app
       priority: 10
@@ -44,14 +47,14 @@ http:
     # --- Room service PUBLIC endpoints (backend host). From room-public (100).
     #     Only the contestant/spectator-facing endpoints; /api/admin is absent.
     room-public:
-      rule: "Host(`{{env \"DOMAIN\"}}`) && (Path(`/api/state`) || Path(`/api/events`) || Path(`/api/join`) || Path(`/api/prompt`) || Path(`/api/probe-generate`))"
+      rule: 'Host(`{{env "DOMAIN"}}`) && (Path(`/api/state`) || Path(`/api/events`) || Path(`/api/join`) || Path(`/api/prompt`) || Path(`/api/probe-generate`))'
       entryPoints: [web]
       service: room
       priority: 100
 
     # --- dart_services PUBLIC endpoints (backend host). From dart-services-public (100).
     dart-services-public:
-      rule: "Host(`{{env \"DOMAIN\"}}`) && (Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`))"
+      rule: 'Host(`{{env "DOMAIN"}}`) && (Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`))'
       entryPoints: [web]
       service: dart-services
       priority: 100
@@ -64,7 +67,7 @@ http:
     # --- App SPA served in full on the tailnet admin edge (including /admin).
     #     From app-admin (priority 1, PathPrefix `/`).
     app-admin:
-      rule: "PathPrefix(`/`)"
+      rule: 'PathPrefix(`/`)'
       entryPoints: [tailnet]
       service: app
       priority: 1
@@ -73,7 +76,7 @@ http:
     # --- Room service ADMIN endpoints (tailnet). From room-admin (100):
     #     /api/* EXCEPT /api/v3 (which belongs to dart_services).
     room-admin:
-      rule: "PathPrefix(`/api`) && !PathPrefix(`/api/v3`)"
+      rule: 'PathPrefix(`/api`) && !PathPrefix(`/api/v3`)'
       entryPoints: [tailnet]
       service: room
       priority: 100
@@ -81,7 +84,7 @@ http:
 
     # --- dart_services endpoints on the tailnet edge. From dart-services-admin (100).
     dart-services-admin:
-      rule: "Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`)"
+      rule: 'Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`)'
       entryPoints: [tailnet]
       service: dart-services
       priority: 100
