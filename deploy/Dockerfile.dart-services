@@ -22,8 +22,13 @@ ARG TARGETARCH
 # ------------------------------------------------------------ flutter sdk
 # amd64: official tarball (checksum-pinned). arm64: upstream ships NO arm64
 # Linux tarball (the arm64 GCS object 404s; the supported install is
-# `git clone -b stable`), so we clone the stable branch and check out the
-# version tag.
+# `git clone -b stable`), so we clone the version tag and check it out AS a
+# local branch named `stable`. A detached tag checkout makes `git symbolic-ref
+# --short HEAD` return "HEAD", which flutter_tools maps to channel
+# "[user-branch]" — and dart_services then looks for
+# pub_dependencies_[user-branch].json (only _stable/_beta/_main exist) and its
+# Sdk channel assert trips. Naming the branch `stable` makes `flutter
+# --version --machine` report channel "stable" (matches the amd64 tarball).
 FROM debian:bookworm-slim AS flutter
 ARG FLUTTER_VERSION
 ARG FLUTTER_SHA256
@@ -43,7 +48,9 @@ RUN case "$TARGETARCH" in \
         && rm /tmp/flutter.tar.xz ;; \
       arm64) \
         git clone --depth 1 --branch "${FLUTTER_VERSION}" \
-          https://github.com/flutter/flutter.git /opt/flutter ;; \
+          https://github.com/flutter/flutter.git /opt/flutter \
+        && cd /opt/flutter \
+        && git checkout -b stable ;; \
       *) echo "unsupported TARGETARCH=$TARGETARCH" >&2; exit 1 ;; \
     esac \
  && git config --global --add safe.directory /opt/flutter \
