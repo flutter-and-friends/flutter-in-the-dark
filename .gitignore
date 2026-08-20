@@ -42,3 +42,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local per-host deploy config (secrets live in deploy/env/, but this
+# still carries host-specific values like TAILSCALE_IP / TAILNET_DOMAIN).
+# The committed template is .env.example.
+.env
