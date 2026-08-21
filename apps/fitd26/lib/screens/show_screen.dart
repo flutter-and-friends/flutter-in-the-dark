@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:fitd26/helpers/challenge_ticker.dart';
 import 'package:fitd26/room/room_client.dart';
 import 'package:fitd26/room/room_models.dart';
 import 'package:fitd26/room/room_sync.dart';
@@ -22,18 +25,46 @@ class ShowScreen extends StatefulWidget {
 }
 
 class _ShowScreenState extends State<ShowScreen> {
+  /// Wall-clock ticker so the isInTheFuture gate flips to the live show
+  /// exactly when startTime is reached — RoomSync only notifies on SSE
+  /// events, and no SSE event fires when wall-clock time crosses startTime.
+  Timer? _clockTimer;
+
   @override
   void initState() {
     super.initState();
     widget.roomSync.addListener(_onChanged);
+    _syncClockTimer();
   }
 
   void _onChanged() {
+    _syncClockTimer();
+    if (mounted) setState(() {});
+  }
+
+  /// Starts the wall-clock ticker while the challenge has a pending
+  /// time-dependent transition (not yet started, or not yet finished);
+  /// cancels it as soon as there is nothing to wait for.
+  void _syncClockTimer() {
+    final waiting = shouldTickForChallenge(
+      widget.roomSync.state?.challenge,
+    );
+    if (waiting && _clockTimer == null) {
+      _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    } else if (!waiting) {
+      _clockTimer?.cancel();
+      _clockTimer = null;
+    }
+  }
+
+  void _tick() {
+    _syncClockTimer();
     if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _clockTimer?.cancel();
     widget.roomSync.removeListener(_onChanged);
     super.dispose();
   }

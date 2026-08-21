@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:confetti/confetti.dart';
 import 'package:devtools_app_shared/ui.dart';
+import 'package:fitd26/helpers/challenge_ticker.dart';
 import 'package:fitd26/room/room_models.dart';
 import 'package:fitd26/room/room_sync.dart';
 import 'package:fitd26/room/session_store.dart';
@@ -50,6 +51,14 @@ class _ChallengeScreenState extends State<ChallengeScreen>
   RoomState? _lastState;
   bool _endHandled = false;
 
+  /// Wall-clock ticker that re-evaluates the time-dependent gates
+  /// ([Challenge.isInTheFuture] / [Challenge.isFinished]) exactly when
+  /// startTime/endTime are crossed. RoomSync only notifies on SSE events,
+  /// and the server never sends an event at the moment wall-clock time
+  /// passes startTime/endTime — so without this the screen stays stuck on
+  /// WaitingForChallenge (or the live screen) until the next SSE event.
+  Timer? _clockTimer;
+
   @override
   void initState() {
     super.initState();
@@ -72,6 +81,28 @@ class _ChallengeScreenState extends State<ChallengeScreen>
     );
     widget.roomSync.addListener(_onRoomChanged);
     _lastState = widget.roomSync.state;
+    _syncClockTimer();
+  }
+
+  /// Starts the wall-clock ticker while there is a pending time-dependent
+  /// transition to wait for (challenge not yet started, or started but not
+  /// yet finished); cancels it as soon as there is nothing to wait for.
+  void _syncClockTimer() {
+    final waiting = shouldTickForChallenge(
+      widget.roomSync.state?.challenge,
+    );
+    if (waiting && _clockTimer == null) {
+      _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    } else if (!waiting) {
+      _clockTimer?.cancel();
+      _clockTimer = null;
+    }
+  }
+
+  void _tick() {
+    _checkBuzzerEdge();
+    _syncClockTimer();
+    if (mounted) setState(() {});
   }
 
   void _goToJoin() {
@@ -92,12 +123,20 @@ class _ChallengeScreenState extends State<ChallengeScreen>
   }
 
   void _onRoomChanged() {
+    _checkBuzzerEdge();
+    _syncClockTimer();
+    if (mounted) setState(() {});
+  }
+
+  /// Buzzer edge: fire the celebration + blur exactly once, whether the
+  /// finish is observed via an SSE event or via the wall-clock ticker
+  /// crossing endTime (no SSE event fires at that moment).
+  void _checkBuzzerEdge() {
     final state = widget.roomSync.state;
     final challenge = state?.challenge;
     final wasLive = _lastState?.challenge?.isFinished == false;
     _lastState = state;
 
-    // Buzzer edge: fire the celebration + blur exactly once.
     if (!_endHandled &&
         challenge != null &&
         challenge.isFinished &&
@@ -106,8 +145,6 @@ class _ChallengeScreenState extends State<ChallengeScreen>
       _onChallengeEnd();
     }
     if (challenge == null) _endHandled = false;
-
-    if (mounted) setState(() {});
   }
 
   void _onChallengeEnd() {
@@ -125,6 +162,7 @@ class _ChallengeScreenState extends State<ChallengeScreen>
 
   @override
   void dispose() {
+    _clockTimer?.cancel();
     widget.roomSync.removeListener(_onRoomChanged);
     _confettiController.dispose();
     _shakeController.dispose();
