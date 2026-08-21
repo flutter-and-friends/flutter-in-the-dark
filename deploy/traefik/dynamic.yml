@@ -58,7 +58,7 @@ http:
 
     # --- dart_services PUBLIC endpoints (backend host). From dart-services-public (100).
     dart-services-public:
-      rule: 'Host(`{{env "DOMAIN"}}`) && (Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`))'
+      rule: 'Host(`{{env "DOMAIN"}}`) && (Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`) || PathPrefix(`/assets`))'
       entryPoints: [web]
       service: dart-services
       priority: 100
@@ -88,7 +88,7 @@ http:
 
     # --- dart_services endpoints on the tailnet edge. From dart-services-admin (100).
     dart-services-admin:
-      rule: 'Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`)'
+      rule: 'Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`) || PathPrefix(`/assets`)'
       entryPoints: [tailnet]
       service: dart-services
       priority: 100

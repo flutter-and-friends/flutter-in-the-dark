@@ -60,7 +60,7 @@ and unchanged.
 | Host | Serves | Exposure |
 |---|---|---|
 | `flutterinthedark.dev` (apex) | App SPA: `/`, `/show` + static assets (`/assets`, `/canvaskit`, `/icons`, `*.js`, …) | public via Cloudflare Tunnel (edge TLS) |
-| `backend.flutterinthedark.dev` | API: room (`/api/state` `/api/events` `/api/join` `/api/prompt` `/api/probe-generate`) + dart_services (`/api/v3/generateCode` `/compileAndServe` `/suggestFix`, `/compiled/*`, `/artifacts/*`) | public via Cloudflare Tunnel (edge TLS) |
+| `backend.flutterinthedark.dev` | API: room (`/api/state` `/api/events` `/api/join` `/api/prompt` `/api/probe-generate`) + dart_services (`/api/v3/generateCode` `/compileAndServe` `/suggestFix`, `/compiled/*`, `/artifacts/*`, `/assets/*`) | public via Cloudflare Tunnel (edge TLS) |
 | `<machine>.<tailnet>.ts.net:4443` | full SPA incl. `/admin` + full API incl. `/api/admin/*` | tailnet only (NOT via Cloudflare) |
 
 ### Cross-origin (CORS) wiring
