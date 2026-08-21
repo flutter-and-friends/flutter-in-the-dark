@@ -6,7 +6,10 @@
 /// cached in memory (name → `/compiled/<id>`) so a re-pick of an already
 /// compiled challenge is instant; the cache is lost on restart (the backend's
 /// own compiled artifacts expire after 2 h anyway, so persisting URLs would
-/// be wrong).
+/// be wrong). Cached URLs are probed for liveness before being served (the
+/// backend's store is in-memory + TTL'd) and transparently re-compiled from
+/// [ChallengeEntry.source] when dead — the source is the truth, the cache is
+/// disposable.
 ///
 /// Challenge assets come from two places, merged at registry construction:
 ///
@@ -205,5 +208,15 @@ class HelloDarkScreen extends StatelessWidget {
     _compiled[name] = widgetUrl;
   }
 
+  /// Drops the cached widgetUrl for [name] (used when a probe finds the
+  /// backend no longer serves it — a dead URL must never be handed out).
+  void evictCompiled(String name) {
+    _compiled.remove(name);
+  }
+
   String? compiledUrlFor(String name) => _compiled[name];
+
+  /// Names with a cached widgetUrl (the only ones a freshness probe cares
+  /// about — uncached entries compile on demand via the compile route).
+  Iterable<String> get cachedNames => _compiled.keys.toList();
 }

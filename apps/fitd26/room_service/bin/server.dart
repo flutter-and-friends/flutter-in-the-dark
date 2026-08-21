@@ -142,13 +142,28 @@ Future<void> main(List<String> args) async {
 
   // Challenge picker catalog: every seeded entry, with `widgetUrl` filled in
   // for the ones already compiled (and cached) this process lifetime.
-  router.get('/api/admin/challenges', (Request request) {
+  //
+  // Freshness: dart_services serves /compiled/<id> from an in-memory store
+  // with a 2 h no-read TTL, and a backend restart wipes it. A cached URL can
+  // therefore be dead. The picker trusts a non-null widgetUrl from THIS list
+  // without calling compile, so cached URLs are probed here and re-compiled
+  // on demand (registry source is the truth; the cache is disposable). On
+  // recompile failure the entry is served with widgetUrl null — never a
+  // known-dead URL.
+  router.get('/api/admin/challenges', (Request request) async {
+    // Only entries with a CACHED url need a liveness probe; uncached entries
+    // stay null and compile on tap via the compile route, as before.
+    for (final name in challenges.cachedNames) {
+      await _ensureFresh(challenges, pipeline, name);
+    }
     return _json({'challenges': challenges.list()});
   });
 
   // Compiles a catalog entry against the backend and caches the resulting
   // widgetUrl. The picker calls this when the admin picks a challenge whose
-  // widgetUrl is still null; a cached one returns immediately.
+  // widgetUrl is still null; a LIVE cached one returns immediately (a dead
+  // one is transparently recompiled — see the freshness note on the list
+  // route).
   router.post('/api/admin/challenges/compile', (Request request) async {
     final body = await _readJson(request);
     final name = body['name'] as String? ?? '';
@@ -159,54 +174,16 @@ Future<void> main(List<String> args) async {
         headers: {'Content-Type': 'application/json; charset=utf-8'},
       );
     }
-    final cached = challenges.compiledUrlFor(name);
-    if (cached != null) {
-      return _json({'ok': true, 'url': cached});
+    if (await _ensureFresh(challenges, pipeline, name)) {
+      return _json({'ok': true, 'url': challenges.compiledUrlFor(name)});
     }
-
-    // Fresh client per call (same reason as Pipeline._client: a shared client
-    // wedges on an abandoned stream; compile isn't streaming, but the pool
-    // exhaustion lesson applies). 120 s timeout mirrors Pipeline._compile.
-    final client = http.Client();
-    try {
-      final response = await client
-          .post(
-            Uri.parse('${pipeline.backendBase}/api/v3/compileAndServe'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'source': entry.source}),
-          )
-          .timeout(const Duration(seconds: 120));
-
-      if (response.statusCode == 200) {
-        final url = (jsonDecode(response.body) as Map<String, dynamic>)['url'];
-        if (url is String) {
-          challenges.cacheCompiled(name, url);
-          return _json({'ok': true, 'url': url});
-        }
-        return Response.badRequest(
-          body: jsonEncode({
-            'error': 'compile_failed',
-            'problems': ['backend 200 body missing "url": ${response.body}'],
-          }),
-          headers: {'Content-Type': 'application/json; charset=utf-8'},
-        );
-      }
-
-      // Failure: forward the backend's problems when parseable; never cache.
-      List<dynamic> problems;
-      try {
-        final body = jsonDecode(response.body) as Map<String, dynamic>;
-        problems = body['problems'] as List? ?? [response.body];
-      } on FormatException {
-        problems = [response.body];
-      }
-      return Response.badRequest(
-        body: jsonEncode({'error': 'compile_failed', 'problems': problems}),
-        headers: {'Content-Type': 'application/json; charset=utf-8'},
-      );
-    } finally {
-      client.close();
-    }
+    return Response.badRequest(
+      body: jsonEncode({
+        'error': 'compile_failed',
+        'problems': ['recompile of cached-but-dead URL failed; see service log'],
+      }),
+      headers: {'Content-Type': 'application/json; charset=utf-8'},
+    );
   });
 
   router.post('/api/admin/challenge', (Request request) async {
@@ -214,15 +191,23 @@ Future<void> main(List<String> args) async {
     try {
       final startMs = body['startTime'] as int;
       final endMs = body['endTime'] as int;
+      final name = body['name'] as String;
       room.setChallenge(
-        name: body['name'] as String,
+        name: name,
         widgetUrl: body['widgetUrl'] as String,
-        startTime: DateTime.fromMillisecondsSinceEpoch(startMs),
-        endTime: DateTime.fromMillisecondsSinceEpoch(endMs),
+        // Normalize to UTC at ingest: ms-since-epoch is instant-exact, and
+        // keeping the DateTime UTC means toIso8601String() emits a 'Z' on
+        // the wire (a local-zone DateTime would serialize naive).
+        startTime: DateTime.fromMillisecondsSinceEpoch(startMs, isUtc: true),
+        endTime: DateTime.fromMillisecondsSinceEpoch(endMs, isUtc: true),
         assets:
             (body['assets'] as Map<String, dynamic>?)?.cast<String, String>() ??
             const {},
       );
+      // Fire-and-forget re-warm of the picked challenge's compiled URL — a
+      // long countdown can outlive the backend's 2 h TTL, and a cache hit
+      // makes this near-free. Never blocks the admin's response.
+      unawaited(_warm(challenges, pipeline, name));
       return _json({'ok': true});
     } on TypeError {
       return _badRequest('required: name, widgetUrl, startTime, endTime (ms)');
@@ -333,6 +318,140 @@ Future<void> main(List<String> args) async {
     'state file: ${stateFilePath.isEmpty ? 'none' : stateFilePath}, '
     'challenges seeded: ${ChallengeRegistry.seed.length})',
   );
+
+  // Startup warm-all: pre-compile every catalog challenge so first serve in
+  // a live event never waits on a cold compile. Best-effort background pass —
+  // a warm failure is logged, never thrown (probe-and-recompile on the list /
+  // compile routes is the correctness floor; this is pure optimization).
+  unawaited(_warmAll(challenges, pipeline));
+}
+
+/// Returns true when the backend still serves [url] (path-absolute
+/// `/compiled/<id>` against the generation backend). Any error or non-200
+/// counts as dead — a wrong "alive" verdict 404s every client iframe.
+Future<bool> _compiledUrlAlive(String backendBase, String url) async {
+  final client = http.Client();
+  try {
+    final response = await client
+        .get(Uri.parse('$backendBase$url'))
+        .timeout(const Duration(seconds: 10));
+    return response.statusCode == 200;
+  } catch (_) {
+    return false;
+  } finally {
+    client.close();
+  }
+}
+
+/// Ensures the registry's cached widgetUrl for [name] is live: a missing or
+/// dead cache entry is (re)compiled from the registry source and re-cached.
+/// Returns true when a live URL is cached on return. dart_services keeps
+/// compiled artifacts in memory with a 2 h no-read TTL (and loses them on
+/// restart), so the cache can never be trusted without a probe.
+Future<bool> _ensureFresh(
+  ChallengeRegistry challenges,
+  gen.Pipeline pipeline,
+  String name,
+) async {
+  final cached = challenges.compiledUrlFor(name);
+  if (cached != null && await _compiledUrlAlive(pipeline.backendBase, cached)) {
+    return true;
+  }
+  challenges.evictCompiled(name);
+  final url = await _compile(pipeline, challenges.byName(name)!.source);
+  if (url == null) return false;
+  challenges.cacheCompiled(name, url);
+  return true;
+}
+
+/// Best-effort warm of one challenge's compiled-URL cache: compiles [name]
+/// from registry source via [_compile] and caches the result, so a later
+/// pick/serve hits a warm cache. NEVER throws — any failure (unknown name,
+/// backend down, compile error) is logged loudly and skipped; the liveness
+/// probe + recompile in [_ensureFresh] remains the correctness floor.
+///
+/// Skips the compile entirely when a cached URL still probes alive — a warm
+/// of an already-warm entry is near-free (one GET).
+Future<void> _warm(
+  ChallengeRegistry challenges,
+  gen.Pipeline pipeline,
+  String name,
+) async {
+  try {
+    final entry = challenges.byName(name);
+    if (entry == null) {
+      stdout.writeln('warm "$name": not in registry — skipped');
+      return;
+    }
+    final cached = challenges.compiledUrlFor(name);
+    if (cached != null &&
+        await _compiledUrlAlive(pipeline.backendBase, cached)) {
+      stdout.writeln('warm "$name": cache already live ($cached)');
+      return;
+    }
+    final sw = Stopwatch()..start();
+    final url = await _compile(pipeline, entry.source);
+    if (url == null) {
+      stdout.writeln(
+        'warm "$name": compile FAILED (${sw.elapsedMilliseconds} ms) — skipped',
+      );
+      return;
+    }
+    challenges.cacheCompiled(name, url);
+    stdout.writeln('warm "$name": compiled → $url (${sw.elapsedMilliseconds} ms)');
+  } catch (e) {
+    // Paranoia: _compile already swallows, but a warm must NEVER propagate.
+    stdout.writeln('warm "$name": unexpected error: $e — skipped');
+  }
+}
+
+/// Startup warm-all: sequentially warms every catalog entry. Sequential on
+/// purpose — dart_services has a single DDC worker pool, parallel compiles
+/// would just queue behind it while hammering the backend. Best-effort: any
+/// single failure is logged inside [_warm] and the loop continues.
+Future<void> _warmAll(
+  ChallengeRegistry challenges,
+  gen.Pipeline pipeline,
+) async {
+  stdout.writeln(
+    'warm-all: compiling ${ChallengeRegistry.seed.length} challenge(s)…',
+  );
+  for (final entry in ChallengeRegistry.seed) {
+    await _warm(challenges, pipeline, entry.name);
+  }
+  stdout.writeln('warm-all: done');
+}
+
+/// POSTs [source] to the backend's compileAndServe and returns the served
+/// `/compiled/<id>` path, or null on any failure (logged to stdout; the
+/// caller decides the HTTP response). Fresh client per call (same reason as
+/// Pipeline._client: a shared client wedges on an abandoned stream); 120 s
+/// timeout mirrors Pipeline._compile.
+Future<String?> _compile(gen.Pipeline pipeline, String source) async {
+  final client = http.Client();
+  try {
+    final response = await client
+        .post(
+          Uri.parse('${pipeline.backendBase}/api/v3/compileAndServe'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'source': source}),
+        )
+        .timeout(const Duration(seconds: 120));
+    if (response.statusCode != 200) {
+      stdout.writeln('challenge compile failed (${response.statusCode}): '
+          '${response.body}');
+      return null;
+    }
+    final url = (jsonDecode(response.body) as Map<String, dynamic>)['url'];
+    if (url is String) return url;
+    stdout.writeln('challenge compile: 200 body missing "url"');
+    return null;
+  } catch (e) {
+    stdout.writeln('challenge compile error: $e');
+    return null;
+  } finally {
+    client.close();
+  }
 }
 
 Future<Map<String, dynamic>> _readJson(Request request) async {
