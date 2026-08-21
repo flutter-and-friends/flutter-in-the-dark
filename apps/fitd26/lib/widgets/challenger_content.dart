@@ -145,12 +145,12 @@ class _CodePaneState extends State<_CodePane> {
   /// following the same `_clockTimer` Timer.periodic pattern the screens
   /// use. 20 ticks/s keeps the drift smooth on a projector.
   static const _tick = Duration(milliseconds: 50);
-  static const _startupDwellTicks = 60; // 3s at the top before first drift
-  static const _extremeDwellTicks = 80; // 4s pause at each end before reversing
+  static const _startupDwellTicks = 90; // 4.5s at the top before first drift
+  static const _extremeDwellTicks = 120; // 6s pause at each end before reversing
 
-  /// Logical px per tick — 24px/s, projector-slow, tens of seconds for a
+  /// Logical px per tick — 36px/s, projector-slow, tens of seconds for a
   /// full traverse of typical generated code.
-  static const _stepPx = 1.2;
+  static const _stepPx = 1.8;
 
   /// Start or stop the driver when the autoScroll flag changes.
   @override

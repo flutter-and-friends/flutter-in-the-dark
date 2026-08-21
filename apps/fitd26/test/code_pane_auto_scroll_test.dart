@@ -37,8 +37,8 @@ void main() {
     await tester.pumpWidget(_pane(code: _tallCode, autoScroll: true));
     expect(_panePosition(tester).pixels, 0);
 
-    // Past the startup beat (3s) plus several 50ms ticks of drift.
-    await tester.pump(const Duration(seconds: 4));
+    // Past the startup beat (4.5s) plus several 50ms ticks of drift.
+    await tester.pump(const Duration(seconds: 6));
     expect(_panePosition(tester).pixels, greaterThan(0));
   });
 
@@ -63,7 +63,7 @@ void main() {
     tester,
   ) async {
     // Short enough that the full downward traverse finishes in well under a
-    // minute (752px at 1.2px/50ms tick ≈ 31s) but still scrollable.
+    // minute (752px at 1.8px/50ms tick ≈ 21s) but still scrollable.
     final shortCode = List.generate(
       60,
       (i) => 'final line$i = $i;',

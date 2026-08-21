@@ -35,9 +35,9 @@ class _CodePaneState extends State<CodePane> {
   int _dwellTicks = 0;
 
   static const _tick = Duration(milliseconds: 50);
-  static const _startupDwellTicks = 60;
-  static const _extremeDwellTicks = 80;
-  static const _stepPx = 1.2;
+  static const _startupDwellTicks = 90;
+  static const _extremeDwellTicks = 120;
+  static const _stepPx = 1.8;
 
   @override
   void initState() {
