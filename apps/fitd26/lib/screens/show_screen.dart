@@ -140,6 +140,7 @@ class _ShowScreenState extends State<ShowScreen> {
       challenger: player,
       content: state.contentFor(player.id),
       expanded: true,
+      autoScroll: true,
     );
   }
 }
@@ -183,6 +184,7 @@ class PlayerGrid extends StatelessWidget {
                 key: ValueKey(player.id),
                 challenger: player,
                 content: state.contentFor(player.id),
+                autoScroll: true,
               ),
           ],
         );
@@ -199,11 +201,16 @@ class PlayerCard extends StatefulWidget {
     required this.challenger,
     required this.content,
     this.expanded = false,
+    this.autoScroll = false,
   });
 
   final Challenger challenger;
   final DisplayContent content;
   final bool expanded;
+
+  /// Passed through to [ChallengerContent] so the projector view's code
+  /// panes scroll themselves — the presenter cannot touch the screen.
+  final bool autoScroll;
 
   @override
   State<PlayerCard> createState() => _PlayerCardState();
@@ -288,6 +295,7 @@ class _PlayerCardState extends State<PlayerCard>
               challenger: widget.challenger,
               content: widget.content,
               expanded: widget.expanded,
+              autoScroll: widget.autoScroll,
             ),
           ),
         ],
