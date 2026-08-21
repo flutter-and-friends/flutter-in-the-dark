@@ -83,6 +83,12 @@ class _ShowScreenState extends State<ShowScreen> {
       ),
       ViewMode.allPlayers => PlayerGrid(state: state),
       ViewMode.singlePlayer => _buildSinglePlayer(state),
+      ViewMode.singleWithChallenge => Row(
+        children: [
+          Expanded(flex: 2, child: challengePane),
+          Expanded(flex: 3, child: _buildSinglePlayer(state)),
+        ],
+      ),
     };
   }
 
@@ -297,7 +303,7 @@ class _TimerBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Timeago(
       refreshRate: const Duration(milliseconds: 100),
-      date: challenge.endTime,
+      date: challenge.endTime.toLocal(),
       allowFromNow: true,
       builder: (context, time) {
         final remainingTime = challenge.endTime.difference(DateTime.now());
@@ -332,7 +338,7 @@ class _CountdownGate extends StatelessWidget {
   Widget build(BuildContext context) {
     return Timeago(
       refreshRate: const Duration(milliseconds: 100),
-      date: challenge.endTime,
+      date: challenge.endTime.toLocal(),
       allowFromNow: true,
       builder: (context, time) {
         final remainingTime = challenge.endTime.difference(DateTime.now());

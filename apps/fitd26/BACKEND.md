@@ -140,7 +140,9 @@ dart bin/server.dart --port 8302 --backend http://127.0.0.1:8300 \
 ```json
 {
   "revision": 93,
-  "challenge": { "id", "name", "startTime", "endTime",
+  "challenge": { "id", "name",
+                 "startTime", "endTime",   // UTC ISO-8601 with 'Z' suffix —
+                                           // DateTime.parse is instant-correct in any zone
                  "widgetUrl": "/compiled/<id>", "assets": {} } | null,
   "challengers": [
     { "id", "name", "joinedAt",
@@ -150,7 +152,7 @@ dart bin/server.dart --port 8302 --backend http://127.0.0.1:8300 \
       "generatedCode": "…", "compiledUrl": "/compiled/<id>",
       "error": "…", "fixAttempts": 0 }
   ],
-  "show": { "viewMode": "allWithChallenge|allPlayers|singlePlayer|challengeOnly",
+  "show": { "viewMode": "allWithChallenge|allPlayers|singlePlayer|singleWithChallenge|challengeOnly",
             "focusedPlayerId": "…|null" },
   "globalContent": "prompt|code|widget",
   "playerContent": { "<playerId>": "prompt|code|widget" }
@@ -179,7 +181,7 @@ restores the same identity without re-joining.
 ```
 GET  /api/admin/challenges         → 200 {"challenges":[{"name","assets":{},"widgetUrl":"/compiled/<id>"|null}]}
 POST /api/admin/challenges/compile {"name"} → 200 {"ok":true,"url":"/compiled/<id>"} | 404 {"error":"unknown challenge"} | 400 {"error":"compile_failed","problems":[...]}
-POST /api/admin/challenge        {"name","widgetUrl","startTime","endTime"(ms),"assets"}
+POST /api/admin/challenge        {"name","widgetUrl","startTime","endTime"(ms since epoch, UTC),"assets"}
 POST /api/admin/clear            {}                                  (clear challenge)
 POST /api/admin/adjustTime       {"seconds"}                         (± end time)
 POST /api/admin/showView         {"viewMode"?, "focusedPlayerId"}    (audience view)
@@ -189,6 +191,12 @@ POST /api/admin/regenerate       {"playerId"}                        (manual bac
 POST /api/admin/removeChallenger {"playerId"}
 POST /api/admin/removeAll        {}
 ```
+
+room_service warms the compiled-challenge cache best-effort: every registry
+entry is compiled in the background at startup, and the picked challenge is
+re-warmed (fire-and-forget) on `POST /api/admin/challenge`. A warm failure is
+logged and skipped, never fatal — the liveness probe + recompile on the
+list/compile routes remains the correctness floor.
 
 The tri-state reveal (`contentAll` / `contentFor`) is what the admin flips to
 show Prompt | Code | Widget; it applies identically to `/show` AND each
