@@ -1,0 +1,337 @@
+name: fitd26
+
+# fitd26 production stack — "Flutter in the Dark" event deployment.
+#
+# One command on the event host:
+#
+#     docker compose up -d
+#
+# …brings up cloudflared (the public edge), Traefik (internal HTTP router),
+# the release-built SPA on the APEX https://flutterinthedark.dev/ , and the
+# room-state service + dart_services generation backend (the API) on
+# https://backend.flutterinthedark.dev/ (WI-100 host split: app on apex,
+# API on the backend subdomain — the app calls the API cross-origin; both
+# backends answer CORS for the apex origin).
+#
+# PUBLIC EXPOSURE = CLOUDFLARE TUNNEL (WI-101). cloudflared makes an
+# OUTBOUND-only connection to Cloudflare's edge; there are NO inbound
+# firewall ports, NO DNS A records to the house IP (the IP stays hidden),
+# and NO ACME/Let's Encrypt — Cloudflare terminates TLS at its edge.
+# cloudflared forwards both hostnames to Traefik's INTERNAL plain-HTTP
+# listener (:80, not publicly bound), which keeps all path/host routing.
+#
+# Prerequisites (see DEPLOY.md for the full checklist):
+#   1. A named Cloudflare Tunnel (Zero Trust dashboard → Networks →
+#      Tunnels) with Public Hostnames:
+#        flutterinthedark.dev         → http://traefik:80
+#        backend.flutterinthedark.dev → http://traefik:80
+#      The dashboard auto-creates the proxied (orange-cloud) CNAMEs to
+#      <tunnel-id>.cfargotunnel.com — NO A records to the house IP.
+#   2. deploy/env/cloudflared.env containing TUNNEL_TOKEN=<token> from the
+#      dashboard. NEVER commit this file. Verify blind (W-083/W-149).
+#   3. deploy/env/dart_services.env containing BERGET_REFRESH_TOKEN=<secret>
+#      (optionally BERGET_MODEL=…). NEVER commit this file. Verify blind.
+#   4. TAILSCALE_IP set to this host's tailscale0 address (tailscale ip -4).
+#      The Tailscale node must have HTTPS certs enabled
+#      (`tailscale cert` / MagicDNS) for the admin listener to serve valid TLS.
+#
+# ┌─────────────────────────── THE /admin GATE ───────────────────────────┐
+# │ WI-093 D2 + 2026-08-19 clarification, UNCHANGED by WI-100 and WI-101: │
+# │ the gate is STRUCTURAL, not a middleware rule.                        │
+# │                                                                       │
+# │   PUBLIC path (Cloudflare edge → cloudflared → Traefik :80 — apex AND │
+# │   backend subdomain):                                                 │
+# │     routers exist ONLY for                                            │
+# │       GET /api/state, GET /api/events, POST /api/join, POST /api/prompt│
+# │       dart_services API (backend.*), and the SPA pages / and /show    │
+# │       (apex).                                                         │
+# │     There is NO router for /api/admin/* and NO router for /admin —    │
+# │     Traefik answers 404 on BOTH public hosts. The route does not      │
+# │     exist. The tunnel transport changes NOTHING about this: the       │
+# │     public path still has no admin router.                            │
+# │                                                                       │
+# │   TAILSCALE entrypoint (4443, bound to the host's 100.x address only):│
+# │     full API surface incl. /api/admin/* + the SPA incl. /admin.       │
+# │     Only reachable from devices on the tailnet (the admin phone).     │
+# │     INDEPENDENT of Cloudflare — does not go through the tunnel.       │
+# │                                                                       │
+# │ The room service itself is UNCHANGED: it has no app-level auth on     │
+# │ admin routes by design; the network gate above IS the auth.           │
+# └───────────────────────────────────────────────────────────────────────┘
+#
+# Local/dev-host override (no TLS, no DNS, loopback stands in for the
+# tailnet): see deploy/docker-compose.local.yml.
+
+services:
+  # --------------------------------------------------- public edge (tunnel)
+  # cloudflared is the ONLY public path in. It dials OUT to Cloudflare's
+  # edge (HTTPS/7844, outbound only — no inbound firewall ports, the house
+  # IP is never published) and Cloudflare routes the two Public Hostnames to
+  # it. Both hostnames forward to Traefik's internal HTTP listener below.
+  #
+  # Config is TOKEN-ONLY (WI-101 decision): the ingress/public-hostname map
+  # lives in the Zero Trust dashboard (Networks → Tunnels → <tunnel> →
+  # Public Hostnames), NOT a config file in this repo. That keeps the
+  # operator checklist shortest — create the tunnel, paste two hostnames →
+  # http://traefik:80, copy the token into deploy/env/cloudflared.env — and
+  # the dashboard auto-creates the proxied CNAMEs. The alternative (a
+  # committed config.yml + a credentials JSON) is more moving parts for no
+  # gain here; Traefik already owns every routing decision.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    env_file:
+      # Contains TUNNEL_TOKEN=<token> (the dashboard's "install token").
+      # Never committed; see deploy/env/cloudflared.env.example for the KEY
+      # NAME only. Verify blind (W-083/W-149).
+      - deploy/env/cloudflared.env
+    networks:
+      - fitd
+    depends_on:
+      - traefik
+    healthcheck:
+      # cloudflared serves its /ready + metrics on 2000 by default in the
+      # official image only when --metrics is set; the simplest liveness is
+      # the process itself plus `docker compose logs cloudflared` showing
+      # "Registered tunnel connection". Keep the check cheap and honest.
+      test: ["CMD", "cloudflared", "--version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ------------------------------------------------------------------ proxy
+  # Traefik is now an INTERNAL router: the public reaches it ONLY through
+  # cloudflared (no publicly-bound 80/443, no ACME). It keeps ALL host/path
+  # routing (apex → app, backend → room+dart_services) and the tailnet
+  # /admin listener. Cloudflare terminates public TLS; Traefik serves plain
+  # HTTP behind the (encrypted) tunnel.
+  traefik:
+    image: traefik:v3.4
+    restart: unless-stopped
+    command:
+      # Traefik's own API/dashboard stays OFF (nothing extra to attack).
+      - --api.insecure=false
+      # Enable the lightweight /ping endpoint so the container healthcheck
+      # (`traefik healthcheck --ping`) has something to hit. Without this the
+      # check 404s and the container reads (unhealthy) even though routing is
+      # fine. Ping is internal-only (not routed publicly).
+      - --ping=true
+      # STATIC FILE PROVIDER (replaces --providers.docker). On macOS the
+      # container runtime's daemon socket lives in a VM and can't be reliably
+      # bind-mounted in (Docker Desktop bridges it inconsistently per-image;
+      # rootless Podman doesn't share the namespace), so label auto-discovery
+      # fails with an empty "Error response from daemon:". Routing is declared
+      # statically in deploy/traefik/dynamic.yml (same pattern as PodCase).
+      # Traefik needs NO daemon access -> smaller attack surface. watch=true
+      # reloads routes when dynamic.yml is saved (no restart needed).
+      # DIRECTORY, not filename: the single-file form loads ONLY dynamic.yml,
+      # so tls.yml (the tailnet cert) was silently ignored and Traefik served
+      # its self-signed DEFAULT CERT on :4443. The directory form loads both.
+      - --providers.file.directory=/etc/traefik
+      - --providers.file.watch=true
+      # INTERNAL HTTP listener for the public path. cloudflared is the only
+      # client (same Docker network). NOT published to the host — see ports.
+      - --entrypoints.web.address=:80
+      # Trust forwarded headers ONLY from the cloudflared hop, not the whole
+      # world. Cloudflare's edge sets CF-Connecting-IP / X-Forwarded-Proto;
+      # cloudflared forwards them. Whitelist the Docker `fitd` subnet so
+      # Traefik honors X-Forwarded-* only from in-cluster peers (cloudflared)
+      # — a client spoofing those headers from anywhere else is ignored.
+      - --entrypoints.web.forwardedHeaders.trustedIPs=172.16.0.0/12
+      # TAILSCALE: bound to the host's tailscale0 address only. The
+      # published port mapping below does the same at the Docker layer
+      # (100.x:4443:4443), so Docker's iptables rule also only accepts
+      # tailnet-source traffic. UNCHANGED by WI-101.
+      - --entrypoints.tailnet.address=:4443
+      - --log.level=INFO
+    ports:
+      # The public edge of the whole stack is now cloudflared (above), so
+      # Traefik's :80 is NOT published. The ONLY published port is the
+      # admin edge — bound ONLY to the tailnet interface. Fails fast at
+      # `up` if TAILSCALE_IP is unset: that is intentional.
+      - "${TAILSCALE_IP:?set TAILSCALE_IP to the host tailscale0 IPv4 (tailscale ip -4)}:4443:4443"
+    # No docker socket mount — the file provider needs no daemon access.
+    environment:
+      # Passed to the {{env "VAR"}} templating in dynamic.yml.
+      # DOMAIN = the API host (backend.*), APP_DOMAIN = the apex (SPA),
+      # TAILNET_DOMAIN = the machine's ts.net name (for the admin edge).
+      DOMAIN: ${DOMAIN}
+      APP_DOMAIN: ${APP_DOMAIN}
+      TAILNET_DOMAIN: ${TAILNET_DOMAIN:-}
+    volumes:
+      # Static routing table (the file provider above).
+      - ./deploy/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      # Tailnet-entrypoint TLS cert (issued by Tailscale itself for the
+      # machine's ts.net name — no public CA can validate a 100.x name).
+      - ./deploy/traefik/tls.yml:/etc/traefik/tls.yml:ro
+      - ${TAILSCALE_CERT_DIR:-~/.tailscale-certs}:/certs:ro
+    networks:
+      - fitd
+    depends_on:
+      - app
+      - room
+      - dart-services
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # -------------------------------------------------------------- SPA (app)
+  # Release Flutter web build (`flutter build web --release
+  # --no-tree-shake-icons`), served by nginx with SPA deep-link fallback.
+  # The fallback must NOT swallow API paths — API routers run at priority
+  # 100 and win before anything reaches nginx (I-114).
+  app:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.app
+    image: fitd26-app:local
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      # --- PUBLIC, APEX host only (WI-100): static assets + the contestant
+      # pages. Reached via cloudflared → the `web` (internal HTTP)
+      # entrypoint. /admin HAS NO ROUTER HERE — the negative lookahead
+      # excludes it and every path under it, so the page 404s structurally,
+      # and even a hand-typed URL can't reach the admin API because
+      # /api/admin/* has no public router either. Static assets need their
+      # own (higher-priority) router: the SPA can't bootstrap without
+      # /flutter_bootstrap.js, /main.dart.js, /assets/* etc. ---
+      - traefik.http.routers.app-public-static.rule=Host(`${APP_DOMAIN}`) && PathRegexp(`^/(?!admin(/|$))(assets|canvaskit|icons)(/|$)|^/(?!admin(/|$))[^/]*\.[a-zA-Z0-9]+$`)
+      - traefik.http.routers.app-public-static.priority=15
+      - traefik.http.routers.app-public-static.entrypoints=web
+      - traefik.http.routers.app-public.rule=Host(`${APP_DOMAIN}`) && (Path(`/`) || PathPrefix(`/show`))
+      - traefik.http.routers.app-public.priority=10
+      - traefik.http.routers.app-public.entrypoints=web
+      # NOTE: no HTTP→HTTPS redirect and no ACME — Cloudflare terminates
+      # TLS at the edge and the origin serves plain HTTP over the tunnel.
+      # (Cloudflare's "Always Use HTTPS" edge setting handles any http://
+      # upgrade before traffic ever reaches the origin.)
+      # --- TAILSCALE: full SPA, /admin included ---
+      - traefik.http.routers.app-admin.rule=PathPrefix(`/`)
+      - traefik.http.routers.app-admin.priority=1
+      - traefik.http.routers.app-admin.entrypoints=tailnet
+      # TLS cert comes from the file provider (deploy/traefik/tls.yml →
+      # /certs/tailscale.{crt,key}), issued by `tailscale cert`.
+      - traefik.http.routers.app-admin.tls=true
+      - traefik.http.services.app.loadbalancer.server.port=80
+      # ----------------------------------------------------------
+      # FALLBACK if the tailnet is flaky at the venue (documented in
+      # DEPLOY.md): expose /admin on the PUBLIC domain behind Traefik
+      # basic-auth instead. Add the labels below to the `app` service and
+      # set BASIC_AUTH_USERS (htpasswd) in .env. The shipped config does
+      # NOT do this — the structural gate above is the decision. (Public
+      # TLS is Cloudflare's; this router just rides the `web` entrypoint.)
+      #
+      #   - traefik.http.routers.app-admin-public.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/admin`)
+      #   - traefik.http.routers.app-admin-public.priority=20
+      #   - traefik.http.routers.app-admin-public.entrypoints=web
+      #   - traefik.http.routers.app-admin-public.middlewares=admin-basicauth
+      #   - traefik.http.middlewares.admin-basicauth.basicauth.users=${BASIC_AUTH_USERS}
+      #   …and the matching room router for /api/admin/* (same middleware).
+    networks:
+      - fitd
+
+  # ------------------------------------------------------- room-state svc
+  room:
+    build:
+      context: apps/fitd26/room_service
+      # dockerfile: is resolved relative to `context`, so from
+      # apps/fitd26/room_service we must go up THREE levels to the repo root
+      # (../../ would land on apps/deploy/, which doesn't exist).
+      dockerfile: ../../../deploy/Dockerfile.room
+    image: fitd26-room:local
+    restart: unless-stopped
+    environment:
+      # Boot default model for the generation pipeline; the admin picker
+      # overrides it live afterwards. MUST match dart_services' BERGET_MODEL
+      # (deploy/env/dart_services.env) and Pipeline.defaultModel — Kimi-K3 is
+      # the event default (WI-098 / 2026-08-19), served at reasoning_effort=low.
+      # The old gpt-oss-120b fallback only ever stayed invisible because the
+      # persisted room-state.json wins over this seed; on a fresh host (no
+      # state file) it would boot the room on a DIFFERENT model than
+      # dart_services and silently drop the `low` effort setting.
+      BERGET_MODEL: ${BERGET_MODEL:-moonshotai/Kimi-K3}
+    labels:
+      - traefik.enable=true
+      # --- PUBLIC: read-only room API + contestant writes. /api/admin/*
+      # has NO ROUTER HERE — POSTs to it 404 at the proxy. ---
+      - traefik.http.routers.room-public.rule=Host(`${DOMAIN}`) && (Path(`/api/state`) || Path(`/api/events`) || Path(`/api/join`) || Path(`/api/prompt`) || Path(`/api/probe-generate`))
+      - traefik.http.routers.room-public.priority=100
+      - traefik.http.routers.room-public.entrypoints=web
+      # --- TAILSCALE: admin API (plus everything public has) ---
+      # /api/v3/* is excluded — those belong to dart_services (the
+      # dart-services-admin router below matches them first by specificity).
+      - traefik.http.routers.room-admin.rule=PathPrefix(`/api`) && !PathPrefix(`/api/v3`)
+      - traefik.http.routers.room-admin.priority=100
+      - traefik.http.routers.room-admin.entrypoints=tailnet
+      - traefik.http.routers.room-admin.tls=true
+      - traefik.http.services.room.loadbalancer.server.port=8302
+    volumes:
+      # Room state survives container restarts (rejoin with the stored
+      # token; /tmp lifetime does not).
+      - room-state:/data
+    networks:
+      - fitd
+    depends_on:
+      - dart-services
+
+  # ------------------------------------------------- generation backend
+  # The dart-pad fork (branch berget-backend). Building from source needs
+  # the Flutter SDK + grind-built artifacts; deploy/Dockerfile.dart-services
+  # does that as a multi-stage build, but it is slow (~15–25 min). Fast
+  # path: pre-build the image on any machine with Docker:
+  #
+  #   cd dart-pad/pkgs/dart_services
+  #   docker build -f <fitd-repo>/deploy/Dockerfile.dart-services -t fitd26-dart-services:local .
+  #   docker save fitd26-dart-services:local | ssh event-host docker load
+  #
+  # …and `docker compose up -d` will use it as-is (compose builds only when
+  # the image is absent).
+  dart-services:
+    build:
+      # Context is the dart-pad repo ROOT (not pkgs/dart_services): dart_services
+      # is a pub workspace member (`resolution: workspace`, path-dep on sibling
+      # dartpad_shared), so `dart pub get` needs the workspace-root pubspec in
+      # reach. Building from the package subdir fails with "no workspace root".
+      context: ${DART_PAD_PATH:-../dart-pad}
+      # The Dockerfile lives in THIS flutter repo's deploy/ dir, NOT in the
+      # dart-pad checkout that is the build context. dockerfile: is resolved
+      # relative to `context`, and there is no folder-name-agnostic RELATIVE
+      # path from the dart-pad checkout back into this repo (the sibling
+      # checkout's folder name varies: flutter-in-the-dark vs
+      # flutter_in_the_dark). So DART_PAD_DOCKERFILE must be an ABSOLUTE path
+      # to deploy/Dockerfile.dart-services in THIS checkout. Set it in .env —
+      # there is deliberately no default, so a missing value fails loudly at
+      # build time instead of silently resolving somewhere wrong.
+      dockerfile: ${DART_PAD_DOCKERFILE:?set DART_PAD_DOCKERFILE to the ABSOLUTE path of deploy/Dockerfile.dart-services in the flutter checkout, e.g. /Users/you/flutter_in_the_dark/deploy/Dockerfile.dart-services}
+    image: fitd26-dart-services:local
+    restart: unless-stopped
+    env_file:
+      # Contains BERGET_REFRESH_TOKEN (+ optional BERGET_MODEL/BERGET_API_URL).
+      # Never committed; see deploy/env/dart_services.env.example for the KEY
+      # NAMES only.
+      - deploy/env/dart_services.env
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dart-services-public.rule=Host(`${DOMAIN}`) && (Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`))
+      - traefik.http.routers.dart-services-public.priority=100
+      - traefik.http.routers.dart-services-public.entrypoints=web
+      # Same API on the tailnet entrypoint (admin machine drives
+      # compile/generate probes from the tailnet).
+      - traefik.http.routers.dart-services-admin.rule=Path(`/api/v3/generateCode`) || Path(`/api/v3/compileAndServe`) || Path(`/api/v3/suggestFix`) || PathPrefix(`/compiled`) || PathPrefix(`/artifacts`)
+      - traefik.http.routers.dart-services-admin.priority=100
+      - traefik.http.routers.dart-services-admin.entrypoints=tailnet
+      - traefik.http.routers.dart-services-admin.tls=true
+      - traefik.http.services.dart-services.loadbalancer.server.port=8300
+    networks:
+      - fitd
+
+networks:
+  fitd:
+    driver: bridge
+
+volumes:
+  room-state:

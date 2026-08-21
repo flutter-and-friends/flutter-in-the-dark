@@ -1,0 +1,19 @@
+{
+    "name": "Flutter in the Dark",
+    "short_name": "Flutter in the Dark",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#212121",
+    "theme_color": "#212121",
+    "description": "A set of tools to run a Flutter in the Dark event. This includes a challenger view, an admin view, and a show view for the audience.",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        }
+    ]
+}

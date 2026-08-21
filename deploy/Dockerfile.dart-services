@@ -1,0 +1,116 @@
+# dart_services (dart-pad fork, branch berget-backend) for fitd26.
+#
+# Build context: the dart-pad repo ROOT (see docker-compose.yml
+# `dart-services.build.context`). The root is required because dart_services is
+# a pub workspace member — `dart pub get` needs the workspace-root pubspec.
+#
+#   docker build -f <fitd-repo>/deploy/Dockerfile.dart-services \
+#     -t fitd26-dart-services:local .
+#
+# The build compiles the server against the repo's Dart SDK and then runs
+# `tool/grind.dart` under a REAL Flutter SDK (FLUTTER_ROOT) to produce the
+# flutter_web project_templates/ and artifacts/ (dart_sdk, flutter_web,
+# ddc loader, canvaskit) — ~259 MB, gitignored upstream, so they must be
+# baked into the image here. FLUTTER_ROOT stays set at runtime: the
+# compiled binary needs it to locate the SDK for pub/compile (sdk.dart).
+
+ARG FLUTTER_VERSION=3.47.0
+# sha256 of the official x86_64 stable tarball (releases_linux.json).
+ARG FLUTTER_SHA256=26cd99d3d94b1367e6b50535a18aeef0282c10a535bbe3ec493534dcdab75296
+ARG TARGETARCH
+
+# ------------------------------------------------------------ flutter sdk
+# amd64: official tarball (checksum-pinned). arm64: upstream ships NO arm64
+# Linux tarball (the arm64 GCS object 404s; the supported install is
+# `git clone -b stable`), so we clone the version tag and check it out AS a
+# local branch named `stable`. A detached tag checkout makes `git symbolic-ref
+# --short HEAD` return "HEAD", which flutter_tools maps to channel
+# "[user-branch]" — and dart_services then looks for
+# pub_dependencies_[user-branch].json (only _stable/_beta/_main exist) and its
+# Sdk channel assert trips. Naming the branch `stable` makes `flutter
+# --version --machine` report channel "stable" (matches the amd64 tarball).
+FROM debian:bookworm-slim AS flutter
+ARG FLUTTER_VERSION
+ARG FLUTTER_SHA256
+ARG TARGETARCH
+# unzip is required on the arm64 path: git-cloned Flutter's first-run
+# bootstrap extracts the Dart SDK with `unzip` (absent -> "Unable to extract
+# Dart SDK" and the build dies). amd64 untars a complete SDK so it doesn't
+# hit this, but unzip is tiny and harmless there.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      curl xz-utils ca-certificates git unzip \
+    && rm -rf /var/lib/apt/lists/*
+RUN case "$TARGETARCH" in \
+      amd64) \
+        curl -fsSL "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" -o /tmp/flutter.tar.xz \
+        && echo "${FLUTTER_SHA256}  /tmp/flutter.tar.xz" | sha256sum -c - \
+        && tar -xJf /tmp/flutter.tar.xz -C /opt \
+        && rm /tmp/flutter.tar.xz ;; \
+      arm64) \
+        git clone --depth 1 --branch "${FLUTTER_VERSION}" \
+          https://github.com/flutter/flutter.git /opt/flutter \
+        && cd /opt/flutter \
+        && git checkout -b stable ;; \
+      *) echo "unsupported TARGETARCH=$TARGETARCH" >&2; exit 1 ;; \
+    esac \
+ && git config --global --add safe.directory /opt/flutter \
+ && /opt/flutter/bin/flutter --version \
+ && /opt/flutter/bin/flutter precache --web
+
+# ------------------------------------------------------------------ build
+FROM dart:3.13 AS build
+ARG TARGETARCH
+COPY --from=flutter /opt/flutter /opt/flutter
+ENV FLUTTER_ROOT=/opt/flutter
+ENV PATH="/opt/flutter/bin:${PATH}"
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      git ca-certificates unzip \
+    && rm -rf /var/lib/apt/lists/* \
+    && git config --global --add safe.directory /opt/flutter
+# dart_services is a pub WORKSPACE MEMBER (its pubspec has `resolution:
+# workspace` and depends on the sibling `dartpad_shared` via a path dep), so
+# the build context MUST be the dart-pad repo ROOT — building from the package
+# subdir leaves no workspace-root pubspec (or dartpad_shared) in reach and
+# `dart pub get` fails with "found no workspace root". Copy the whole repo,
+# then work from the package dir (mirrors upstream pkgs/dart_services/Dockerfile).
+WORKDIR /app
+COPY . .
+WORKDIR /app/pkgs/dart_services
+RUN dart pub get
+RUN dart compile exe bin/server.dart -o bin/server
+# The grind tasks resolve the Flutter SDK via FLUTTER_ROOT and run pub
+# against it (project_creator). Needs network for pub.dev.
+RUN dart tool/grind.dart build-project-templates \
+ && dart tool/grind.dart build-storage-artifacts
+
+# ----------------------------------------------------------------- runtime
+FROM debian:bookworm-slim
+ARG TARGETARCH
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      git ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && git config --global --add safe.directory /opt/flutter \
+    && useradd --system --uid 10001 --create-home fitd
+COPY --from=flutter /opt/flutter /opt/flutter
+ENV FLUTTER_ROOT=/opt/flutter
+WORKDIR /app
+COPY --from=build /app/pkgs/dart_services/bin/server /app/server
+COPY --from=build /app/pkgs/dart_services/project_templates /app/project_templates
+COPY --from=build /app/pkgs/dart_services/artifacts /app/artifacts
+# The server runs `flutter --version --machine` at boot (Sdk.fromLocalFlutter)
+# and `flutter pub`/compile per request; the flutter tool must be able to
+# write bin/cache (flutter.version.json, engine stamps, pub locks) under
+# /opt/flutter. Everything COPYed so far is root-owned, so the fitd user would
+# get an empty/unwritable SDK and jsonDecode('') -> "Unexpected end of input".
+# Hand the SDK and app dir to fitd before dropping privileges.
+# ALSO: flutter needs a writable $HOME for ~/.config/flutter (persistent tool
+# state) — with --no-create-home /home/fitd doesn't exist and flutter dies with
+# "failed to create a directory at /home/fitd/.config/flutter". --create-home
+# makes it; chown guarantees ownership; HOME makes the lookup explicit.
+RUN chown -R fitd:fitd /opt/flutter /app /home/fitd
+ENV HOME=/home/fitd
+USER fitd
+EXPOSE 8300
+# BERGET_REFRESH_TOKEN (required), BERGET_MODEL, BERGET_API_URL come from
+# the env_file — never baked into the image.
+CMD ["/app/server", "--port", "8300"]

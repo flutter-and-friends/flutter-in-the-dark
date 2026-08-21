@@ -1,0 +1,18 @@
+# Traefik dynamic (file provider) config: TLS for the tailnet entrypoint.
+#
+# The admin listener serves https://<machine>.<tailnet>.ts.net:4443 — a name
+# no public CA can validate. Tailscale itself issues that cert:
+#
+#   # on the event host, once, after enabling HTTPS certs in the tailnet
+#   # admin console (DNS → HTTPS Certificates):
+#   mkdir -p ~/.tailscale-certs
+#   cd ~/.tailscale-certs
+#   tailscale cert $(tailscale status --json | jq -r '.Self.DNSName' | sed 's/\.$//')
+#   # produces <machine>.<tailnet>.ts.net.crt / .key
+#
+# …then either rename them to tailscale.crt / tailscale.key, or edit the
+# paths below. Mount point is overridable via TAILSCALE_CERT_DIR.
+tls:
+  certificates:
+    - certFile: /certs/tailscale.crt
+      keyFile: /certs/tailscale.key

@@ -1,0 +1,3 @@
+# Never let a real env file leave this directory.
+*.env
+!*.env.example
