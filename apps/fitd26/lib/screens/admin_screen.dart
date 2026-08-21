@@ -1,3 +1,4 @@
+import 'package:fitd26/helpers/challenge_window.dart';
 import 'package:fitd26/room/room_models.dart';
 import 'package:fitd26/room/room_sync.dart';
 import 'package:fitd26/widgets/challenge_picker.dart';
@@ -311,24 +312,40 @@ class _AudienceViewCard extends StatelessWidget {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
-            SegmentedButton<ViewMode>(
-              segments: [
-                for (final mode in ViewMode.values)
-                  ButtonSegment(value: mode, label: Text(mode.label)),
-              ],
-              selected: {state.show.viewMode},
-              onSelectionChanged: (selection) {
-                final mode = selection.first;
-                roomSync.client.setShowView(
-                  viewMode: mode,
-                  focusedPlayerId:
-                      mode == ViewMode.singlePlayer
-                          ? state.show.focusedPlayerId
-                          : null,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                void onSelected(Set<ViewMode> selection) {
+                  final mode = selection.first;
+                  roomSync.client.setShowView(
+                    viewMode: mode,
+                    focusedPlayerId: mode.isSinglePlayerScoped
+                        ? state.show.focusedPlayerId
+                        : null,
+                  );
+                }
+
+                final rows = viewModeRows(constraints.maxWidth);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < rows.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 8),
+                      SegmentedButton<ViewMode>(
+                        segments: [
+                          for (final mode in rows[i])
+                            ButtonSegment(value: mode, label: Text(mode.label)),
+                        ],
+                        selected: {state.show.viewMode},
+                        onSelectionChanged: onSelected,
+                        // A row may not contain the current selection.
+                        emptySelectionAllowed: true,
+                      ),
+                    ],
+                  ],
                 );
               },
             ),
-            if (state.show.viewMode == ViewMode.singlePlayer) ...[
+            if (state.show.viewMode.isSinglePlayerScoped) ...[
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -340,7 +357,7 @@ class _AudienceViewCard extends StatelessWidget {
                       selected: state.show.focusedPlayerId == player.id,
                       onSelected: (_) {
                         roomSync.client.setShowView(
-                          viewMode: ViewMode.singlePlayer,
+                          viewMode: state.show.viewMode,
                           focusedPlayerId: player.id,
                         );
                       },
@@ -366,7 +383,7 @@ class _TriStateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final single = state.show.viewMode == ViewMode.singlePlayer;
+    final single = state.show.viewMode.isSinglePlayerScoped;
     final focusedId = state.show.focusedPlayerId;
     final current = single && focusedId != null
         ? state.contentFor(focusedId)
@@ -440,6 +457,7 @@ class _ChallengeCardState extends State<_ChallengeCard> {
   final _nameController = TextEditingController();
   final _widgetUrlController = TextEditingController();
   final _minutesController = TextEditingController(text: '5');
+  final _startAfterController = TextEditingController(text: '10');
 
   /// Assets attached to the last catalog pick. Cleared by the TextFields'
   /// `onChanged` below, so hand-editing the name/URL never silently carries
@@ -451,6 +469,7 @@ class _ChallengeCardState extends State<_ChallengeCard> {
     _nameController.dispose();
     _widgetUrlController.dispose();
     _minutesController.dispose();
+    _startAfterController.dispose();
     super.dispose();
   }
 
@@ -467,13 +486,16 @@ class _ChallengeCardState extends State<_ChallengeCard> {
   }
 
   Future<void> _setChallenge() async {
-    final minutes = int.tryParse(_minutesController.text) ?? 5;
-    final now = DateTime.now();
+    final window = computeChallengeWindow(
+      now: DateTime.now(),
+      startAfterSeconds: parseNonNegativeInt(_startAfterController.text, 10),
+      durationMinutes: parseNonNegativeInt(_minutesController.text, 5),
+    );
     await widget.roomSync.client.setChallenge(
       name: _nameController.text.trim(),
       widgetUrl: _widgetUrlController.text.trim(),
-      startTime: now,
-      endTime: now.add(Duration(minutes: minutes)),
+      startTime: window.start,
+      endTime: window.end,
       assets: _pickedAssets,
     );
     if (mounted) {
@@ -564,6 +586,18 @@ class _ChallengeCardState extends State<_ChallengeCard> {
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       labelText: 'Minutes',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 120,
+                  child: TextField(
+                    controller: _startAfterController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Start after (s)',
                       border: OutlineInputBorder(),
                     ),
                   ),
