@@ -13,7 +13,7 @@ class WaitingForChallenge extends StatelessWidget {
     return Scaffold(
       body: Timeago(
         refreshRate: const Duration(seconds: 1),
-        date: challenge.startTime,
+        date: challenge.startTime.toLocal(),
         allowFromNow: true,
         builder: (context, time) {
           final remainingTime = challenge.startTime.difference(DateTime.now());

@@ -306,8 +306,11 @@ class RoomState {
     _room.challenge = Challenge(
       id: id,
       name: name,
-      startTime: startTime,
-      endTime: endTime,
+      // Room invariant: challenge times are always UTC (wire contract:
+      // ISO-8601 with 'Z'). Instant comparisons are zone-agnostic in Dart,
+      // but a local-zone DateTime would still serialize naive elsewhere.
+      startTime: startTime.toUtc(),
+      endTime: endTime.toUtc(),
       widgetUrl: widgetUrl,
       assets: assets,
     );

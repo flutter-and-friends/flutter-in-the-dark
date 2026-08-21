@@ -3,6 +3,8 @@
 /// sync with the server; the SSE `state` event carries this whole shape.
 library;
 
+import 'package:fitd26/helpers/wire_time.dart';
+
 enum ChallengerStatus { active, blocked }
 
 enum GenState { idle, queued, generating, compiling, ready, failed }
@@ -11,13 +13,22 @@ enum ViewMode {
   allWithChallenge,
   allPlayers,
   singlePlayer,
+  singleWithChallenge,
   challengeOnly;
 
+  /// Whether this mode shows one focused player (drives the admin focus
+  /// picker and per-player tri-state scoping).
+  bool get isSinglePlayerScoped =>
+      this == singlePlayer || this == singleWithChallenge;
+
+  /// Short labels — the admin audience-view selector packs all five into one
+  /// row, including on narrow (mobile) widths.
   String get label => switch (this) {
-    allWithChallenge => 'Challenge + all',
+    allWithChallenge => 'Ch. + all',
     allPlayers => 'All players',
-    singlePlayer => 'Single player',
-    challengeOnly => 'Challenge only',
+    singlePlayer => 'Single',
+    singleWithChallenge => 'Ch. + single',
+    challengeOnly => 'Ch. only',
   };
 }
 
@@ -31,6 +42,18 @@ enum DisplayContent {
     code => 'Code',
     widget => 'Widget',
   };
+}
+
+/// Splits [ViewMode.values] into rows for the admin audience-view selector:
+/// one row when [width] fits all segments comfortably, two roughly-even rows
+/// (chunked, preserving enum order) on narrow (mobile) widths. Pure layout
+/// logic — unit-tested without Flutter bindings.
+List<List<ViewMode>> viewModeRows(double width) {
+  const values = ViewMode.values;
+  // Below this the five short labels no longer fit on one row.
+  if (width >= 560) return [values];
+  final firstRowLen = (values.length + 1) ~/ 2;
+  return [values.sublist(0, firstRowLen), values.sublist(firstRowLen)];
 }
 
 class Challenger {
@@ -94,8 +117,8 @@ class Challenge {
   static Challenge fromJson(Map<String, dynamic> json) => Challenge(
     id: json['id'] as String,
     name: json['name'] as String,
-    startTime: DateTime.parse(json['startTime'] as String),
-    endTime: DateTime.parse(json['endTime'] as String),
+    startTime: parseWireTime(json['startTime'] as String),
+    endTime: parseWireTime(json['endTime'] as String),
     widgetUrl: json['widgetUrl'] as String,
     assets:
         (json['assets'] as Map<String, dynamic>?)?.cast<String, String>() ??

@@ -10,7 +10,13 @@ enum ChallengerStatus { active, blocked }
 
 enum GenState { idle, queued, generating, compiling, ready, failed }
 
-enum ViewMode { allWithChallenge, allPlayers, singlePlayer, challengeOnly }
+enum ViewMode {
+  allWithChallenge,
+  allPlayers,
+  singlePlayer,
+  singleWithChallenge,
+  challengeOnly,
+}
 
 enum DisplayContent { prompt, code, widget }
 
@@ -92,8 +98,10 @@ class Challenge {
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
-    'startTime': startTime.toIso8601String(),
-    'endTime': endTime.toIso8601String(),
+    // Always UTC ISO-8601 with an explicit 'Z': a naive no-suffix string is
+    // parsed as LOCAL time by clients, shifting the instant by their offset.
+    'startTime': startTime.toUtc().toIso8601String(),
+    'endTime': endTime.toUtc().toIso8601String(),
     'widgetUrl': widgetUrl,
     'assets': assets,
   };
@@ -101,8 +109,8 @@ class Challenge {
   static Challenge fromJson(Map<String, dynamic> json) => Challenge(
     id: json['id'] as String,
     name: json['name'] as String,
-    startTime: DateTime.parse(json['startTime'] as String),
-    endTime: DateTime.parse(json['endTime'] as String),
+    startTime: DateTime.parse(json['startTime'] as String).toUtc(),
+    endTime: DateTime.parse(json['endTime'] as String).toUtc(),
     widgetUrl: json['widgetUrl'] as String,
     assets:
         (json['assets'] as Map<String, dynamic>?)?.cast<String, String>() ??

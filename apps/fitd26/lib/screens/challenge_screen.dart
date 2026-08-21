@@ -168,7 +168,7 @@ class _ChallengeScreenState extends State<ChallengeScreen>
                         const Text('Time over!'),
                       final endTime => Timeago(
                         refreshRate: const Duration(seconds: 1),
-                        date: endTime,
+                        date: endTime.toLocal(),
                         allowFromNow: true,
                         builder: (context, time) {
                           if (DateTime.now().isAfter(endTime)) {
