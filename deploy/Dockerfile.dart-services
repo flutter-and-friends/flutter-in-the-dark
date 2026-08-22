@@ -1,11 +1,11 @@
-# dart_services (dart-pad fork, branch berget-backend) for fitd26.
+# dart_services (dart-pad fork, branch berget-backend) for Flutter in the Dark.
 #
 # Build context: the dart-pad repo ROOT (see docker-compose.yml
 # `dart-services.build.context`). The root is required because dart_services is
 # a pub workspace member — `dart pub get` needs the workspace-root pubspec.
 #
 #   docker build -f <fitd-repo>/deploy/Dockerfile.dart-services \
-#     -t fitd26-dart-services:local .
+#     -t fitd-dart-services:local .
 #
 # The build compiles the server against the repo's Dart SDK and then runs
 # `tool/grind.dart` under a REAL Flutter SDK (FLUTTER_ROOT) to produce the

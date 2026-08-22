@@ -1,8 +1,8 @@
-# fitd26 room-state service (Dart shelf).
+# Flutter in the Dark room-state service (Dart shelf).
 #
-# Build context: apps/fitd26/room_service (see docker-compose.yml).
+# Build context: apps/flutter_in_the_dark/room_service (see docker-compose.yml).
 #
-#   docker build -f ../../deploy/Dockerfile.room -t fitd26-room:local .
+#   docker build -f ../../deploy/Dockerfile.room -t flutter-in-the-dark-room:local .
 
 FROM dart:3.13 AS build
 WORKDIR /app
