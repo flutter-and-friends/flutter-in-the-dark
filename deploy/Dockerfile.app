@@ -1,8 +1,8 @@
-# fitd26 SPA — release build, served by nginx with SPA fallback.
+# Flutter in the Dark SPA — release build, served by nginx with SPA fallback.
 #
 # Build context: the flutter-in-the-dark REPO ROOT (see docker-compose.yml).
 #
-#   docker build -f deploy/Dockerfile.app -t fitd26-app:local .
+#   docker build -f deploy/Dockerfile.app -t flutter-in-the-dark-app:local .
 #
 # WI-100 host split: the app SPA is served from the APEX
 # https://flutterinthedark.dev while the API stays on
@@ -55,8 +55,8 @@ WORKDIR /src
 # Melos workspace: root pubspec + the app. Resolve at the root so the
 # workspace overrides apply, then build the app.
 COPY pubspec.yaml pubspec.lock melos.yaml ./
-COPY apps/fitd26 apps/fitd26
-WORKDIR /src/apps/fitd26
+COPY apps/flutter_in_the_dark apps/flutter_in_the_dark
+WORKDIR /src/apps/flutter_in_the_dark
 RUN flutter pub get
 
 # --no-tree-shake-icons: the app renders json_dynamic_widget-style dynamic
@@ -68,5 +68,5 @@ RUN flutter build web --release --no-tree-shake-icons \
 
 FROM nginx:1.27-alpine
 COPY deploy/nginx-app.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /src/apps/fitd26/build/web /usr/share/nginx/html
+COPY --from=build /src/apps/flutter_in_the_dark/build/web /usr/share/nginx/html
 EXPOSE 80
