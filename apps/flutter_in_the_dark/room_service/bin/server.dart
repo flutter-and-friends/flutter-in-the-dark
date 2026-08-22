@@ -6,7 +6,7 @@
 /// Contract (full doc in ../../BACKEND.md):
 ///   GET  /api/state            → full room snapshot (catch-up refetch)
 ///   GET  /api/events           → SSE stream (event `state`, id = revision)
-///   POST /api/join             {name} → {playerId, token}
+///   POST /api/join             {name} → {playerId, token, roundId}
 ///   POST /api/prompt           {playerId, token, prompt}
 ///   POST /api/admin/*          (no app-level auth — the network gate decides:
 ///                             admin routes are only exposed on the
@@ -118,7 +118,11 @@ Future<void> main(List<String> args) async {
       return _badRequest('name is required');
     }
     final result = room.join(name);
-    return _json({'playerId': result.playerId, 'token': result.token});
+    return _json({
+      'playerId': result.playerId,
+      'token': result.token,
+      'roundId': result.roundId,
+    });
   });
 
   router.post('/api/prompt', (Request request) async {

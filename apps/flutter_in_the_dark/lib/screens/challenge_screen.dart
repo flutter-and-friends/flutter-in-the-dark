@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:confetti/confetti.dart';
 import 'package:devtools_app_shared/ui.dart';
 import 'package:flutter_in_the_dark/helpers/challenge_ticker.dart';
+import 'package:flutter_in_the_dark/helpers/session_kick.dart';
 import 'package:flutter_in_the_dark/room/room_models.dart';
 import 'package:flutter_in_the_dark/room/room_sync.dart';
 import 'package:flutter_in_the_dark/room/session_store.dart';
@@ -47,7 +48,7 @@ class _ChallengeScreenState extends State<ChallengeScreen>
   late Animation<Offset> _shakeAnimation;
   final _random = Random();
 
-  ({String playerId, String token, String name})? _session;
+  ({String playerId, String token, String roundId})? _session;
   RoomState? _lastState;
   bool _endHandled = false;
 
@@ -62,6 +63,8 @@ class _ChallengeScreenState extends State<ChallengeScreen>
   @override
   void initState() {
     super.initState();
+    // PLAYER-scoped identity: only constructed on the player route, so this
+    // is the one screen that reads the player session store.
     _session = SessionStore.read();
     if (_session == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _goToJoin());
@@ -123,9 +126,38 @@ class _ChallengeScreenState extends State<ChallengeScreen>
   }
 
   void _onRoomChanged() {
+    if (_checkKick()) return;
     _checkBuzzerEdge();
     _syncClockTimer();
     if (mounted) setState(() {});
+  }
+
+  /// WI-012 kick path (a): the room snapshot says this session is gone —
+  /// the round rolled (roundId differs) or this challenger disappeared.
+  /// Clears the session and routes back to the join screen. Returns true if
+  /// a kick was performed. The keep-vs-kick decision itself is the pure
+  /// [isKickedByState] (unit-tested on the VM); this is only its wiring.
+  bool _checkKick() {
+    final session = _session;
+    if (session == null) return false;
+    if (!isKickedByState(
+      playerId: session.playerId,
+      roundId: session.roundId,
+      state: widget.roomSync.state,
+    )) {
+      return false;
+    }
+    _kick();
+    return true;
+  }
+
+  /// WI-012 kick path (b): /api/prompt rejected the session with a 403.
+  void _onStaleSession() => _kick();
+
+  void _kick() {
+    SessionStore.clear();
+    if (mounted) setState(() => _session = null);
+    _goToJoin();
   }
 
   /// Buzzer edge: fire the celebration + blur exactly once, whether the
@@ -199,7 +231,10 @@ class _ChallengeScreenState extends State<ChallengeScreen>
               appBar: AppBar(
                 title: Row(
                   children: [
-                    Text('Challenger: ${session.name}'),
+                    // The display name is round-scoped server state — read
+                    // from the room, never from localStorage (WI-012). `me`
+                    // is null only during the reconnect window.
+                    Text('Challenger: ${me?.name ?? '…'}'),
                     const Spacer(),
                     switch (challenge.endTime) {
                       final endTime when DateTime.now().isAfter(endTime) =>
@@ -253,7 +288,7 @@ class _ChallengeScreenState extends State<ChallengeScreen>
   Widget _buildLive(
     BuildContext context,
     Challenge challenge,
-    ({String playerId, String token, String name}) session,
+    ({String playerId, String token, String roundId}) session,
   ) {
     final panes = <Widget>[
       _ChallengePane(widgetUrl: challenge.widgetUrl),
@@ -267,6 +302,7 @@ class _ChallengeScreenState extends State<ChallengeScreen>
                 ?.prompt ??
             '',
         client: widget.roomSync.client,
+        onStaleSession: _onStaleSession,
       ),
       if (challenge.assets.isNotEmpty)
         _AssetsPane(assets: challenge.assets),

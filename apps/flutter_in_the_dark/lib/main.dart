@@ -40,6 +40,13 @@ class MainApp extends StatelessWidget {
       ],
       supportedLocales: const [Locale('en', 'US'), Locale('sv', 'SE')],
       onGenerateRoute: (settings) {
+        // Session role-scoping (WI-012): the stored session is a PLAYER
+        // identity (SessionStore, player-scoped key). /admin is
+        // network-gated, not identity-gated, and /show never joins — so
+        // NEITHER reads the player session; only the player route does. This
+        // keeps an /admin or /show tab in the same browser (shared
+        // localStorage) from picking up a player identity and rendering as
+        // a joined contestant.
         switch (settings.name) {
           case '/admin':
             return MaterialPageRoute(

@@ -16,6 +16,7 @@ class PromptEditor extends StatefulWidget {
     required this.initialPrompt,
     required this.client,
     this.enabled = true,
+    this.onStaleSession,
   });
 
   final String playerId;
@@ -23,6 +24,12 @@ class PromptEditor extends StatefulWidget {
   final String initialPrompt;
   final RoomClient client;
   final bool enabled;
+
+  /// Called when the room service rejects the prompt POST with a 403 — the
+  /// token's round no longer matches (round closed) or the session is stale
+  /// (WI-012 kick path b). The owning screen clears the session and routes
+  /// back to join.
+  final void Function()? onStaleSession;
 
   @override
   State<PromptEditor> createState() => PromptEditorState();
@@ -65,7 +72,13 @@ class PromptEditorState extends State<PromptEditor> {
         token: widget.token,
         prompt: text,
       );
-    } catch (_) {
+    } catch (e) {
+      if (e is RoomPostException && e.statusCode == 403) {
+        // Stale session (round closed / token's round no longer matches):
+        // kick — do not retry, there is nothing to save into.
+        widget.onStaleSession?.call();
+        return;
+      }
       // Best-effort: the debounce will retry on the next keystroke, and the
       // buzzer flushes whatever made it. A dropped update shows up as a stale
       // prompt on /show, which the admin sees.

@@ -174,11 +174,18 @@ class RoomClient {
 
   // ------------------------------------------------------------- contestant
 
-  Future<({String playerId, String token})> join(String name) async {
+  /// Joins the current round. Request is `{name}` only — the server always
+  /// mints a fresh (playerId, token, roundId) under whatever the current
+  /// round is; there is no playerId echo or server-side reattach, and no
+  /// 403-on-join path. On a kick, simply join again with the name (WI-012).
+  Future<({String playerId, String token, String roundId})> join(
+    String name,
+  ) async {
     final result = await _post('/api/join', {'name': name});
     return (
       playerId: result['playerId'] as String,
       token: result['token'] as String,
+      roundId: result['roundId'] as String,
     );
   }
 

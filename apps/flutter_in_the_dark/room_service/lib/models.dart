@@ -6,6 +6,8 @@
 /// in sync and make Last-Event-ID catch-up a single refetch).
 library;
 
+import 'package:uuid/uuid.dart';
+
 enum ChallengerStatus { active, blocked }
 
 enum GenState { idle, queued, generating, compiling, ready, failed }
@@ -252,6 +254,14 @@ class GenerationState {
 
 class Room {
   int revision = 0;
+
+  /// Identifies the current round generation. Bumped (new uuid) on every
+  /// round-close/reset path — setChallenge, clearChallenge,
+  /// removeAllChallengers — so a client holding a session from a previous
+  /// round can detect the close from the snapshot, and the server rejects
+  /// stale join tokens minted under a different roundId.
+  String roundId = const Uuid().v4();
+
   Challenge? challenge;
   final Map<String, Challenger> challengers = {};
   ShowState show = ShowState();
@@ -270,6 +280,7 @@ class Room {
 
   Map<String, dynamic> toJson() => {
     'revision': revision,
+    'roundId': roundId,
     'challenge': challenge?.toJson(),
     'challengers': [
       for (final c in challengers.values) c.toJson(),
@@ -283,6 +294,11 @@ class Room {
   static Room fromJson(Map<String, dynamic> json) {
     final room = Room();
     room.revision = json['revision'] as int? ?? 0;
+    // A persisted round from before roundId existed (or a hand-written file)
+    // gets a fresh id on load — tokens never survive a restart anyway.
+    if (json['roundId'] case final String r) {
+      room.roundId = r;
+    }
     if (json['challenge'] case final Map<String, dynamic> c) {
       room.challenge = Challenge.fromJson(c);
     }

@@ -33,6 +33,10 @@ class _ShowScreenState extends State<ShowScreen> {
   @override
   void initState() {
     super.initState();
+    // WI-012 / I-022: the audience screen NEVER joins and holds NO session.
+    // It only listens to the shared room state, so round rolls (roundId
+    // bumps) do not affect it and it is exempt from the player kick by
+    // construction. It deliberately never reads the player SessionStore.
     widget.roomSync.addListener(_onChanged);
     _syncClockTimer();
   }
