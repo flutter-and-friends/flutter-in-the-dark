@@ -11,8 +11,8 @@ steps for the parts that actually changed — don't make them work out which
 services are affected. Map the change to the image(s) that bake it, then give
 the `docker compose build …` + `docker compose up -d …` commands:
 
-- `apps/flutter_in_the_dark/lib/**` (Flutter client) → **`app`** image (`flutter build web`)
-- `apps/flutter_in_the_dark/room_service/**` (Dart shelf backend) → **`room** image
+- `apps/fitd26/lib/**` (Flutter client) → **`app`** image (`flutter build web`)
+- `apps/fitd26/room_service/**` (Dart shelf backend) → **`room** image
 - dart-pad fork (`pkgs/dart_services/**`) → **`dart-services`** image (slow:
   reruns the grind template + artifact builds). Its build context is the
   dart-pad checkout (`DART_PAD_PATH`, default `../dart-pad`), so remind the

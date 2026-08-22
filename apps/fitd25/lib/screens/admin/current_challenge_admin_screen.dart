@@ -1,0 +1,152 @@
+import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fitd25/mixins/current_challenge_mixin.dart';
+import 'package:fitd25/screens/admin/mixins/all_players_mixin.dart';
+import 'package:fitd25/screens/admin/widgets/player_list_item.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+class CurrentChallengeAdminScreen extends StatefulWidget {
+  const CurrentChallengeAdminScreen({super.key});
+
+  @override
+  State<CurrentChallengeAdminScreen> createState() =>
+      _CurrentChallengeAdminScreenState();
+}
+
+class _CurrentChallengeAdminScreenState
+    extends State<CurrentChallengeAdminScreen>
+    with CurrentChallengeMixin, AllPlayersMixin {
+  @override
+  void onChallengeCleared() {
+    super.onChallengeCleared();
+    clearAllPlayers();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final challenge = this.challenge;
+    if (challenge == null) {
+      return Center(
+        child: Text(
+          'Hang on, challenge data is loading...',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _showClearAllConfirmationDialog,
+                icon: const Icon(Icons.delete_sweep),
+                label: const Text('Remove All Players'),
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.red.shade300,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            ElevatedButton(
+              onPressed: () =>
+                  _updateChallengeTime(const Duration(minutes: -1)),
+              child: const Text('-1 min'),
+            ),
+            const SizedBox(width: 16),
+            ElevatedButton(
+              onPressed: () => _updateChallengeTime(const Duration(minutes: 1)),
+              child: const Text('+1 min'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        for (final challenger in allPlayers)
+          PlayerListItem(
+            challenger: challenger,
+            onDelete: deleteChallenger,
+            onUpdate: updateChallenger,
+          ),
+        const Divider(),
+        ExpansionTile(
+          title: Text(challenge.name),
+          subtitle: Text(
+            'Starts: ${DateFormat('yyyy-MM-dd HH:mm', 'sv_SE').format(challenge.startTime)}\n'
+            'Ends: ${DateFormat('yyyy-MM-dd HH:mm', 'sv_SE').format(challenge.endTime)}',
+          ),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              title: const Text('DartPad ID'),
+              subtitle: Text(challenge.dartPadId),
+            ),
+            ListTile(
+              title: const Text('Challenge ID'),
+              subtitle: Text(challenge.challengeId),
+            ),
+            ListTile(
+              title: const Text('Widget JSON'),
+              subtitle: Text(
+                const JsonEncoder.withIndent(
+                  '  ',
+                ).convert(_jsonEncodable(challenge.widgetJson)),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Map<String, dynamic> _jsonEncodable(Map<String, dynamic> map) {
+    final newMap = <String, dynamic>{
+      for (final entry in map.entries)
+        entry.key: switch (entry.value) {
+          final Timestamp timestamp => timestamp.toDate().toIso8601String(),
+          final DateTime dateTime => dateTime.toIso8601String(),
+          final value => value,
+        },
+    };
+    return newMap;
+  }
+
+  void _showClearAllConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove All Players?'),
+        content: const Text(
+          'This will remove all players from the competition. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              clearAllPlayers();
+              Navigator.of(context).pop();
+            },
+            child: const Text('Remove All'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateChallengeTime(Duration duration) async {
+    final challenge = this.challenge;
+    if (challenge == null) return;
+
+    final newEndTime = challenge.endTime.add(duration);
+    await FirebaseFirestore.instance.doc('/fitd/state').update({
+      'endTime': newEndTime,
+    });
+  }
+}

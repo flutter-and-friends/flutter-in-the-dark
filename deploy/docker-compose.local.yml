@@ -1,4 +1,4 @@
-# LOCAL / DEV-HOST override for the Flutter in the Dark stack.
+# LOCAL / DEV-HOST override for the fitd26 stack.
 #
 #   docker compose -f docker-compose.yml -f deploy/docker-compose.local.yml up -d
 #

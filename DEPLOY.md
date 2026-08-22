@@ -1,4 +1,4 @@
-# Flutter in the Dark event deployment
+# fitd26 event deployment
 
 One command on the event host:
 
@@ -140,7 +140,7 @@ no DNS A record to the house IP, no ACME. Set it up once:
 
 1. **Create a named Cloudflare Tunnel.** Cloudflare Zero Trust dashboard →
    **Networks → Tunnels → Create a tunnel** → choose **cloudflared** → name
-   it (e.g. `flutter-in-the-dark`). On the "install connector" step, copy the **token**
+   it (e.g. `fitd26`). On the "install connector" step, copy the **token**
    (the long string after `cloudflared … run --token`). You do NOT need to
    install cloudflared by hand — the compose stack runs it.
 2. **Set the tunnel's Public Hostnames** (same tunnel → *Public Hostnames*
@@ -222,8 +222,8 @@ the image:
 
 ```bash
 cd <dart-pad checkout>/pkgs/dart_services
-docker build -f <fitd-repo>/deploy/Dockerfile.dart-services -t fitd-dart-services:local .
-docker save fitd-dart-services:local | ssh <event-host> docker load
+docker build -f <fitd-repo>/deploy/Dockerfile.dart-services -t fitd26-dart-services:local .
+docker save fitd26-dart-services:local | ssh <event-host> docker load
 # then on the event host: docker compose up -d  (uses the loaded image, no rebuild)
 ```
 

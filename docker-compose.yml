@@ -1,6 +1,6 @@
-name: flutter_in_the_dark
+name: fitd26
 
-# Flutter in the Dark production stack — "Flutter in the Dark" event deployment.
+# fitd26 production stack — "Flutter in the Dark" event deployment.
 #
 # One command on the event host:
 #
@@ -187,7 +187,7 @@ services:
     build:
       context: .
       dockerfile: deploy/Dockerfile.app
-    image: flutter-in-the-dark-app:local
+    image: fitd26-app:local
     restart: unless-stopped
     labels:
       - traefik.enable=true
@@ -237,12 +237,12 @@ services:
   # ------------------------------------------------------- room-state svc
   room:
     build:
-      context: apps/flutter_in_the_dark/room_service
+      context: apps/fitd26/room_service
       # dockerfile: is resolved relative to `context`, so from
-      # apps/flutter_in_the_dark/room_service we must go up THREE levels to the repo root
+      # apps/fitd26/room_service we must go up THREE levels to the repo root
       # (../../ would land on apps/deploy/, which doesn't exist).
       dockerfile: ../../../deploy/Dockerfile.room
-    image: flutter-in-the-dark-room:local
+    image: fitd26-room:local
     restart: unless-stopped
     environment:
       # Boot default model for the generation pipeline; the admin picker
@@ -285,8 +285,8 @@ services:
   # path: pre-build the image on any machine with Docker:
   #
   #   cd dart-pad/pkgs/dart_services
-  #   docker build -f <fitd-repo>/deploy/Dockerfile.dart-services -t fitd-dart-services:local .
-  #   docker save fitd-dart-services:local | ssh event-host docker load
+  #   docker build -f <fitd-repo>/deploy/Dockerfile.dart-services -t fitd26-dart-services:local .
+  #   docker save fitd26-dart-services:local | ssh event-host docker load
   #
   # …and `docker compose up -d` will use it as-is (compose builds only when
   # the image is absent).
@@ -307,7 +307,7 @@ services:
       # there is deliberately no default, so a missing value fails loudly at
       # build time instead of silently resolving somewhere wrong.
       dockerfile: ${DART_PAD_DOCKERFILE:?set DART_PAD_DOCKERFILE to the ABSOLUTE path of deploy/Dockerfile.dart-services in the flutter checkout, e.g. /Users/you/flutter_in_the_dark/deploy/Dockerfile.dart-services}
-    image: fitd-dart-services:local
+    image: fitd26-dart-services:local
     restart: unless-stopped
     env_file:
       # Contains BERGET_REFRESH_TOKEN (+ optional BERGET_MODEL/BERGET_API_URL).

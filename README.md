@@ -18,9 +18,11 @@ To get started with this project, you will need to have Flutter and Melos instal
 
 ## Packages in this Monorepo
 
-This repository contains a single application:
+This repository contains the following applications:
 
-*   `apps/flutter_in_the_dark`: The Flutter in the Dark app (year-free since 2026 — earlier per-year apps live in git history, tagged `yearly-snapshots-final`).
+*   `apps/fitd23`: The Flutter in the Dark app for the 2023 event.
+*   `apps/fitd24`: The Flutter in the Dark app for the 2024 event.
+*   `apps/fitd25`: The Flutter in the Dark app for the 2025 event.
 
 ## Scripts
 
