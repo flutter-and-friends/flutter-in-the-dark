@@ -168,12 +168,17 @@ falls back to a full regenerate after 2 failed fixes.
 ## Contestant endpoints
 
 ```
-POST /api/join            {"name"} → {"playerId","token"}   (token guards prompt writes)
+POST /api/join            {"name"} → {"playerId","token","roundId"}   (token guards prompt writes)
 POST /api/prompt          {"playerId","token","prompt"}     → 200 {"ok":true} | 403 | 400
 ```
 
-The join token is held in the app's localStorage so a reload/background-resume
-restores the same identity without re-joining.
+The join token is bound to the round it was minted under. When a round closes
+(admin setChallenge / clear / removeAll), the room's `roundId` bumps and every
+token from the prior round stops validating: `/api/prompt` returns 403 and the
+SSE snapshot's top-level `roundId` no longer matches a stored session. The
+display name is round-scoped server state (served from room state), never
+client-persisted across rounds — so a shared machine must re-join with a fresh
+name each round.
 
 ## Admin endpoints (NO app-level auth — the Tailscale network gate decides who
 ## can reach /admin at all; see "Interface split" below)

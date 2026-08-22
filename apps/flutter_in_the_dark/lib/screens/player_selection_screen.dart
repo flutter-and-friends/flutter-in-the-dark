@@ -18,16 +18,6 @@ class _PlayerSelectionScreenState extends State<PlayerSelectionScreen> {
   final _nameController = TextEditingController();
   bool _isLoading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // Already joined on this device (reload / background-resume): skip the
-    // name field entirely.
-    if (SessionStore.read() != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _goToChallenge());
-    }
-  }
-
   void _goToChallenge() {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
@@ -48,11 +38,15 @@ class _PlayerSelectionScreenState extends State<PlayerSelectionScreen> {
 
     setState(() => _isLoading = true);
     try {
+      // Join is `{name}` only: the server always mints a fresh (playerId,
+      // token, roundId) for the current round — no reattach. The name is
+      // always freshly entered; round-scoped server state, never
+      // client-persisted (WI-012).
       final result = await widget.roomSync.client.join(name);
       SessionStore.write(
         playerId: result.playerId,
         token: result.token,
-        name: name,
+        roundId: result.roundId,
       );
       _goToChallenge();
     } catch (e) {

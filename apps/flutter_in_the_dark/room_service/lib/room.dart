@@ -264,24 +264,42 @@ class RoomState {
 
   // ------------------------------------------------------------- actions
 
-  /// POST /api/join → {playerId, token}
-  ({String playerId, String token}) join(String name) {
+  /// POST /api/join → {playerId, token, roundId}
+  ///
+  /// The token is bound to the CURRENT round: when the round closes
+  /// (setChallenge / clearChallenge / removeAllChallengers) [roundId] bumps
+  /// and every token minted under the old round stops validating.
+  ({String playerId, String token, String roundId}) join(String name) {
     final id = _uuid.v4();
     final token = _uuid.v4();
-    _tokens[id] = token;
+    _tokens[id] = (token: token, roundId: _room.roundId);
     _room.challengers[id] = Challenger(
       id: id,
       name: name,
       joinedAt: DateTime.now(),
     );
     _changed();
-    return (playerId: id, token: token);
+    return (playerId: id, token: token, roundId: _room.roundId);
   }
 
-  final Map<String, String> _tokens = {};
+  /// playerId → (token, roundId it was minted under). Never persisted —
+  /// a service restart invalidates every session, same as before roundId.
+  final Map<String, ({String token, String roundId})> _tokens = {};
 
-  bool checkToken(String playerId, String? token) =>
-      token != null && _tokens[playerId] == token;
+  /// A token validates only for the round it was minted in: after a round
+  /// close the recorded roundId no longer matches the room's, and the
+  /// session is stale (client must re-join).
+  bool checkToken(String playerId, String? token) {
+    if (token == null) return false;
+    final record = _tokens[playerId];
+    return record != null &&
+        record.token == token &&
+        record.roundId == _room.roundId;
+  }
+
+  /// Starts a new round generation: every session minted under the previous
+  /// roundId immediately stops validating (see [checkToken]).
+  void _bumpRound() => _room.roundId = _uuid.v4();
 
   String? updatePrompt(String playerId, String prompt) {
     final c = _room.challengers[playerId];
@@ -326,6 +344,8 @@ class RoomState {
     }
     _room.globalContent = DisplayContent.prompt;
     _room.playerContent.clear();
+    // New challenge = new round: sessions from the previous round are stale.
+    _bumpRound();
     _scheduleBuzzer();
     _changed();
   }
@@ -333,6 +353,8 @@ class RoomState {
   void clearChallenge() {
     _buzzerTimer?.cancel();
     _room.challenge = null;
+    // Round closed: sessions minted under it stop validating.
+    _bumpRound();
     for (final c in _room.challengers.values) {
       c
         ..status = ChallengerStatus.active
@@ -388,6 +410,8 @@ class RoomState {
     _room.challengers.clear();
     _room.playerContent.clear();
     _tokens.clear();
+    // Full reset = round close: the room starts a fresh round generation.
+    _bumpRound();
     _changed();
   }
 

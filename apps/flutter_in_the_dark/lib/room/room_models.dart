@@ -245,6 +245,7 @@ class GenerationState {
 class RoomState {
   RoomState({
     required this.revision,
+    required this.roundId,
     required this.challenge,
     required this.challengers,
     required this.show,
@@ -254,6 +255,13 @@ class RoomState {
   });
 
   final int revision;
+
+  /// The server-minted round generation (WI-012) — non-nullable, always
+  /// present (the room always has a round generation; there is no null
+  /// state). Bumps whenever the round closes/resets (setChallenge,
+  /// clearChallenge, removeAllChallengers), so a client whose stored roundId
+  /// no longer matches has been kicked.
+  final String roundId;
   final Challenge? challenge;
   final List<Challenger> challengers;
   final ShowState show;
@@ -273,6 +281,7 @@ class RoomState {
 
   static RoomState fromJson(Map<String, dynamic> json) => RoomState(
     revision: json['revision'] as int? ?? 0,
+    roundId: json['roundId'] as String? ?? '',
     challenge: switch (json['challenge']) {
       final Map<String, dynamic> c => Challenge.fromJson(c),
       _ => null,
