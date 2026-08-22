@@ -1,4 +1,4 @@
-# fitd26 — STATIC Traefik routing (file provider), replacing docker-label
+# Flutter in the Dark — STATIC Traefik routing (file provider), replacing docker-label
 # auto-discovery. Mirrors the PodCase pattern (volumes/traefik/fileConfig.yml).
 #
 # WHY: on macOS the container runtime's daemon socket lives in a VM and cannot
