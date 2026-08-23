@@ -6,6 +6,7 @@ import 'package:flutter_in_the_dark/room/room_models.dart';
 import 'package:flutter_in_the_dark/room/room_sync.dart';
 import 'package:flutter_in_the_dark/screens/home_screen.dart';
 import 'package:flutter_in_the_dark/screens/waiting_for_challenge.dart';
+import 'package:flutter_in_the_dark/widgets/burn_reveal.dart';
 import 'package:flutter_in_the_dark/widgets/challenger_content.dart';
 import 'package:flutter_in_the_dark/widgets/compiled_widget.dart';
 import 'package:flutter_in_the_dark/widgets/countdown_overlay.dart';
@@ -24,11 +25,17 @@ class ShowScreen extends StatefulWidget {
   State<ShowScreen> createState() => _ShowScreenState();
 }
 
-class _ShowScreenState extends State<ShowScreen> {
+class _ShowScreenState extends State<ShowScreen>
+    with SingleTickerProviderStateMixin {
   /// Wall-clock ticker so the isInTheFuture gate flips to the live show
   /// exactly when startTime is reached — RoomSync only notifies on SSE
   /// events, and no SSE event fires when wall-clock time crosses startTime.
   Timer? _clockTimer;
+
+  /// Countdown → burn → reveal phase machine for the end-of-challenge gate.
+  /// Fed from [_tick] (and SSE rebuilds) — never a bare DateTime.now()
+  /// gate in build (I-008).
+  late final BurnRevealController _burn;
 
   @override
   void initState() {
@@ -37,11 +44,13 @@ class _ShowScreenState extends State<ShowScreen> {
     // It only listens to the shared room state, so round rolls (roundId
     // bumps) do not affect it and it is exempt from the player kick by
     // construction. It deliberately never reads the player SessionStore.
+    _burn = BurnRevealController(vsync: this);
     widget.roomSync.addListener(_onChanged);
     _syncClockTimer();
   }
 
   void _onChanged() {
+    _feedBurn();
     _syncClockTimer();
     if (mounted) setState(() {});
   }
@@ -49,26 +58,60 @@ class _ShowScreenState extends State<ShowScreen> {
   /// Starts the wall-clock ticker while the challenge has a pending
   /// time-dependent transition (not yet started, or not yet finished);
   /// cancels it as soon as there is nothing to wait for.
+  ///
+  /// Fine-grained (100 ms, same as _TimerBadge and the old _CountdownGate)
+  /// inside the end-of-challenge countdown/burn window: the
+  /// BurnRevealController's countdown → burn → reveal handoff must not sit
+  /// stale for up to a second at the 1 Hz coarse cadence. Coarse 1 s ticks
+  /// are enough while the challenge is merely pending/live outside it.
   void _syncClockTimer() {
-    final waiting = shouldTickForChallenge(
-      widget.roomSync.state?.challenge,
-    );
-    if (waiting && _clockTimer == null) {
-      _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
-    } else if (!waiting) {
+    final challenge = widget.roomSync.state?.challenge;
+    final waiting = shouldTickForChallenge(challenge);
+    final remainingMs =
+        challenge?.endTime.difference(DateTime.now()).inMilliseconds;
+    final fine = waiting &&
+        remainingMs != null &&
+        remainingMs <= _fineTickThresholdMs;
+    final interval =
+        fine ? const Duration(milliseconds: 100) : const Duration(seconds: 1);
+    if (waiting) {
+      if (_clockTimer == null || _clockInterval != interval) {
+        _clockTimer?.cancel();
+        _clockTimer = Timer.periodic(interval, (_) => _tick());
+        _clockInterval = interval;
+      }
+    } else {
       _clockTimer?.cancel();
       _clockTimer = null;
+      _clockInterval = null;
     }
   }
 
+  /// Switch to the 100 ms cadence once the end-of-challenge countdown/burn
+  /// window is near (the BurnRevealController's 10 s gate, plus a small
+  /// hysteresis so the cadence doesn't flap at the boundary).
+  static const int _fineTickThresholdMs = 12 * 1000;
+
+  Duration? _clockInterval;
+
   void _tick() {
-    _syncClockTimer();
+    _feedBurn();
+    // Cadence is re-considered on SSE-driven _onChanged, not from the tick
+    // itself, to avoid re-entrancy from the ticker.
     if (mounted) setState(() {});
+  }
+
+  void _feedBurn() {
+    final challenge = widget.roomSync.state?.challenge;
+    if (challenge != null) {
+      _burn.tick(challenge.endTime.difference(DateTime.now()));
+    }
   }
 
   @override
   void dispose() {
     _clockTimer?.cancel();
+    _burn.dispose();
     widget.roomSync.removeListener(_onChanged);
     super.dispose();
   }
@@ -83,13 +126,23 @@ class _ShowScreenState extends State<ShowScreen> {
       return WaitingForChallenge(challenge: challenge);
     }
 
+    _feedBurn();
+
     return Scaffold(
       body: Stack(
         alignment: Alignment.center,
         children: [
           _buildBody(state!),
           Positioned(top: 50, child: _TimerBadge(challenge: challenge)),
-          _CountdownGate(challenge: challenge),
+          Positioned.fill(
+            child: BurnRevealOverlay(
+              controller: _burn,
+              remaining: challenge.endTime.difference(DateTime.now()),
+              countdownBuilder: (context) => CountdownOverlay(
+                duration: challenge.endTime.difference(DateTime.now()),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -386,7 +439,7 @@ class _CountdownGate extends StatelessWidget {
       builder: (context, time) {
         final remainingTime = challenge.endTime.difference(DateTime.now());
         if (remainingTime.isNegative || remainingTime.inSeconds > 10) {
-          return Container();
+          return const SizedBox.shrink();
         }
         return CountdownOverlay(duration: remainingTime);
       },

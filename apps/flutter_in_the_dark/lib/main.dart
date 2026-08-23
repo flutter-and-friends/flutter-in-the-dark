@@ -1,6 +1,7 @@
 import 'package:flutter_in_the_dark/override_en_timeago.dart';
 import 'package:flutter_in_the_dark/room/room_sync.dart';
 import 'package:flutter_in_the_dark/screens/admin_screen.dart';
+import 'package:flutter_in_the_dark/screens/burn_test_screen.dart';
 import 'package:flutter_in_the_dark/screens/player_selection_screen.dart';
 import 'package:flutter_in_the_dark/screens/show_screen.dart';
 import 'package:flutter/material.dart';
@@ -47,7 +48,10 @@ class MainApp extends StatelessWidget {
         // keeps an /admin or /show tab in the same browser (shared
         // localStorage) from picking up a player identity and rendering as
         // a joined contestant.
-        switch (settings.name) {
+        // Match on the path only: a deep link with a query string (e.g.
+        // the burn-reveal debug knobs `?burnDebug=1&burnSlow=…`) must still
+        // resolve to its route, not fall through to the default.
+        switch (Uri.parse(settings.name ?? '/').path) {
           case '/admin':
             return MaterialPageRoute(
               builder: (context) => AdminScreen(roomSync: roomSync),
@@ -55,6 +59,15 @@ class MainApp extends StatelessWidget {
           case '/show':
             return MaterialPageRoute(
               builder: (context) => ShowScreen(roomSync: roomSync),
+            );
+          // Standalone looping burn-reveal demo: no room state, no SSE —
+          // must NOT touch `roomSync` (this route exists so the animation
+          // can be steered on a device where the backend is unreachable).
+          case '/test':
+          case '/burn_test':
+            return MaterialPageRoute(
+              settings: settings,
+              builder: (context) => BurnTestPage.fromSettings(settings),
             );
           default:
             return MaterialPageRoute(
