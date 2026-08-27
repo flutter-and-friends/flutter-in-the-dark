@@ -295,6 +295,40 @@ Future<void> main(List<String> args) async {
     return _json({'ok': true, 'activeModel': model});
   });
 
+  // Live provider override (operator backstop for Berget/Gemini incidents).
+  // Same Tailscale gate and in-memory lifecycle as the model picker: boot
+  // default is `auto`, a restart returns to it. `gemini` is rejected with
+  // 409 when no GEMINI_API_KEY is configured — forcing an absent provider
+  // would only surface as a failed generation later.
+  router.post('/api/admin/provider', (Request request) async {
+    final body = await _readJson(request);
+    final raw = body['provider'] as String? ?? '';
+    final next = ProviderMode.values.asNameMap()[raw];
+    if (next == null) {
+      return _badRequest('provider must be auto|berget|gemini');
+    }
+    try {
+      providers.generator.setMode(next);
+    } on StateError catch (e) {
+      return Response(
+        409,
+        body: jsonEncode({'error': e.message}),
+        headers: {'Content-Type': 'application/json; charset=utf-8'},
+      );
+    }
+    return _json({'ok': true, 'provider': next.name});
+  });
+
+  router.get('/api/admin/provider', (Request request) {
+    return _json({
+      'provider': providers.generator.mode.name,
+      'available': {
+        'berget': true,
+        'gemini': providers.generator.geminiAvailable,
+      },
+    });
+  });
+
   // Benchmark backfill: pushes realistic-prompt reliability numbers for a model
   // into the picker. Called by the bake-off harness after a run; also usable
   // ad hoc. All numeric fields optional — only provided ones update.

@@ -127,6 +127,118 @@ void main() {
     });
   });
 
+  group('ProviderMode override', () {
+    test('boots in auto mode', () {
+      final chain = FallbackGenerator(
+        primary: FakeGenerator('primary', []),
+        fallback: FakeGenerator('fallback', []),
+      );
+      expect(chain.mode, ProviderMode.auto);
+    });
+
+    test('forced berget serves only primary, even when it fails', () async {
+      final primary = FakeGenerator('primary', [
+        GenerationException('primary', 'HTTP 503'),
+      ]);
+      final fallback = FakeGenerator('fallback', ['never-used']);
+      final chain = FallbackGenerator(primary: primary, fallback: fallback)
+        ..setMode(ProviderMode.berget);
+
+      await expectLater(
+        () => chain.generateCode(prompt: 'p', model: 'm'),
+        throwsA(isA<GenerationException>()),
+      );
+      expect(primary.calls, ['generateCode:p']);
+      expect(fallback.calls, isEmpty, reason: 'berget mode never touches Gemini');
+    });
+
+    test('forced gemini serves only fallback, primary untouched', () async {
+      final primary = FakeGenerator('primary', ['never-used']);
+      final fallback = FakeGenerator('fallback', ['gemini-code']);
+      final chain = FallbackGenerator(primary: primary, fallback: fallback)
+        ..setMode(ProviderMode.gemini);
+
+      final result = await chain.generateCode(prompt: 'p', model: 'm');
+
+      expect(result, 'gemini-code');
+      expect(primary.calls, isEmpty, reason: 'gemini mode never touches Berget');
+      expect(fallback.calls, ['generateCode:p']);
+    });
+
+    test('forced gemini suggestFix serves only fallback', () async {
+      final primary = FakeGenerator('primary', ['never-used']);
+      final fallback = FakeGenerator('fallback', ['gemini-fix']);
+      final chain = FallbackGenerator(primary: primary, fallback: fallback)
+        ..setMode(ProviderMode.gemini);
+
+      final result = await chain.suggestFix(
+        source: 's',
+        errorMessage: 'e',
+        model: 'm',
+      );
+
+      expect(result, 'gemini-fix');
+      expect(primary.calls, isEmpty);
+    });
+
+    test('returning to auto restores fallback behaviour', () async {
+      final primary = FakeGenerator('primary', [
+        GenerationException('primary', 'HTTP 502'),
+      ]);
+      final fallback = FakeGenerator('fallback', ['gemini-code', 'fb-code']);
+      final chain = FallbackGenerator(primary: primary, fallback: fallback)
+        ..setMode(ProviderMode.gemini);
+      await chain.generateCode(prompt: 'a', model: 'm'); // forced gemini
+      chain.setMode(ProviderMode.auto);
+
+      final result = await chain.generateCode(prompt: 'b', model: 'm');
+
+      expect(result, 'fb-code', reason: 'auto falls back after primary fails');
+      expect(primary.calls, ['generateCode:b']);
+    });
+
+    test('setMode(gemini) with no fallback throws StateError', () {
+      final chain = FallbackGenerator(primary: FakeGenerator('primary', []));
+      expect(chain.geminiAvailable, isFalse);
+      expect(
+        () => chain.setMode(ProviderMode.gemini),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('GEMINI_API_KEY not set'),
+          ),
+        ),
+      );
+      expect(chain.mode, ProviderMode.auto, reason: 'failed setMode must not stick');
+    });
+
+    test('setMode is a no-op when mode is unchanged', () async {
+      final primary = FakeGenerator('primary', ['p-code']);
+      final chain = FallbackGenerator(
+        primary: primary,
+        fallback: FakeGenerator('fallback', []),
+      );
+      chain.setMode(ProviderMode.auto); // same as current — no throw, no log
+      expect(chain.mode, ProviderMode.auto);
+      final result = await chain.generateCode(prompt: 'p', model: 'm');
+      expect(result, 'p-code');
+    });
+
+    test('auto mode with no fallback propagates primary failure (no retry)', () async {
+      final primary = FakeGenerator('primary', [
+        GenerationException('primary', 'HTTP 503'),
+      ]);
+      final chain = FallbackGenerator(primary: primary);
+
+      await expectLater(
+        () => chain.generateCode(prompt: 'p', model: 'm'),
+        throwsA(isA<GenerationException>()),
+      );
+      expect(primary.calls, ['generateCode:p'], reason: 'no fallback → single attempt');
+    });
+  });
+
   group('stripCodeFence', () {
     test('strips a standard fence', () {
       expect(
@@ -145,21 +257,26 @@ void main() {
   });
 
   group('buildGeneratorFromEnv gating', () {
-    test('GEMINI_API_KEY unset → primary only', () {
+    test('GEMINI_API_KEY unset → chain with no fallback, gemini unavailable', () {
       final result = buildGeneratorFromEnv(
         backendBase: 'http://unused',
         env: const {},
       );
-      expect(result.generator, isA<DartServicesGenerator>());
+      expect(result.generator, isA<FallbackGenerator>());
+      expect(result.generator.primary, isA<DartServicesGenerator>());
+      expect(result.generator.fallback, isNull);
+      expect(result.generator.geminiAvailable, isFalse);
       expect(result.providersDescription, contains('no fallback'));
     });
 
-    test('GEMINI_API_KEY empty → primary only', () {
+    test('GEMINI_API_KEY empty → chain with no fallback', () {
       final result = buildGeneratorFromEnv(
         backendBase: 'http://unused',
         env: const {'GEMINI_API_KEY': ''},
       );
-      expect(result.generator, isA<DartServicesGenerator>());
+      expect(result.generator, isA<FallbackGenerator>());
+      expect(result.generator.fallback, isNull);
+      expect(result.generator.geminiAvailable, isFalse);
     });
 
     test('GEMINI_API_KEY set → fallback chain with Gemini', () {
@@ -167,10 +284,10 @@ void main() {
         backendBase: 'http://unused',
         env: const {'GEMINI_API_KEY': 'test-key'},
       );
-      expect(result.generator, isA<FallbackGenerator>());
-      final chain = result.generator as FallbackGenerator;
+      final chain = result.generator;
       expect(chain.primary, isA<DartServicesGenerator>());
       expect(chain.fallback, isA<GeminiGenerator>());
+      expect(chain.geminiAvailable, isTrue);
       expect(result.providersDescription, contains('FALLBACK'));
     });
 
@@ -182,8 +299,10 @@ void main() {
           'GEMINI_MODEL': 'gemini-3.6-flash',
         },
       );
-      final chain = result.generator as FallbackGenerator;
-      expect((chain.fallback as GeminiGenerator).model, 'gemini-3.6-flash');
+      expect(
+        (result.generator.fallback as GeminiGenerator).model,
+        'gemini-3.6-flash',
+      );
     });
   });
 }

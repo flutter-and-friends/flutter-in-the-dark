@@ -225,6 +225,54 @@ class ModelCandidate {
   );
 }
 
+/// Operator-selectable LLM provider routing (WI-027 follow-up), mirrored
+/// from the room service's `ProviderMode`. The wire names must match the
+/// server exactly — `POST /api/admin/provider` takes `.name` verbatim.
+enum ProviderMode {
+  /// Berget primary, Gemini fallback on error (boot default).
+  auto,
+
+  /// Berget only — Gemini is never touched.
+  berget,
+
+  /// Gemini only — Berget is never touched.
+  gemini;
+
+  /// Short labels for the admin provider segmented button.
+  String get label => switch (this) {
+    auto => 'Auto',
+    berget => 'Berget',
+    gemini => 'Gemini',
+  };
+
+  /// One-line explanation shown under the picker for the active mode.
+  String get description => switch (this) {
+    auto => 'Berget primary, Gemini fallback on error',
+    berget => 'Berget only — no fallback',
+    gemini => 'Gemini only — Berget is never touched',
+  };
+}
+
+/// The admin provider-picker state, from `GET /api/admin/provider`:
+/// the live routing mode plus which providers are actually usable
+/// (`gemini` is false when the service booted without GEMINI_API_KEY).
+/// In-memory only server-side — resets to [ProviderMode.auto] on restart.
+class ProviderState {
+  const ProviderState({required this.mode, required this.geminiAvailable});
+
+  final ProviderMode mode;
+
+  /// False when the server has no Gemini fallback configured — the admin UI
+  /// disables the Gemini segment (forcing it would 409).
+  final bool geminiAvailable;
+
+  static ProviderState fromJson(Map<String, dynamic> json) => ProviderState(
+    mode: ProviderMode.values.byName(json['provider'] as String? ?? 'auto'),
+    geminiAvailable:
+        ((json['available'] as Map? ?? const {})['gemini'] as bool?) ?? false,
+  );
+}
+
 /// The admin model-picker state: live model + candidates with benchmark data.
 class GenerationState {
   GenerationState({required this.activeModel, required this.candidates});

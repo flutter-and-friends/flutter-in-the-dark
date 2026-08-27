@@ -147,6 +147,21 @@ class RoomClient {
     ];
   }
 
+  /// The live provider routing for the admin provider picker
+  /// (`GET /api/admin/provider`). Throws [RoomPostException] on non-200.
+  Future<ProviderState> fetchProvider() async {
+    final response = await web.window
+        .fetch('$baseUrl/api/admin/provider'.toJS)
+        .toDart;
+    final text = (await response.text().toDart).toDart;
+    if (!response.ok) {
+      throw RoomPostException(response.status, text);
+    }
+    return ProviderState.fromJson(
+      (jsonDecode(text) as Map).cast<String, dynamic>(),
+    );
+  }
+
   // ------------------------------------------------------------------ POST
 
   Future<Map<String, dynamic>> _post(
@@ -259,6 +274,13 @@ class RoomClient {
   /// Live generation-model failover. Applies to new generation immediately.
   Future<void> setModel({required String model}) =>
       _post('/api/admin/model', {'model': model});
+
+  /// Live LLM-provider failover. Applies to new generation immediately.
+  /// Throws [RoomPostException] on non-200 — notably 409 when [mode] is
+  /// [ProviderMode.gemini] but the service has no GEMINI_API_KEY; the body
+  /// carries `{"error": ...}` for the caller to surface.
+  Future<void> setProvider({required ProviderMode mode}) =>
+      _post('/api/admin/provider', {'provider': mode.name});
 }
 
 class RoomConnectionException implements Exception {

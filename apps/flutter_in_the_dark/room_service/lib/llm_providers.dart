@@ -297,18 +297,56 @@ class GeminiGenerator implements CodeGenerator {
   }
 }
 
-/// Try-primary-then-fallback composition. On a primary failure (any
-/// [GenerationException] — timeout, 5xx, connection error) logs the failure
-/// and retries against the fallback. The log line names the serving provider
-/// on every success, so the competition operator can see which LLM answered.
+/// Operator-selectable provider routing for [FallbackGenerator].
+///
+///  * [auto] — Berget primary, Gemini fallback on error (boot default; the
+///    original competition-backup behaviour).
+///  * [berget] — force Berget only; Gemini is never touched (e.g. a Gemini
+///    quota incident, or an operator who wants to prove Berget is healthy).
+///  * [gemini] — force Gemini only; Berget is never touched (e.g. a Berget
+///    outage where even the failed-primary round-trip wastes contestant time).
+enum ProviderMode { auto, berget, gemini }
+
+/// Try-primary-then-fallback composition, with a mutable [ProviderMode] so
+/// the competition operator can force a provider live without a restart.
+///
+/// In [ProviderMode.auto] a primary failure (any [GenerationException] —
+/// timeout, 5xx, connection error) is logged and retried against the
+/// fallback. The log line names the serving provider on every call, so the
+/// operator can see which LLM answered.
+///
+/// [fallback] may be null (GEMINI_API_KEY unset): [ProviderMode.auto] then
+/// behaves as primary-only, and selecting [ProviderMode.gemini] is rejected
+/// at the route layer (it would only fail on the next generation anyway).
 class FallbackGenerator implements CodeGenerator {
-  FallbackGenerator({required this.primary, required this.fallback});
+  FallbackGenerator({required this.primary, this.fallback});
 
   final CodeGenerator primary;
-  final CodeGenerator fallback;
+  final CodeGenerator? fallback;
+
+  /// Live provider routing. Mutated by the admin route; boot default is
+  /// [ProviderMode.auto]. In-memory only — a restart returns to auto, same
+  /// lifecycle as the model picker.
+  ProviderMode mode = ProviderMode.auto;
+
+  /// Whether a Gemini fallback is configured (API key present). The route
+  /// exposes this so the admin UI can disable the "gemini" option.
+  bool get geminiAvailable => fallback != null;
+
+  /// Sets [mode], logging the transition. Selecting [ProviderMode.gemini]
+  /// with no fallback configured throws [StateError] — the route turns this
+  /// into a 409; generation code never sees an impossible mode.
+  void setMode(ProviderMode next) {
+    if (next == ProviderMode.gemini && fallback == null) {
+      throw StateError('gemini provider unavailable: GEMINI_API_KEY not set');
+    }
+    if (next == mode) return;
+    print('[llm] provider mode: ${mode.name} -> ${next.name}');
+    mode = next;
+  }
 
   @override
-  String get name => 'fallback(${primary.name} → ${fallback.name})';
+  String get name => 'fallback(${primary.name} → ${fallback?.name ?? 'none'})';
 
   @override
   Future<String> generateCode({
@@ -316,6 +354,34 @@ class FallbackGenerator implements CodeGenerator {
     required String model,
     String? reasoningEffort,
   }) async {
+    switch (mode) {
+      case ProviderMode.gemini:
+        final result = await fallback!.generateCode(
+          prompt: prompt,
+          model: model,
+          reasoningEffort: reasoningEffort,
+        );
+        print('[llm] generateCode served by ${fallback!.name} (forced)');
+        return result;
+      case ProviderMode.berget:
+        final result = await primary.generateCode(
+          prompt: prompt,
+          model: model,
+          reasoningEffort: reasoningEffort,
+        );
+        print('[llm] generateCode served by ${primary.name} (forced)');
+        return result;
+      case ProviderMode.auto:
+        return _autoGenerate(prompt, model, reasoningEffort);
+    }
+  }
+
+  Future<String> _autoGenerate(
+    String prompt,
+    String model,
+    String? reasoningEffort,
+  ) async {
+    final fb = fallback;
     try {
       final result = await primary.generateCode(
         prompt: prompt,
@@ -325,15 +391,16 @@ class FallbackGenerator implements CodeGenerator {
       print('[llm] generateCode served by ${primary.name}');
       return result;
     } on GenerationException catch (e) {
+      if (fb == null) rethrow;
       print('[llm] PRIMARY ${primary.name} FAILED: $e — '
-          'falling back to ${fallback.name}');
+          'falling back to ${fb.name}');
     }
-    final result = await fallback.generateCode(
+    final result = await fb.generateCode(
       prompt: prompt,
       model: model,
       reasoningEffort: reasoningEffort,
     );
-    print('[llm] generateCode served by ${fallback.name} (fallback)');
+    print('[llm] generateCode served by ${fb.name} (fallback)');
     return result;
   }
 
@@ -343,6 +410,34 @@ class FallbackGenerator implements CodeGenerator {
     required String errorMessage,
     required String model,
   }) async {
+    switch (mode) {
+      case ProviderMode.gemini:
+        final result = await fallback!.suggestFix(
+          source: source,
+          errorMessage: errorMessage,
+          model: model,
+        );
+        print('[llm] suggestFix served by ${fallback!.name} (forced)');
+        return result;
+      case ProviderMode.berget:
+        final result = await primary.suggestFix(
+          source: source,
+          errorMessage: errorMessage,
+          model: model,
+        );
+        print('[llm] suggestFix served by ${primary.name} (forced)');
+        return result;
+      case ProviderMode.auto:
+        return _autoSuggestFix(source, errorMessage, model);
+    }
+  }
+
+  Future<String> _autoSuggestFix(
+    String source,
+    String errorMessage,
+    String model,
+  ) async {
+    final fb = fallback;
     try {
       final result = await primary.suggestFix(
         source: source,
@@ -352,15 +447,16 @@ class FallbackGenerator implements CodeGenerator {
       print('[llm] suggestFix served by ${primary.name}');
       return result;
     } on GenerationException catch (e) {
+      if (fb == null) rethrow;
       print('[llm] PRIMARY ${primary.name} FAILED: $e — '
-          'falling back to ${fallback.name}');
+          'falling back to ${fb.name}');
     }
-    final result = await fallback.suggestFix(
+    final result = await fb.suggestFix(
       source: source,
       errorMessage: errorMessage,
       model: model,
     );
-    print('[llm] suggestFix served by ${fallback.name} (fallback)');
+    print('[llm] suggestFix served by ${fb.name} (fallback)');
     return result;
   }
 }
@@ -371,13 +467,17 @@ class FallbackGenerator implements CodeGenerator {
 ///  * dart_services is ALWAYS the primary (it is the room's generation path
 ///    and the only compile backend; if it is down and no key is set, calls
 ///    fail exactly as they did before this change).
-///  * `GEMINI_API_KEY` unset → Berget-only (primary alone), same behaviour
-///    as before. Set → [FallbackGenerator] with Gemini as the safety net.
+///  * `GEMINI_API_KEY` unset → chain with no fallback (auto mode degrades to
+///    Berget-only, and the admin route rejects forced-gemini with 409).
+///    Set → Gemini available as fallback / forcible provider.
+///
+/// A [FallbackGenerator] is returned in BOTH cases so the admin route can
+/// uniformly read/set [FallbackGenerator.mode] without a type check.
 ///
 /// Returns the generator plus a boot log line naming the active providers,
 /// so a stale/missing key is visible at startup rather than hiding behind a
 /// 'log and skip' branch (W-022).
-({CodeGenerator generator, String providersDescription}) buildGeneratorFromEnv({
+({FallbackGenerator generator, String providersDescription}) buildGeneratorFromEnv({
   required String backendBase,
   Map<String, String>? env,
 }) {
@@ -386,7 +486,7 @@ class FallbackGenerator implements CodeGenerator {
   final geminiKey = environment['GEMINI_API_KEY'] ?? '';
   if (geminiKey.isEmpty) {
     return (
-      generator: primary,
+      generator: FallbackGenerator(primary: primary),
       providersDescription:
           'berget via dart_services (GEMINI_API_KEY not set — no fallback)',
     );
