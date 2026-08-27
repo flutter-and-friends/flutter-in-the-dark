@@ -10,6 +10,10 @@ COPY pubspec.yaml pubspec.lock ./
 RUN dart pub get
 COPY bin bin
 COPY lib lib
+# The challenge catalog is read from disk at startup (challenges/<slug>/source.dart,
+# CWD-relative in the runtime stage, so it lands at /app/challenges). Without this
+# the image has no disk catalog and the picker silently falls back to the seed.
+COPY challenges challenges
 RUN dart compile exe bin/server.dart -o bin/server
 
 FROM debian:bookworm-slim
