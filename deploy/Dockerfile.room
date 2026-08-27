@@ -20,6 +20,9 @@ FROM debian:bookworm-slim
 RUN useradd --system --uid 10001 --no-create-home fitd
 WORKDIR /app
 COPY --from=build /app/bin/server /app/server
+# Runtime copy: the build-stage COPY above does NOT carry over (multi-stage).
+# The registry reads challenges/ relative to CWD (/app here).
+COPY --from=build /app/challenges /app/challenges
 # The room calls dart_services over the in-cluster network (service name).
 # State file lands on the `room-state` volume mounted at /data.
 RUN mkdir -p /data && chown fitd /data
