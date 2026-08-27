@@ -24,6 +24,7 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
 
 import 'package:flutter_in_the_dark_room_service/challenges.dart';
+import 'package:flutter_in_the_dark_room_service/llm_providers.dart';
 import 'package:flutter_in_the_dark_room_service/models.dart';
 import 'package:flutter_in_the_dark_room_service/pipeline.dart' as gen;
 import 'package:flutter_in_the_dark_room_service/room.dart';
@@ -45,12 +46,20 @@ Future<void> main(List<String> args) async {
   // Seed the pipeline's model from the env (so the boot default matches
   // dart_services' BERGET_MODEL); the admin picker overrides it live after.
   final initialModel = Platform.environment['BERGET_MODEL'];
+  // Build the provider chain here (rather than inside Pipeline's default) so
+  // the boot log can name the active providers — a stale GEMINI_API_KEY must
+  // be visible at startup, not hide behind a silent fallback (W-022).
+  final providers = buildGeneratorFromEnv(
+    backendBase: results['backend'] as String,
+  );
   final pipeline = gen.Pipeline(
     backendBase: results['backend'] as String,
     initialModel: (initialModel != null && initialModel.isNotEmpty)
         ? initialModel
         : null,
+    generator: providers.generator,
   );
+  stdout.writeln('LLM providers: ${providers.providersDescription}');
   final room = RoomState(
     pipeline: pipeline,
     stateFile: stateFilePath.isEmpty ? null : File(stateFilePath),
