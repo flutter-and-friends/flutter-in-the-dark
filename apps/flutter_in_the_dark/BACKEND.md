@@ -140,6 +140,7 @@ dart bin/server.dart --port 8302 --backend http://127.0.0.1:8300 \
 ```json
 {
   "revision": 93,
+  "roundId": "<uuid — player-set generation, bumps ONLY on admin removeAll>",
   "challenge": { "id", "name",
                  "startTime", "endTime",   // UTC ISO-8601 with 'Z' suffix —
                                            // DateTime.parse is instant-correct in any zone
@@ -168,17 +169,33 @@ falls back to a full regenerate after 2 failed fixes.
 ## Contestant endpoints
 
 ```
+GET  /api/session?playerId=<id> → 200 {"known":bool, "name":string|null}
 POST /api/join            {"name"} → {"playerId","token","roundId"}   (token guards prompt writes)
 POST /api/prompt          {"playerId","token","prompt"}     → 200 {"ok":true} | 403 | 400
 ```
 
-The join token is bound to the round it was minted under. When a round closes
-(admin setChallenge / clear / removeAll), the room's `roundId` bumps and every
-token from the prior round stops validating: `/api/prompt` returns 403 and the
-SSE snapshot's top-level `roundId` no longer matches a stored session. The
-display name is round-scoped server state (served from room state), never
-client-persisted across rounds — so a shared machine must re-join with a fresh
-name each round.
+Players PERSIST across challenges: join-and-wait before the first challenge is
+supported, and setChallenge / clearChallenge never invalidate a session — a new
+challenge only resets each challenger's pipeline fields (genState/status/
+generatedCode/compiledUrl/error/fixAttempts), keeping identity and prompt text.
+
+Identity invalidation is admin-initiated ONLY:
+- `removeChallenger` kicks one player: their token dies (writes 403) and they
+  disappear from the snapshot's `challengers` list.
+- `removeAll` kicks everyone: all tokens die, the list empties, and `roundId`
+  (the player-set generation) bumps so a client comparing generations notices.
+
+`/api/session` is the server's definitive answer to "here's my ID — do you know
+me?": `known:false` (never joined, kicked, or cleared) → the client re-enters a
+name; `known:true` carries the server-side display `name`. It is a read — it
+never re-registers. The passive equivalent: a stored playerId absent from the
+snapshot's `challengers` list means the same thing.
+
+The join token is NOT round-bound: it validates while its playerId is still
+registered. Tokens live in memory only, so a service restart invalidates every
+session while the challenger rows survive (state file) — a client then sees
+`known:true` but its writes 403. Client rule: any 403 on `/api/prompt` means
+the session is dead → re-join with a fresh name (there is no token re-issue).
 
 ## Admin endpoints (NO app-level auth — the Tailscale network gate decides who
 ## can reach /admin at all; see "Interface split" below)

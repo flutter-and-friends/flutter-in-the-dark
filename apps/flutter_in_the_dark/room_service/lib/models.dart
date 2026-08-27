@@ -255,11 +255,13 @@ class GenerationState {
 class Room {
   int revision = 0;
 
-  /// Identifies the current round generation. Bumped (new uuid) on every
-  /// round-close/reset path — setChallenge, clearChallenge,
-  /// removeAllChallengers — so a client holding a session from a previous
-  /// round can detect the close from the snapshot, and the server rejects
-  /// stale join tokens minted under a different roundId.
+  /// Identifies the current PLAYER-SET generation. Bumped (new uuid) ONLY by
+  /// the admin's removeAllChallengers — the one action that invalidates every
+  /// player identity at once. Challenge lifecycle (setChallenge /
+  /// clearChallenge) does NOT bump it: players persist across challenges
+  /// (join-and-wait before the first challenge is a supported flow), and a
+  /// single-player kick is observable by the player's disappearance from
+  /// [challengers]. Token validation is not round-bound.
   String roundId = const Uuid().v4();
 
   Challenge? challenge;

@@ -6,6 +6,7 @@
 /// Contract (full doc in ../../BACKEND.md):
 ///   GET  /api/state            → full room snapshot (catch-up refetch)
 ///   GET  /api/events           → SSE stream (event `state`, id = revision)
+///   GET  /api/session?playerId → {known, name?} ("do you know me?")
 ///   POST /api/join             {name} → {playerId, token, roundId}
 ///   POST /api/prompt           {playerId, token, prompt}
 ///   POST /api/admin/*          (no app-level auth — the network gate decides:
@@ -132,6 +133,16 @@ Future<void> main(List<String> args) async {
       'token': result.token,
       'roundId': result.roundId,
     });
+  });
+
+  // "Here's my ID — do you know me, and what's my name?" The definitive
+  // answer for a client resuming a stored session: the challenger list is
+  // the source of truth, so `known:false` (or the name being absent) means
+  // the identity was kicked, cleared, or never existed → re-enter a name.
+  router.get('/api/session', (Request request) {
+    final playerId = request.url.queryParameters['playerId'] ?? '';
+    final session = room.sessionFor(playerId);
+    return _json({'known': session.known, 'name': session.name});
   });
 
   router.post('/api/prompt', (Request request) async {
