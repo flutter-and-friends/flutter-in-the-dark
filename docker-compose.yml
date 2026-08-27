@@ -244,6 +244,13 @@ services:
       dockerfile: ../../../deploy/Dockerfile.room
     image: flutter-in-the-dark-room:local
     restart: unless-stopped
+    env_file:
+      # Contains GEMINI_API_KEY (+ optional GEMINI_MODEL). Never committed;
+      # see deploy/env/room.env.example for the KEY NAMES only. The env_file
+      # is REQUIRED syntax-wise but the file only carries the Gemini key —
+      # the service boots fine with the key unset (Berget-only, no fallback;
+      # the admin provider picker will report gemini unavailable).
+      - deploy/env/room.env
     environment:
       # Boot default model for the generation pipeline; the admin picker
       # overrides it live afterwards. MUST match dart_services' BERGET_MODEL
