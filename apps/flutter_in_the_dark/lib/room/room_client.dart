@@ -189,10 +189,28 @@ class RoomClient {
 
   // ------------------------------------------------------------- contestant
 
-  /// Joins the current round. Request is `{name}` only — the server always
-  /// mints a fresh (playerId, token, roundId) under whatever the current
-  /// round is; there is no playerId echo or server-side reattach, and no
-  /// 403-on-join path. On a kick, simply join again with the name (WI-012).
+  /// "Here's my ID — do you know me, and what's my name?" The server's
+  /// definitive answer for a client resuming a stored session on boot:
+  /// `known` false means the identity was kicked, cleared, or never existed
+  /// → the client re-enters a name. A read — never mutates, never
+  /// re-registers. Throws [RoomPostException] on non-200.
+  Future<({bool known, String? name})> fetchSession(String playerId) async {
+    final response = await web.window
+        .fetch('$baseUrl/api/session?playerId=$playerId'.toJS)
+        .toDart;
+    final text = (await response.text().toDart).toDart;
+    if (!response.ok) {
+      throw RoomPostException(response.status, text);
+    }
+    final json = (jsonDecode(text) as Map).cast<String, dynamic>();
+    return (known: json['known'] as bool? ?? false, name: json['name'] as String?);
+  }
+
+  /// Joins the room. Request is `{name}` only — the server always mints a
+  /// fresh (playerId, token, roundId); there is no playerId echo or
+  /// server-side reattach (a client with a stored session resumes passively
+  /// via [fetchSession], it never re-joins). The identity then persists
+  /// across challenges; only an admin Remove / Remove-all ends it.
   Future<({String playerId, String token, String roundId})> join(
     String name,
   ) async {

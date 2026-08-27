@@ -2,11 +2,13 @@
 /// kept free of Flutter (and `dart:js_interop`) imports so it is
 /// unit-testable on the Dart VM. Used by `lib/screens/challenge_screen.dart`.
 ///
-/// WI-012: a player is KICKED (session cleared, routed back to the join
-/// screen) when the room tells them their round-scoped session is gone —
-/// either the round rolled, or their challenger record disappeared. The
-/// show/audience screen never joins, so it never calls this and is exempt
-/// by construction.
+/// A player is KICKED (session cleared, routed back to name entry) when the
+/// server snapshot no longer contains their playerId — i.e. the admin hit
+/// Remove on them or cleared the player list. Players persist across
+/// challenges: setChallenge / clearChallenge do NOT invalidate sessions, so
+/// the round generation is no longer consulted here (W-024: match on stable
+/// id only, never name). The show/audience screen never joins, so it never
+/// calls this and is exempt by construction.
 library;
 
 import 'package:flutter_in_the_dark/room/room_models.dart';
@@ -15,18 +17,11 @@ import 'package:flutter_in_the_dark/room/room_models.dart';
 ///
 /// A `null` [state] (still connecting / reconnecting, no snapshot yet) is
 /// NOT a kick — there is no evidence yet, and kicking on a transient null
-/// would bounce a reloading player back to the join screen spuriously.
+/// would bounce a reloading player back to name entry spuriously.
 ///
-/// A present [state] kicks when either:
-///  - the round rolled: the snapshot's `roundId` differs from the stored
-///    one (any round-close/reset bumps it server-side), or
-///  - this player is gone from the snapshot's challenger list.
-bool isKickedByState({
-  required String playerId,
-  required String roundId,
-  required RoomState? state,
-}) {
+/// A present [state] kicks exactly when this player is gone from the
+/// snapshot's challenger list (admin Remove / Remove-all).
+bool isKickedByState({required String playerId, required RoomState? state}) {
   if (state == null) return false;
-  if (state.roundId != roundId) return true;
   return state.challengerById(playerId) == null;
 }

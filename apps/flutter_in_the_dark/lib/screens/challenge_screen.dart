@@ -188,17 +188,18 @@ class _ChallengeScreenState extends State<ChallengeScreen>
     if (mounted) setState(() {});
   }
 
-  /// WI-012 kick path (a): the room snapshot says this session is gone —
-  /// the round rolled (roundId differs) or this challenger disappeared.
-  /// Clears the session and routes back to the join screen. Returns true if
-  /// a kick was performed. The keep-vs-kick decision itself is the pure
-  /// [isKickedByState] (unit-tested on the VM); this is only its wiring.
+  /// Kick path (a): the room snapshot says this session is gone — this
+  /// challenger disappeared from the server's player list (admin Remove /
+  /// Remove-all). Players persist across challenges, so a new or cleared
+  /// challenge never kicks. Clears the session and routes back to the join
+  /// screen. Returns true if a kick was performed. The keep-vs-kick decision
+  /// itself is the pure [isKickedByState] (unit-tested on the VM); this is
+  /// only its wiring.
   bool _checkKick() {
     final session = _session;
     if (session == null) return false;
     if (!isKickedByState(
       playerId: session.playerId,
-      roundId: session.roundId,
       state: widget.roomSync.state,
     )) {
       return false;
@@ -207,7 +208,7 @@ class _ChallengeScreenState extends State<ChallengeScreen>
     return true;
   }
 
-  /// WI-012 kick path (b): /api/prompt rejected the session with a 403.
+  /// Kick path (b): /api/prompt rejected the session with a 403.
   void _onStaleSession() => _kick();
 
   void _kick() {
@@ -290,9 +291,9 @@ class _ChallengeScreenState extends State<ChallengeScreen>
               appBar: AppBar(
                 title: Row(
                   children: [
-                    // The display name is round-scoped server state — read
-                    // from the room, never from localStorage (WI-012). `me`
-                    // is null only during the reconnect window.
+                    // The display name is server state — read from the room,
+                    // never from localStorage (WI-012). `me` is null only
+                    // during the reconnect window.
                     Text('Challenger: ${me?.name ?? '…'}'),
                     const Spacer(),
                     switch (challenge.endTime) {

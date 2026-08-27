@@ -7,10 +7,12 @@ import 'package:web/web.dart' as web;
 /// without a re-join. No auth on the admin side — the network gate decides
 /// who reaches /admin at all.
 ///
-/// Stores ONLY opaque, round-scoped credentials: `(playerId, token,
-/// roundId)`. The display name is deliberately NOT stored — it is
-/// round-scoped server state (re-entered each round), read back from the
-/// room state, never from localStorage (WI-012).
+/// Stores ONLY opaque credentials: `(playerId, token, roundId)`. The identity
+/// is PLAYER-persistent — it survives challenge changes; only an admin
+/// Remove / Remove-all invalidates it (the playerId disappears from the
+/// server snapshot and the client self-evicts to name entry). The display
+/// name is deliberately NOT stored — it is server state, read back from the
+/// room snapshot, never from localStorage (WI-012).
 ///
 /// PLAYER-scoped key: the session identifies a joined contestant, so it
 /// lives under a player-only key. Admin (/admin) and audience (/show) are
