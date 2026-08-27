@@ -9,6 +9,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'llm_providers.dart';
 import 'models.dart';
 
 class PipelineException implements Exception {
@@ -18,11 +19,23 @@ class PipelineException implements Exception {
   String toString() => message;
 }
 
-/// Talks to the dart_services fork over plain HTTP (in-container, no CORS
-/// concerns). Streaming endpoints are consumed as chunked byte streams.
+/// Drives one challenger's generate/compile/fix pipeline.
+///
+/// Compile stays a plain HTTP call to the dart_services fork (Gemini cannot
+/// compile Dart — dart_services is the compile backend no matter what). The
+/// LLM generation half goes through a [CodeGenerator]: dart_services (Berget)
+/// primary, Gemini fallback when `GEMINI_API_KEY` is set. See
+/// llm_providers.dart for the provider contract and env gating.
 class Pipeline {
-  Pipeline({required this.backendBase, String? initialModel})
-    : model = initialModel ?? defaultModel;
+  /// [generator] is injectable for tests; when omitted it is built from the
+  /// environment (Berget primary, Gemini fallback iff `GEMINI_API_KEY`).
+  Pipeline({required this.backendBase, String? initialModel, CodeGenerator? generator})
+    : model = initialModel ?? defaultModel,
+      generator = generator ?? buildGeneratorFromEnv(backendBase: backendBase).generator;
+
+  /// The LLM behind generation/fix. Berget-via-dart_services is the primary;
+  /// Gemini (when configured) catches primary failures.
+  final CodeGenerator generator;
 
   /// e.g. `http://127.0.0.1:8300`
   final String backendBase;
@@ -173,62 +186,29 @@ class Pipeline {
     );
   }
 
+  /// Generation goes through the provider chain: Berget-via-dart_services
+  /// first, Gemini fallback on failure (see llm_providers.dart). The [client]
+  /// param is retained for signature compatibility but generation now owns its
+  /// own clients inside the providers.
   Future<String> _generate(String prompt, http.Client client) async {
     final effort = effortFor(model);
     print('[pipeline] generate START (${prompt.length} chars, model=$model'
         '${effort != null ? ', effort=$effort' : ''})');
-    final request = http.Request(
-      'POST',
-      Uri.parse('$backendBase/api/v3/generateCode'),
-    )
-      ..headers['Content-Type'] = 'application/json'
-      ..body = jsonEncode({
-        'appType': 'flutter',
-        'prompt': prompt,
-        'attachments': <String>[],
-        'model': model,
-        if (effort != null) 'reasoning_effort': effort,
-      });
-    final result = await _streamText(request, 'generateCode', client);
+    final result = await generator.generateCode(
+      prompt: prompt,
+      model: model,
+      reasoningEffort: effort,
+    );
     print('[pipeline] generate DONE (${result.length} chars)');
     return result;
   }
 
   Future<String> _suggestFix(String source, List<String> problems, http.Client client) async {
-    final request = http.Request(
-      'POST',
-      Uri.parse('$backendBase/api/v3/suggestFix'),
-    )
-      ..headers['Content-Type'] = 'application/json'
-      ..body = jsonEncode({
-        'appType': 'flutter',
-        'errorMessage': problems.join('\n'),
-        'line': 0,
-        'column': 0,
-        'source': source,
-        'model': model,
-        if (effortFor(model) case final e?) 'reasoning_effort': e,
-      });
-    return _streamText(request, 'suggestFix', client);
-  }
-
-  /// POSTs a streaming endpoint and accumulates the whole text body. A
-  /// silently truncated stream is indistinguishable from success here, so the
-  /// caller validates the result (compile) — that is the pipeline's contract.
-  Future<String> _streamText(http.Request request, String label, http.Client client) async {
-    print('[pipeline] $label send -> ${request.url}');
-    final sw = Stopwatch()..start();
-    final response = await client
-        .send(request)
-        .timeout(const Duration(minutes: 3));
-    print('[pipeline] $label response ${response.statusCode} after ${sw.elapsedMilliseconds}ms');
-    if (response.statusCode != 200) {
-      final body = await response.stream.bytesToString();
-      throw PipelineException('$label HTTP ${response.statusCode}: $body');
-    }
-    final text = await response.stream.bytesToString();
-    print('[pipeline] $label stream complete (${text.length} chars)');
-    return text;
+    return generator.suggestFix(
+      source: source,
+      errorMessage: problems.join('\n'),
+      model: model,
+    );
   }
 
   /// Minimal round-trip used by /api/probe-generate: generates for the given

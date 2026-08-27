@@ -1,8 +1,11 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_in_the_dark/helpers/challenge_window.dart';
+import 'package:flutter_in_the_dark/room/room_client.dart';
 import 'package:flutter_in_the_dark/room/room_models.dart';
 import 'package:flutter_in_the_dark/room/room_sync.dart';
 import 'package:flutter_in_the_dark/widgets/challenge_picker.dart';
-import 'package:flutter/material.dart';
 
 /// The host's control screen. Reached ONLY via the Tailscale-facing listener
 /// — the public route never serves /admin at all, so there is no app-level
@@ -43,6 +46,8 @@ class _AdminScreenState extends State<AdminScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                _ProviderPickerCard(roomSync: widget.roomSync),
+                const SizedBox(height: 16),
                 _ModelPickerCard(roomSync: widget.roomSync, state: state),
                 const SizedBox(height: 16),
                 _AudienceViewCard(roomSync: widget.roomSync, state: state),
@@ -54,6 +59,148 @@ class _AdminScreenState extends State<AdminScreen> {
                 _PlayersCard(roomSync: widget.roomSync, state: state),
               ],
             ),
+    );
+  }
+}
+
+/// Live LLM-provider failover: Auto (Berget → Gemini fallback), forced
+/// Berget, or forced Gemini. For live competition use — if Berget is degraded
+/// (slow, bad output) but not erroring, the operator flips to Gemini without
+/// a redeploy. Server state is in-memory and resets to Auto on restart, so
+/// this card fetches the current mode on load (it is not part of the SSE
+/// room state). A 409 (Gemini forced with no API key) is surfaced to the
+/// operator and the selection reverts.
+class _ProviderPickerCard extends StatefulWidget {
+  const _ProviderPickerCard({required this.roomSync});
+
+  final RoomSync roomSync;
+
+  @override
+  State<_ProviderPickerCard> createState() => _ProviderPickerCardState();
+}
+
+class _ProviderPickerCardState extends State<_ProviderPickerCard> {
+  /// Null until the first fetch completes (or if it fails).
+  ProviderState? _provider;
+
+  /// True while a setProvider call is in flight — the button is disabled so
+  /// a double-tap can't race two overrides.
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+  }
+
+  Future<void> _fetch() async {
+    try {
+      final provider = await widget.roomSync.client.fetchProvider();
+      if (mounted) setState(() => _provider = provider);
+    } catch (_) {
+      // Leave _provider null — the card shows a retry button.
+    }
+  }
+
+  Future<void> _select(ProviderMode mode) async {
+    setState(() => _busy = true);
+    try {
+      await widget.roomSync.client.setProvider(mode: mode);
+      if (mounted) {
+        setState(
+          () => _provider = ProviderState(
+            mode: mode,
+            geminiAvailable: _provider?.geminiAvailable ?? true,
+          ),
+        );
+      }
+    } on RoomPostException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Provider not changed: ${_errorMessage(e)}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Pulls the server's `{"error": "..."}` message out of the failure body;
+  /// falls back to the raw body when it isn't JSON of that shape.
+  static String _errorMessage(RoomPostException e) {
+    try {
+      final decoded = jsonDecode(e.body);
+      if (decoded case {'error': final String message}) return message;
+    } catch (_) {}
+    return e.body;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = _provider;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'LLM provider',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'applies live — no restart · resets to Auto on restart',
+                  style: TextStyle(color: Colors.white38, fontSize: 12),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (provider == null)
+              Row(
+                children: [
+                  const Text(
+                    'Provider state unavailable.',
+                    style: TextStyle(color: Colors.white38),
+                  ),
+                  const SizedBox(width: 12),
+                  OutlinedButton(onPressed: _fetch, child: const Text('Retry')),
+                ],
+              )
+            else ...[
+              SegmentedButton<ProviderMode>(
+                segments: [
+                  for (final mode in ProviderMode.values)
+                    ButtonSegment(
+                      value: mode,
+                      label: Text(mode.label),
+                      enabled:
+                          mode != ProviderMode.gemini ||
+                          provider.geminiAvailable,
+                    ),
+                ],
+                selected: {provider.mode},
+                onSelectionChanged: _busy
+                    ? null
+                    : (selection) => _select(selection.first),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                provider.geminiAvailable
+                    ? provider.mode.description
+                    : '${provider.mode.description} · Gemini unavailable '
+                          '(GEMINI_API_KEY not set)',
+                style: const TextStyle(color: Colors.white24, fontSize: 12),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

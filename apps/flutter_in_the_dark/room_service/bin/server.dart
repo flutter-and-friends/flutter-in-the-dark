@@ -24,6 +24,7 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
 
 import 'package:flutter_in_the_dark_room_service/challenges.dart';
+import 'package:flutter_in_the_dark_room_service/llm_providers.dart';
 import 'package:flutter_in_the_dark_room_service/models.dart';
 import 'package:flutter_in_the_dark_room_service/pipeline.dart' as gen;
 import 'package:flutter_in_the_dark_room_service/room.dart';
@@ -45,12 +46,20 @@ Future<void> main(List<String> args) async {
   // Seed the pipeline's model from the env (so the boot default matches
   // dart_services' BERGET_MODEL); the admin picker overrides it live after.
   final initialModel = Platform.environment['BERGET_MODEL'];
+  // Build the provider chain here (rather than inside Pipeline's default) so
+  // the boot log can name the active providers — a stale GEMINI_API_KEY must
+  // be visible at startup, not hide behind a silent fallback (W-022).
+  final providers = buildGeneratorFromEnv(
+    backendBase: results['backend'] as String,
+  );
   final pipeline = gen.Pipeline(
     backendBase: results['backend'] as String,
     initialModel: (initialModel != null && initialModel.isNotEmpty)
         ? initialModel
         : null,
+    generator: providers.generator,
   );
+  stdout.writeln('LLM providers: ${providers.providersDescription}');
   final room = RoomState(
     pipeline: pipeline,
     stateFile: stateFilePath.isEmpty ? null : File(stateFilePath),
@@ -284,6 +293,40 @@ Future<void> main(List<String> args) async {
     if (model.isEmpty) return _badRequest('model is required');
     room.setModel(model);
     return _json({'ok': true, 'activeModel': model});
+  });
+
+  // Live provider override (operator backstop for Berget/Gemini incidents).
+  // Same Tailscale gate and in-memory lifecycle as the model picker: boot
+  // default is `auto`, a restart returns to it. `gemini` is rejected with
+  // 409 when no GEMINI_API_KEY is configured — forcing an absent provider
+  // would only surface as a failed generation later.
+  router.post('/api/admin/provider', (Request request) async {
+    final body = await _readJson(request);
+    final raw = body['provider'] as String? ?? '';
+    final next = ProviderMode.values.asNameMap()[raw];
+    if (next == null) {
+      return _badRequest('provider must be auto|berget|gemini');
+    }
+    try {
+      providers.generator.setMode(next);
+    } on StateError catch (e) {
+      return Response(
+        409,
+        body: jsonEncode({'error': e.message}),
+        headers: {'Content-Type': 'application/json; charset=utf-8'},
+      );
+    }
+    return _json({'ok': true, 'provider': next.name});
+  });
+
+  router.get('/api/admin/provider', (Request request) {
+    return _json({
+      'provider': providers.generator.mode.name,
+      'available': {
+        'berget': true,
+        'gemini': providers.generator.geminiAvailable,
+      },
+    });
   });
 
   // Benchmark backfill: pushes realistic-prompt reliability numbers for a model
