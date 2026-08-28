@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// Build marker: git short hash + build timestamp, baked in at build time via
 ///
 ///   flutter build web \
@@ -28,9 +26,12 @@ String get buildTime => _buildTime.isEmpty ? 'local' : _buildTime;
 /// (`FITD build dev · local` on an un-flagged local run).
 String get buildMarker => 'FITD build $buildGitHash · $buildTime';
 
-/// Prints the marker to the browser console. `debugPrint` (unlike bare
-/// `print`) is kept by dart2js in release web builds and throttles the way
-/// Flutter expects; called once from `main()` so every route logs it.
+/// Prints the marker to the browser console. Uses bare `print` (→
+/// `console.log`) rather than `debugPrint` (→ `console.debug`): Chrome's
+/// console hides `console.debug` unless Verbose is enabled, and the marker
+/// exists precisely to be SEEN on a casual F12. Called once from `main()`
+/// so every route logs it.
+// ignore_for_file: avoid_print
 void logBuildMarker() {
-  debugPrint(buildMarker);
+  print(buildMarker);
 }
