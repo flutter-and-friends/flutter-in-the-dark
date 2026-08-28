@@ -73,6 +73,13 @@ class MainApp extends StatelessWidget {
               settings: settings,
               builder: (context) => BurnTestPage.fromSettings(settings),
             );
+          // Burn-free steering harness for the /show overlay widgets
+          // (pill / time-over banner) — screenshot without room_service.
+          case '/show_mock':
+            return MaterialPageRoute(
+              settings: settings,
+              builder: (context) => ShowMockPage.fromSettings(settings),
+            );
           default:
             return MaterialPageRoute(
               builder: (context) => PlayerSelectionScreen(roomSync: roomSync),

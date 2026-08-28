@@ -17,6 +17,7 @@ import 'package:flutter_in_the_dark/widgets/compiled_widget.dart';
 import 'package:flutter_in_the_dark/widgets/countdown_overlay.dart';
 import 'package:flutter_in_the_dark/widgets/plasma_loader.dart';
 import 'package:flutter_in_the_dark/widgets/prompt_editor.dart';
+import 'package:flutter_in_the_dark/widgets/show_overlay.dart';
 import 'package:flutter_in_the_dark/room/room_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -338,6 +339,13 @@ class _ChallengeScreenState extends State<ChallengeScreen>
                   duration: challenge.endTime.difference(DateTime.now()),
                 ),
               ),
+            ),
+            // The same big auto-dismissing "TIME OVER!" flash as /show,
+            // driven by the host's wall-clock ticker (_tick → setState) and
+            // keyed to challenge.endTime — the player sees the pop + 5 s
+            // dismiss, not just the small AppBar "Time over!".
+            Positioned.fill(
+              child: TimeOverBanner(endTime: challenge.endTime),
             ),
             if (done && !_endHandled)
               Positioned.fill(
