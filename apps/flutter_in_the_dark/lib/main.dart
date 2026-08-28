@@ -1,3 +1,4 @@
+import 'package:flutter_in_the_dark/build_marker.dart';
 import 'package:flutter_in_the_dark/override_en_timeago.dart';
 import 'package:flutter_in_the_dark/room/room_sync.dart';
 import 'package:flutter_in_the_dark/screens/admin_screen.dart';
@@ -12,6 +13,9 @@ import 'package:timeago_flutter/timeago_flutter.dart'
     show setDefaultLocale, setLocaleMessages;
 
 Future<void> main() async {
+  // Build marker first: every route logs hash+timestamp to the browser
+  // console so a stale deploy-cache page is identifiable at a glance.
+  logBuildMarker();
   usePathUrlStrategy();
   WidgetsFlutterBinding.ensureInitialized();
   setLocaleMessages('en', OverrideEnTimeAgo());

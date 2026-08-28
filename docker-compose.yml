@@ -187,6 +187,14 @@ services:
     build:
       context: .
       dockerfile: deploy/Dockerfile.app
+      args:
+        # Build-version marker (see deploy/Dockerfile.app). Computed on the
+        # HOST — the build stage has no .git. Use deploy/build_app.sh (or
+        # export both vars before `docker compose build app`) so the marker
+        # carries the real hash; unset → the app falls back to its `dev`
+        # marker, never a crash.
+        GIT_HASH: ${GIT_HASH:-}
+        BUILD_TIME: ${BUILD_TIME:-}
     image: flutter-in-the-dark-app:local
     restart: unless-stopped
     labels:
