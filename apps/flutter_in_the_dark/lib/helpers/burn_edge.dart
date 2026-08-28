@@ -65,6 +65,15 @@ class BurnEdge {
   final List<double> _phases = [];
   final List<double> _amplitudes = [];
 
+  /// Seed-derived per-frequency phases (radians), in `_frequencies` order.
+  /// Exposed read-only for the fragment-shader port (`widgets/burn_shader.dart`),
+  /// which recomputes [radiusScaleAt] in GLSL and needs the same phases.
+  List<double> get phases => List.unmodifiable(_phases);
+
+  /// Normalized per-frequency amplitudes (sum == 1), in `_frequencies` order.
+  /// Exposed read-only for the fragment-shader port.
+  List<double> get amplitudes => List.unmodifiable(_amplitudes);
+
   /// The radial multiplier at polar angle [theta] (radians). Smooth,
   /// periodic (`radiusScaleAt(0) == radiusScaleAt(2π)` exactly), bounded to
   /// [minScale]..[maxScale], and identical for identical (seed, theta).

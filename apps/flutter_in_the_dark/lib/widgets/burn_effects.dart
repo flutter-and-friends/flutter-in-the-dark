@@ -18,6 +18,13 @@
 /// (a fresh seed per burn — never per frame — so the shape scales outward
 /// with progress without shimmering).
 ///
+/// PRODUCTION uses the `FragmentProgram` rewrite in `burn_shader.dart`
+/// (see that file for why — the dstOut mask forced a full-screen saveLayer
+/// plus a full-screen `toImageSync` re-raster EVERY frame of the burn).
+/// This mask implementation is kept as the `/burn_test` A/B baseline
+/// (`?burnMode=mask`) and for the structural widget tests in
+/// `test/burn_effects_test.dart`.
+///
 /// This file imports `package:flutter/material.dart`, NOT `package:web`,
 /// so it stays widget-test friendly. It still must not be imported from
 /// `helpers/` (W-012): pure geometry lives in `burn_edge.dart` /
