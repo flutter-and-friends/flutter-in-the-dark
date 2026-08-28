@@ -1,8 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_in_the_dark/helpers/session_identity.dart';
 import 'package:flutter_in_the_dark/room/room_sync.dart';
 import 'package:flutter_in_the_dark/room/session_store.dart';
 import 'package:flutter_in_the_dark/screens/challenge_screen.dart';
-import 'package:flutter/material.dart';
 
 /// Challenger entry point. Boot flow:
 ///  - A stored session the server still knows (or can't be checked yet)
@@ -124,33 +124,131 @@ class _PlayerSelectionScreenState extends State<PlayerSelectionScreen> {
     if (_resuming) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Join the Challenge')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TextField(
-                controller: _nameController,
-                onSubmitted: (_) => _startChallenge(),
-                decoration: const InputDecoration(
-                  labelText: 'Enter your name',
-                  border: OutlineInputBorder(),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Backdrop glow: the same midnight palette as the /show player
+          // cards (#0D1117/#161B22), so a joining player's first frame
+          // already feels like the game rather than a bare form.
+          Container(
+            decoration: const BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(0, -0.35),
+                radius: 1.3,
+                colors: [Color(0xFF17202E), Color(0xFF0B0E14)],
+              ),
+            ),
+          ),
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'FLUTTER IN THE DARK',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 3,
+                        color: Colors.white,
+                        shadows: const [
+                          Shadow(blurRadius: 24, color: Color(0xFF58A6FF)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'One prompt. One widget. Beat the clock.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: Colors.white54,
+                      ),
+                    ),
+                    const SizedBox(height: 36),
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D1117),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFF30363D)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'Join the challenge',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: _nameController,
+                            autofocus: true,
+                            textInputAction: TextInputAction.go,
+                            onSubmitted: (_) => _startChallenge(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Your name',
+                              hintText: 'The name the audience will see',
+                              prefixIcon: const Icon(Icons.bolt),
+                              filled: true,
+                              fillColor: const Color(0xFF161B22),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF30363D),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF58A6FF),
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            height: 52,
+                            child: _isLoading
+                                ? const Center(
+                                    child: CircularProgressIndicator(),
+                                  )
+                                : FilledButton.icon(
+                                    onPressed: _startChallenge,
+                                    icon: const Icon(Icons.play_arrow),
+                                    label: const Text(
+                                      'Start Challenge',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-              if (_isLoading)
-                const CircularProgressIndicator()
-              else
-                ElevatedButton(
-                  onPressed: _startChallenge,
-                  child: const Text('Start Challenge'),
-                ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
