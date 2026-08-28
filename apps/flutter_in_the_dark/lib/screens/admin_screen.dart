@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_in_the_dark/build_marker.dart';
 import 'package:flutter_in_the_dark/helpers/challenge_window.dart';
 import 'package:flutter_in_the_dark/room/room_client.dart';
 import 'package:flutter_in_the_dark/room/room_models.dart';
@@ -40,7 +41,10 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget build(BuildContext context) {
     final state = widget.roomSync.state;
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin — Prompting in the Dark')),
+      appBar: AppBar(
+        title: const Text('Admin — Prompting in the Dark'),
+        actions: const [_BuildMarkerChip(), SizedBox(width: 8)],
+      ),
       body: state == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -59,6 +63,29 @@ class _AdminScreenState extends State<AdminScreen> {
                 _PlayersCard(roomSync: widget.roomSync, state: state),
               ],
             ),
+    );
+  }
+}
+
+/// Subtle build-version chip (admin only — no other screen gets visible UI).
+/// Shows the same git hash + build time that [logBuildMarker] prints to the
+/// console, so the operator can confirm a reload picked up the newest deploy.
+/// Deliberately quiet: small, low-emphasis text, no event theming.
+class _BuildMarkerChip extends StatelessWidget {
+  const _BuildMarkerChip();
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: Theme.of(context).colorScheme.outline,
+      fontFamily: 'monospace',
+      fontSize: 11,
+    );
+    return Tooltip(
+      message: buildMarker,
+      child: Center(
+        child: Text('$buildGitHash · $buildTime', style: style),
+      ),
     );
   }
 }

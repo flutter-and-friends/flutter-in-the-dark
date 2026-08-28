@@ -59,12 +59,23 @@ COPY apps/flutter_in_the_dark apps/flutter_in_the_dark
 WORKDIR /src/apps/flutter_in_the_dark
 RUN flutter pub get
 
+# Build-version marker (deploy-cache trap: the marker is how a human tells a
+# stale reload from the newest deploy). The hash/timestamp are passed in as
+# BUILD ARGS from the compose/host side — the build stage has NO .git (the
+# COPY list above is pubspec/melos/apps only), so `git rev-parse` cannot run
+# here. docker-compose.yml supplies both from the host; a bare
+# `docker build` without the args falls back to the app's `dev` marker.
+ARG GIT_HASH=
+ARG BUILD_TIME=
+
 # --no-tree-shake-icons: the app renders json_dynamic_widget-style dynamic
 # icon references (W-156 class of bug: tree-shaken icons white-screen the
 # release build while dev looks fine).
 RUN flutter build web --release --no-tree-shake-icons \
       --dart-define=ROOM_URL=https://backend.flutterinthedark.dev \
-      --dart-define=DART_SERVICES_URL=https://backend.flutterinthedark.dev
+      --dart-define=DART_SERVICES_URL=https://backend.flutterinthedark.dev \
+      --dart-define=GIT_HASH=${GIT_HASH} \
+      --dart-define=BUILD_TIME=${BUILD_TIME}
 
 FROM nginx:1.27-alpine
 COPY deploy/nginx-app.conf /etc/nginx/conf.d/default.conf

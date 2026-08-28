@@ -22,7 +22,14 @@ command:
 
 scripts:
   build_web:
-    run: melos exec -- flutter build web
+    # Bakes the build-version marker (git short hash + UTC timestamp) so the
+    # console log / admin chip show real values outside Docker too. A plain
+    # `flutter run`/`flutter build web` without the defines falls back to
+    # the app's `dev` marker — never a crash.
+    run: |
+      melos exec -- flutter build web \
+        --dart-define=GIT_HASH=$(git rev-parse --short HEAD) \
+        --dart-define=BUILD_TIME=$(date -u +%Y-%m-%dT%H:%MZ)
   fix:
     run: melos exec -- dart fix --apply
   upgrade:
