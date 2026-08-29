@@ -2,27 +2,37 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_in_the_dark/helpers/burn_edge.dart';
+import 'package:flutter_in_the_dark/helpers/burn_knobs.dart';
 import 'package:flutter_in_the_dark/helpers/burn_phase.dart';
 import 'package:flutter_in_the_dark/widgets/burn_effects.dart';
+import 'package:flutter_in_the_dark/widgets/burn_shader.dart';
 
 /// Debug knobs for [/burn_test], parsed from the route's query string by
-/// [BurnTestPage.fromSettings] (pure — no `dart:js_interop`, unlike
-/// `BurnDebug` in `widgets/burn_reveal.dart`, so this file stays
-/// testable per W-012):
+/// [BurnTestPage.fromSettings]. This is a thin typed view over the SHARED
+/// [BurnKnobs] parser (SHADOW-005: the production overlay and this page
+/// used to parse the same knobs twice, which could drift).
 ///
 ///  - `?burnSlow=<x>` multiplies the burn duration (e.g. `burnSlow=5`),
 ///  - `?burnHold=<0..1>` freezes the burn at exactly that progress and
-///    parks the loop there — for steering/screenshotting the look.
+///    parks the loop there — for steering/screenshotting the look,
+///  - `?burnMode=mask|shader` selects the implementation under test:
+///    `shader` (default) = production `BurnShaderOverlay`;
+///    `mask` = the old `BurnHoleMask`+`BurnPainter` A/B baseline.
 class BurnTestKnobs {
-  const BurnTestKnobs({this.slowFactor = 1, this.holdAt});
+  const BurnTestKnobs({
+    this.slowFactor = 1,
+    this.holdAt,
+    this.mode = BurnMode.shader,
+  });
 
   /// Parses the knobs from a route name's query string
-  /// (`/burn_test?burnSlow=5&burnHold=0.5`).
+  /// (`/burn_test?burnSlow=5&burnHold=0.5&burnMode=mask`).
   factory BurnTestKnobs.parse(String? routeName) {
-    final query = Uri.parse(routeName ?? '/').queryParameters;
+    final knobs = BurnKnobs.parse(routeName);
     return BurnTestKnobs(
-      slowFactor: _slow(query),
-      holdAt: _hold(query),
+      slowFactor: knobs.slowFactor,
+      holdAt: knobs.holdAt,
+      mode: knobs.mode,
     );
   }
 
@@ -31,16 +41,8 @@ class BurnTestKnobs {
   /// When non-null the burn is held at exactly this progress (0–1).
   final double? holdAt;
 
-  static double _slow(Map<String, String> query) {
-    final value = double.tryParse(query['burnSlow'] ?? '');
-    if (value == null || value <= 0) return 1;
-    return value;
-  }
-
-  static double? _hold(Map<String, String> query) {
-    final value = double.tryParse(query['burnHold'] ?? '');
-    return value?.clamp(0.0, 1.0);
-  }
+  /// Which burn implementation to render.
+  final BurnMode mode;
 }
 
 /// Looping burn-reveal demo phases: the "paper" (countdown display) burns
@@ -76,27 +78,38 @@ double loopProgressAt(Duration t, Duration burnDuration) {
   return raw / burn;
 }
 
-/// Standalone `/burn_test` route: the REAL production burn visuals (the
-/// shared `BurnHoleMask` + `BurnPainter` from `widgets/burn_effects.dart` —
-/// the same widgets `BurnRevealOverlay` uses — no longer a private copy)
-/// looping forever over a dummy stand-in challenge background.
+/// Standalone `/burn_test` route: the REAL production burn visuals looping
+/// forever over a dummy stand-in challenge background. Default is the
+/// production [BurnShaderOverlay] (`widgets/burn_shader.dart`); pass
+/// `?burnMode=mask` for the old `BurnHoleMask`+`BurnPainter` baseline
+/// (`widgets/burn_effects.dart`) as an A/B.
 ///
 /// No room_service, no SSE, no RoomSync, no wall-clock gates (I-008): an
 /// [AnimationController] drives the burn, its completion listener starts
 /// the hold, and the hold timer restarts the loop. Each loop iteration
 /// re-seeds the jagged edge so no two burns share a silhouette.
 class BurnTestPage extends StatefulWidget {
-  const BurnTestPage({super.key, this.slowFactor = 1, this.holdAt});
+  const BurnTestPage({
+    super.key,
+    this.slowFactor = 1,
+    this.holdAt,
+    this.mode = BurnMode.shader,
+  });
 
   /// Convenience constructor for `onGenerateRoute`: parses the knobs from
   /// the route's query string (`/burn_test?burnSlow=5&burnHold=0.5`).
   factory BurnTestPage.fromSettings(RouteSettings settings) {
     final knobs = BurnTestKnobs.parse(settings.name);
-    return BurnTestPage(slowFactor: knobs.slowFactor, holdAt: knobs.holdAt);
+    return BurnTestPage(
+      slowFactor: knobs.slowFactor,
+      holdAt: knobs.holdAt,
+      mode: knobs.mode,
+    );
   }
 
   final double slowFactor;
   final double? holdAt;
+  final BurnMode mode;
 
   @override
   State<BurnTestPage> createState() => _BurnTestPageState();
@@ -167,13 +180,24 @@ class _BurnTestPageState extends State<BurnTestPage>
               animation: _burn,
               builder: (context, _) {
                 final progress = _burn.value;
+                if (widget.mode == BurnMode.shader) {
+                  // PRODUCTION path: the same BurnShaderOverlay the real
+                  // reveal uses (shader paper + hole, countdown text faded
+                  // above it, warmup absorbed at mount).
+                  return AbsorbPointer(
+                    child: BurnShaderOverlay(
+                      progress: progress,
+                      edge: _edge,
+                      countdownBuilder: (context) => const _CountdownPaper(),
+                    ),
+                  );
+                }
+                // A/B baseline: the old mask implementation — BurnHoleMask
+                // erases the jagged burned hole through the paper and
+                // BurnPainter draws char + flame along the same contour.
                 return Stack(
                   fit: StackFit.expand,
                   children: [
-                    // The countdown display is the "paper": the BurnHoleMask
-                    // erases the jagged burned hole through IT and the
-                    // painter draws char + flame on top — the exact stack
-                    // production uses in BurnRevealOverlay.
                     AbsorbPointer(
                       child: BurnHoleMask(
                         progress: progress,
