@@ -23,14 +23,24 @@
 /// [BurnRevealController.tick], which starts/stops the burn
 /// [AnimationController] — a Listenable, so the handoff repaints even when
 /// no SSE event arrives at the boundary (I-008).
+///
+/// Rendering: the overlay is drawn by [BurnShaderOverlay]
+/// (`widgets/burn_shader.dart`) — a single `CustomPaint` + `FragmentProgram`
+/// that computes the hole/char/flame per-pixel. It replaced the
+/// `ShaderMask`+`BlendMode.dstOut` mask (`widgets/burn_effects.dart`, kept
+/// as the `/burn_test` A/B baseline), which re-rasterized the full-screen
+/// hole via `PictureRecorder.toImageSync` on every frame AND forced a
+/// full-screen dstOut saveLayer — the measured source of the 20–90 ms burn
+/// frames (now ~10 ms p50).
 library;
 
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_in_the_dark/helpers/burn_edge.dart';
+import 'package:flutter_in_the_dark/helpers/burn_knobs.dart';
 import 'package:flutter_in_the_dark/helpers/burn_phase.dart';
-import 'package:flutter_in_the_dark/widgets/burn_effects.dart';
+import 'package:flutter_in_the_dark/widgets/burn_shader.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:web/web.dart' as web;
 
@@ -42,36 +52,22 @@ import 'package:web/web.dart' as web;
 ///    that progress forever) — for steering/screenshotting the look.
 ///
 /// These exist so the ~1 s animation can be captured/screenshot; they are
-/// inert without the query params and must never be wired to real UI.
+/// inert without the query params and must never be wired to real UI. The
+/// parsing itself is the shared [BurnKnobs] (SHADOW-005: one parser, used
+/// by both this overlay and `/burn_test`).
 class BurnDebug {
   BurnDebug._();
 
-  static final bool enabled =
-      web.window.location.search.contains('burnDebug=1');
+  static final BurnKnobs _knobs =
+      BurnKnobs.parse(web.window.location.search);
 
-  static final double slowFactor = _parseSlow();
+  static bool get enabled => _knobs.debug;
+
+  static double get slowFactor => _knobs.slowFactor;
 
   /// When non-null the burn is held at exactly this progress (0–1) and the
   /// countdown → reveal handoff is suspended. Debug-only.
-  static final double? holdAt = _parseHold();
-
-  static double _parseSlow() {
-    final match = RegExp('[?&]burnSlow=([0-9.]+)').firstMatch(
-      web.window.location.search,
-    );
-    final value = double.tryParse(match?.group(1) ?? '');
-    if (value == null || value <= 0) return 1;
-    return value;
-  }
-
-  static double? _parseHold() {
-    final match = RegExp('[?&]burnHold=([0-9.]+)').firstMatch(
-      web.window.location.search,
-    );
-    final value = double.tryParse(match?.group(1) ?? '');
-    if (value == null) return null;
-    return value.clamp(0.0, 1.0);
-  }
+  static double? get holdAt => _knobs.holdAt;
 }
 
 /// The countdown → burn → revealed phase machine. Pure Listenable glue: the
@@ -250,29 +246,19 @@ class BurnRevealOverlay extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // The countdown display is the "paper": the BurnHoleMask
-              // erases the jagged burned hole through IT (numbers char and
-              // ignite along with the background), and the painter draws
-              // char + flame on top ALONG THE SAME contour. The layer
-              // keeps blocking pointer input until it is gone — the
+              // The shader overlay IS the "paper" that burns: it draws the
+              // opaque background + the jagged hole + char + flame in ONE
+              // fragment-shader pass (no dstOut saveLayer, no per-frame
+              // rasterization). The countdown display is stacked ABOVE it
+              // inside BurnShaderOverlay and faded out as ignition starts
+              // (a shader can't draw widget text — see that class). The
+              // layer keeps blocking pointer input until it is gone — the
               // countdown is not over yet.
               AbsorbPointer(
-                child: BurnHoleMask(
+                child: BurnShaderOverlay(
                   progress: progress,
                   edge: edge,
-                  // Opaque base so the semi-transparent countdown display
-                  // (CountdownOverlay is black54) still fully hides the
-                  // pre-warmed iframe until the burn opens a hole.
-                  child: ColoredBox(
-                    color: Theme.of(context).scaffoldBackgroundColor,
-                    child: countdownBuilder(context),
-                  ),
-                ),
-              ),
-              IgnorePointer(
-                child: CustomPaint(
-                  painter: BurnPainter(progress: progress, edge: edge),
-                  child: const SizedBox.expand(),
+                  countdownBuilder: countdownBuilder,
                 ),
               ),
               if (BurnDebug.enabled)
