@@ -327,10 +327,13 @@ class _ChallengeScreenState extends State<ChallengeScreen>
             // End-of-challenge countdown → burn reveal (same widget as
             // /show): the prompt screen burns away center-out at zero,
             // revealing the already-mounted done screen underneath. The
-            // overlay is pointer-transparent while idle (it shrinks) and
-            // self-blocks (PointerInterceptor + AbsorbPointer) once the
-            // countdown/burn is up, so the live prompt UI keeps working
-            // right up to the 10 s gate.
+            // overlay is pointer-transparent while idle (it shrinks), and
+            // once the 10 s countdown gate fires it stays VISIBLE BUT
+            // NON-BLOCKING — the live prompt UI keeps focus and accepts
+            // input right up to the burn window (the last ~1 s, spanning
+            // the zero crossing), when the overlay self-blocks
+            // (PointerInterceptor + AbsorbPointer) because the challenge is
+            // over by then. See BurnRevealController.isBlocking.
             Positioned.fill(
               child: BurnRevealOverlay(
                 controller: _burn,

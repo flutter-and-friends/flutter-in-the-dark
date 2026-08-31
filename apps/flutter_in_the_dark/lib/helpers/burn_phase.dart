@@ -50,6 +50,13 @@ const double kBurnSeconds = 1.0;
 /// seconds.
 const int kCountdownSeconds = 10;
 
+/// The end-of-challenge blocking gate: until the remaining time drops to
+/// this many seconds the overlay must stay NON-blocking — the challenge is
+/// still live and the player must be able to keep typing underneath the
+/// countdown. At/below it (the burn window, whose tail crosses zero), the
+/// challenge is over and the overlay blocks like the waiting gate.
+const double kBlockingSeconds = kBurnSeconds;
+
 /// Whether the burn should be playing at [remaining] seconds left.
 bool isBurning(double remaining) =>
     remaining <= kBurnSeconds && remaining > 0;

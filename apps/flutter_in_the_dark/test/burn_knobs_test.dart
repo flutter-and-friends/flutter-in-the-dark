@@ -47,6 +47,18 @@ void main() {
       expect(BurnKnobs.parse(null).slowFactor, 1);
       expect(BurnKnobs.parse('').slowFactor, 1);
     });
+
+    test('burnSeconds defaults to null (anchored at the wall-clock end)', () {
+      expect(BurnKnobs.parse('/x').burnSeconds, isNull);
+    });
+
+    test('burnSeconds parses a positive value; invalid values fall back', () {
+      expect(BurnKnobs.parse('/x?burnSeconds=15').burnSeconds, 15);
+      expect(BurnKnobs.parse('/x?burnSeconds=2.5').burnSeconds, 2.5);
+      expect(BurnKnobs.parse('/x?burnSeconds=0').burnSeconds, isNull);
+      expect(BurnKnobs.parse('/x?burnSeconds=-3').burnSeconds, isNull);
+      expect(BurnKnobs.parse('/x?burnSeconds=abc').burnSeconds, isNull);
+    });
   });
 
   group('burnTextOpacity', () {
