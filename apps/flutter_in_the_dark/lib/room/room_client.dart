@@ -56,6 +56,7 @@ class RoomClient {
       web.window.location.hostname.endsWith('.ts.net');
 
   static String get defaultBaseUrl {
+    return backendUrl;
     if (_onTailnetAlias) return web.window.location.origin;
     if (_envBaseUrl == _sameOrigin) return web.window.location.origin;
     if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
@@ -72,6 +73,7 @@ class RoomClient {
   /// dart_services URLs, and loading them cross-origin from the apex is
   /// allowed (no X-Frame-Options; ACAO `*` on the responses).
   static String get compileBaseUrl {
+    return backendUrl;
     const env = String.fromEnvironment('DART_SERVICES_URL');
     if (_onTailnetAlias) return web.window.location.origin;
     if (env == _sameOrigin) return web.window.location.origin;
@@ -133,9 +135,8 @@ class RoomClient {
 
   /// The server-side challenge catalog for the admin picker.
   Future<List<ChallengeInfo>> fetchChallenges() async {
-    final response = await web.window
-        .fetch('$baseUrl/api/admin/challenges'.toJS)
-        .toDart;
+    final response =
+        await web.window.fetch('$baseUrl/api/admin/challenges'.toJS).toDart;
     final text = (await response.text().toDart).toDart;
     if (!response.ok) {
       throw RoomPostException(response.status, text);
@@ -150,9 +151,8 @@ class RoomClient {
   /// The live provider routing for the admin provider picker
   /// (`GET /api/admin/provider`). Throws [RoomPostException] on non-200.
   Future<ProviderState> fetchProvider() async {
-    final response = await web.window
-        .fetch('$baseUrl/api/admin/provider'.toJS)
-        .toDart;
+    final response =
+        await web.window.fetch('$baseUrl/api/admin/provider'.toJS).toDart;
     final text = (await response.text().toDart).toDart;
     if (!response.ok) {
       throw RoomPostException(response.status, text);
@@ -203,7 +203,10 @@ class RoomClient {
       throw RoomPostException(response.status, text);
     }
     final json = (jsonDecode(text) as Map).cast<String, dynamic>();
-    return (known: json['known'] as bool? ?? false, name: json['name'] as String?);
+    return (
+      known: json['known'] as bool? ?? false,
+      name: json['name'] as String?
+    );
   }
 
   /// Joins the room. Request is `{name}` only — the server always mints a
@@ -226,11 +229,12 @@ class RoomClient {
     required String playerId,
     required String token,
     required String prompt,
-  }) => _post('/api/prompt', {
-    'playerId': playerId,
-    'token': token,
-    'prompt': prompt,
-  });
+  }) =>
+      _post('/api/prompt', {
+        'playerId': playerId,
+        'token': token,
+        'prompt': prompt,
+      });
 
   // ------------------------------------------------------------------ admin
 
@@ -240,13 +244,14 @@ class RoomClient {
     required DateTime startTime,
     required DateTime endTime,
     Map<String, String> assets = const {},
-  }) => _post('/api/admin/challenge', {
-    'name': name,
-    'widgetUrl': widgetUrl,
-    'startTime': startTime.millisecondsSinceEpoch,
-    'endTime': endTime.millisecondsSinceEpoch,
-    'assets': assets,
-  });
+  }) =>
+      _post('/api/admin/challenge', {
+        'name': name,
+        'widgetUrl': widgetUrl,
+        'startTime': startTime.millisecondsSinceEpoch,
+        'endTime': endTime.millisecondsSinceEpoch,
+        'assets': assets,
+      });
 
   Future<void> clearChallenge() => _post('/api/admin/clear', {});
 
@@ -276,10 +281,11 @@ class RoomClient {
   Future<void> setContentFor({
     required String playerId,
     required DisplayContent content,
-  }) => _post('/api/admin/contentFor', {
-    'playerId': playerId,
-    'content': content.name,
-  });
+  }) =>
+      _post('/api/admin/contentFor', {
+        'playerId': playerId,
+        'content': content.name,
+      });
 
   Future<void> regenerate({required String playerId}) =>
       _post('/api/admin/regenerate', {'playerId': playerId});

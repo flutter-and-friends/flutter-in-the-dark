@@ -3,24 +3,24 @@ import 'dart:math';
 
 import 'package:confetti/confetti.dart';
 import 'package:devtools_app_shared/ui.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_in_the_dark/helpers/challenge_ticker.dart';
 import 'package:flutter_in_the_dark/helpers/session_kick.dart';
+import 'package:flutter_in_the_dark/room/room_client.dart';
 import 'package:flutter_in_the_dark/room/room_models.dart';
 import 'package:flutter_in_the_dark/room/room_sync.dart';
 import 'package:flutter_in_the_dark/room/session_store.dart';
-import 'package:flutter_in_the_dark/screens/home_screen.dart';
+import 'package:flutter_in_the_dark/screens/challenge_countdown_overlay.dart';
 import 'package:flutter_in_the_dark/screens/player_selection_screen.dart';
-import 'package:flutter_in_the_dark/screens/waiting_for_challenge.dart';
+import 'package:flutter_in_the_dark/screens/waiting_for_challenge_screen.dart';
 import 'package:flutter_in_the_dark/widgets/burn_reveal.dart';
 import 'package:flutter_in_the_dark/widgets/challenger_content.dart';
 import 'package:flutter_in_the_dark/widgets/compiled_widget.dart';
-import 'package:flutter_in_the_dark/widgets/countdown_overlay.dart';
 import 'package:flutter_in_the_dark/widgets/plasma_loader.dart';
 import 'package:flutter_in_the_dark/widgets/prompt_editor.dart';
 import 'package:flutter_in_the_dark/widgets/show_overlay.dart';
-import 'package:flutter_in_the_dark/room/room_client.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:timeago_flutter/timeago_flutter.dart'
     hide setDefaultLocale, setLocaleMessages;
@@ -31,7 +31,7 @@ import 'package:web/web.dart' as web;
 ///    buzzer pushes prompts server-side (§6.C).
 ///  - DONE (buzzer fired): challenge (left) + prompt→result (right), where
 ///    the result pane is the SAME tri-state render as /show (§6.D).
-class ChallengeScreen extends StatefulWidget {
+class ChallengeScreen extends StatefulHookWidget {
   const ChallengeScreen({super.key, required this.roomSync});
 
   final RoomSync roomSync;
@@ -41,7 +41,7 @@ class ChallengeScreen extends StatefulWidget {
 }
 
 class _ChallengeScreenState extends State<ChallengeScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _confettiController = ConfettiController(
     duration: const Duration(seconds: 5),
   );
@@ -52,8 +52,6 @@ class _ChallengeScreenState extends State<ChallengeScreen>
   final _random = Random();
 
   ({String playerId, String token, String roundId})? _session;
-  RoomState? _lastState;
-  bool _endHandled = false;
 
   /// Wall-clock ticker that re-evaluates the time-dependent gates
   /// ([Challenge.isInTheFuture] / [Challenge.isFinished]) exactly when
@@ -78,21 +76,19 @@ class _ChallengeScreenState extends State<ChallengeScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) => _goToJoin());
     }
     _burn = BurnRevealController(vsync: this);
-    _shakeController =
-        AnimationController(
-          vsync: this,
-          duration: const Duration(milliseconds: 200),
-        )..addStatusListener((status) {
-          if (status == AnimationStatus.completed) {
-            _shakeController.reverse();
-          }
-        });
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _shakeController.reverse();
+        }
+      });
     _shakeTween = Tween<Offset>(begin: Offset.zero, end: Offset.zero);
     _shakeAnimation = _shakeTween.animate(
       CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
     );
     widget.roomSync.addListener(_onRoomChanged);
-    _lastState = widget.roomSync.state;
     _syncClockTimer();
   }
 
@@ -120,9 +116,8 @@ class _ChallengeScreenState extends State<ChallengeScreen>
     // coarse 1 s ticks while merely pending/live outside it.
     final remainingMs =
         challenge?.endTime.difference(DateTime.now()).inMilliseconds;
-    final fine = waiting &&
-        remainingMs != null &&
-        remainingMs <= _fineTickThresholdMs;
+    final fine =
+        waiting && remainingMs != null && remainingMs <= _fineTickThresholdMs;
     final interval =
         fine ? const Duration(milliseconds: 100) : const Duration(seconds: 1);
     if (waiting) {
@@ -148,12 +143,11 @@ class _ChallengeScreenState extends State<ChallengeScreen>
   Duration? _clockInterval;
 
   void _tick() {
-    _checkBuzzerEdge();
     _feedBurn();
     // Note: _syncClockTimer intentionally does NOT re-evaluate the cadence
     // here — calling _feedBurn above already refreshed the controller, and
     // the cadence is only re-considered on SSE/state changes (onRoomChanged)
-    // to avoid re-entrancy from the ticker itself.
+    // to avoid re-entry from the ticker itself.
     if (mounted) setState(() {});
   }
 
@@ -183,7 +177,6 @@ class _ChallengeScreenState extends State<ChallengeScreen>
 
   void _onRoomChanged() {
     if (_checkKick()) return;
-    _checkBuzzerEdge();
     _feedBurn();
     _syncClockTimer();
     if (mounted) setState(() {});
@@ -216,25 +209,6 @@ class _ChallengeScreenState extends State<ChallengeScreen>
     SessionStore.clear();
     if (mounted) setState(() => _session = null);
     _goToJoin();
-  }
-
-  /// Buzzer edge: fire the celebration + blur exactly once, whether the
-  /// finish is observed via an SSE event or via the wall-clock ticker
-  /// crossing endTime (no SSE event fires at that moment).
-  void _checkBuzzerEdge() {
-    final state = widget.roomSync.state;
-    final challenge = state?.challenge;
-    final wasLive = _lastState?.challenge?.isFinished == false;
-    _lastState = state;
-
-    if (!_endHandled &&
-        challenge != null &&
-        challenge.isFinished &&
-        wasLive != false) {
-      _endHandled = true;
-      _onChallengeEnd();
-    }
-    if (challenge == null) _endHandled = false;
   }
 
   void _onChallengeEnd() {
@@ -271,16 +245,25 @@ class _ChallengeScreenState extends State<ChallengeScreen>
     final challenge = state?.challenge;
     final me = state?.challengerById(session.playerId);
 
-    if (challenge == null) return const HomeScreen();
-    if (challenge.isInTheFuture) {
-      return WaitingForChallenge(challenge: challenge);
-    }
+    if (challenge == null) return const WaitingForChallengeScreen();
 
     _feedBurn();
 
-    // The buzzer has fired (or the server has blocked me): the done screen.
-    final done = challenge.isFinished ||
-        me?.status == ChallengerStatus.blocked;
+    // The buzzer has fired the done screen.
+    final done = challenge.isFinished;
+
+    useEffect(
+      () {
+        /// Buzzer edge: fire the celebration + blur exactly once, whether the
+        /// finish is observed via an SSE event or via the wall-clock ticker
+        /// crossing endTime (no SSE event fires at that moment).
+        if (done) {
+          _onChallengeEnd();
+        }
+        return null;
+      },
+      [done],
+    );
 
     return Material(
       child: SlideTransition(
@@ -301,16 +284,16 @@ class _ChallengeScreenState extends State<ChallengeScreen>
                       final endTime when DateTime.now().isAfter(endTime) =>
                         const Text('Time over!'),
                       final endTime => Timeago(
-                        refreshRate: const Duration(seconds: 1),
-                        date: endTime.toLocal(),
-                        allowFromNow: true,
-                        builder: (context, time) {
-                          if (DateTime.now().isAfter(endTime)) {
-                            return const Text('Time over!');
-                          }
-                          return Text('"${challenge.name}" ends in $time');
-                        },
-                      ),
+                          refreshRate: const Duration(seconds: 1),
+                          date: endTime.toLocal(),
+                          allowFromNow: true,
+                          builder: (context, time) {
+                            if (DateTime.now().isAfter(endTime)) {
+                              return const Text('Time over!');
+                            }
+                            return Text('"${challenge.name}" ends in $time');
+                          },
+                        ),
                     },
                   ],
                 ),
@@ -324,25 +307,8 @@ class _ChallengeScreenState extends State<ChallengeScreen>
               blastDirectionality: BlastDirectionality.explosive,
               strokeWidth: 2,
             ),
-            // End-of-challenge countdown → burn reveal (same widget as
-            // /show): the prompt screen burns away center-out at zero,
-            // revealing the already-mounted done screen underneath. The
-            // overlay is pointer-transparent while idle (it shrinks), and
-            // once the 10 s countdown gate fires it stays VISIBLE BUT
-            // NON-BLOCKING — the live prompt UI keeps focus and accepts
-            // input right up to the burn window (the last ~1 s, spanning
-            // the zero crossing), when the overlay self-blocks
-            // (PointerInterceptor + AbsorbPointer) because the challenge is
-            // over by then. See BurnRevealController.isBlocking.
-            Positioned.fill(
-              child: BurnRevealOverlay(
-                controller: _burn,
-                remaining: challenge.endTime.difference(DateTime.now()),
-                countdownBuilder: (context) => CountdownOverlay(
-                  duration: challenge.endTime.difference(DateTime.now()),
-                ),
-              ),
-            ),
+            if (challenge.isInTheFuture)
+              ChallengeCountdownOverlay(challenge: challenge),
             // The same big auto-dismissing "TIME OVER!" flash as /show,
             // driven by the host's wall-clock ticker (_tick → setState) and
             // keyed to challenge.endTime — the player sees the pop + 5 s
@@ -350,7 +316,7 @@ class _ChallengeScreenState extends State<ChallengeScreen>
             Positioned.fill(
               child: TimeOverBanner(endTime: challenge.endTime),
             ),
-            if (done && !_endHandled)
+            if (done)
               Positioned.fill(
                 child: PointerInterceptor(
                   child: Material(
@@ -384,15 +350,12 @@ class _ChallengeScreenState extends State<ChallengeScreen>
         playerId: session.playerId,
         token: session.token,
         initialPrompt:
-            widget.roomSync.state
-                ?.challengerById(session.playerId)
-                ?.prompt ??
-            '',
+            widget.roomSync.state?.challengerById(session.playerId)?.prompt ??
+                '',
         client: widget.roomSync.client,
         onStaleSession: _onStaleSession,
       ),
-      if (challenge.assets.isNotEmpty)
-        _AssetsPane(assets: challenge.assets),
+      if (challenge.assets.isNotEmpty) _AssetsPane(assets: challenge.assets),
     ];
 
     return SplitPane(
@@ -421,7 +384,7 @@ class _ChallengeScreenState extends State<ChallengeScreen>
       initialFractions: const [0.5, 0.5],
       children: [
         _ChallengePane(widgetUrl: challenge.widgetUrl),
-        Container(
+        ColoredBox(
           color: const Color(0xFF0D1117),
           child: me == null
               ? const PlasmaLoader(label: 'Reconnecting…')

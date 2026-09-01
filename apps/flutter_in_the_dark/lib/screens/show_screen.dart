@@ -6,8 +6,8 @@ import 'package:flutter_in_the_dark/helpers/challenge_ticker.dart';
 import 'package:flutter_in_the_dark/room/room_client.dart';
 import 'package:flutter_in_the_dark/room/room_models.dart';
 import 'package:flutter_in_the_dark/room/room_sync.dart';
-import 'package:flutter_in_the_dark/screens/home_screen.dart';
-import 'package:flutter_in_the_dark/screens/waiting_for_challenge.dart';
+import 'package:flutter_in_the_dark/screens/waiting_for_challenge_screen.dart';
+import 'package:flutter_in_the_dark/screens/challenge_countdown_overlay.dart';
 import 'package:flutter_in_the_dark/widgets/burn_reveal.dart';
 import 'package:flutter_in_the_dark/widgets/challenger_content.dart';
 import 'package:flutter_in_the_dark/widgets/compiled_widget.dart';
@@ -61,15 +61,14 @@ class _ShowScreenState extends State<ShowScreen>
     // bumps) do not affect it and it is exempt from the player kick by
     // construction. It deliberately never reads the player SessionStore.
     _burn = BurnRevealController(vsync: this);
-    _shakeController =
-        AnimationController(
-          vsync: this,
-          duration: const Duration(milliseconds: 200),
-        )..addStatusListener((status) {
-          if (status == AnimationStatus.completed) {
-            _shakeController.reverse();
-          }
-        });
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _shakeController.reverse();
+        }
+      });
     _shakeTween = Tween<Offset>(begin: Offset.zero, end: Offset.zero);
     _shakeAnimation = _shakeTween.animate(
       CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
@@ -136,9 +135,8 @@ class _ShowScreenState extends State<ShowScreen>
     final waiting = shouldTickForChallenge(challenge);
     final remainingMs =
         challenge?.endTime.difference(DateTime.now()).inMilliseconds;
-    final fine = waiting &&
-        remainingMs != null &&
-        remainingMs <= _fineTickThresholdMs;
+    final fine =
+        waiting && remainingMs != null && remainingMs <= _fineTickThresholdMs;
     final interval =
         fine ? const Duration(milliseconds: 100) : const Duration(seconds: 1);
     if (waiting) {
@@ -191,9 +189,9 @@ class _ShowScreenState extends State<ShowScreen>
     final state = widget.roomSync.state;
     final challenge = state?.challenge;
 
-    if (challenge == null) return const HomeScreen();
+    if (challenge == null) return const WaitingForChallengeScreen();
     if (challenge.isInTheFuture) {
-      return WaitingForChallenge(challenge: challenge);
+      return ChallengeCountdownOverlay(challenge: challenge);
     }
 
     _feedBurn();
@@ -267,27 +265,25 @@ class _ShowScreenState extends State<ShowScreen>
     return switch (state.show.viewMode) {
       ViewMode.challengeOnly => challengePane,
       ViewMode.allWithChallenge => Row(
-        children: [
-          Expanded(flex: 2, child: challengePane),
-          Expanded(flex: 3, child: PlayerGrid(state: state)),
-        ],
-      ),
+          children: [
+            Expanded(flex: 2, child: challengePane),
+            Expanded(flex: 3, child: PlayerGrid(state: state)),
+          ],
+        ),
       ViewMode.allPlayers => PlayerGrid(state: state),
       ViewMode.singlePlayer => _buildSinglePlayer(state),
       ViewMode.singleWithChallenge => Row(
-        children: [
-          Expanded(flex: 2, child: challengePane),
-          Expanded(flex: 3, child: _buildSinglePlayer(state)),
-        ],
-      ),
+          children: [
+            Expanded(flex: 2, child: challengePane),
+            Expanded(flex: 3, child: _buildSinglePlayer(state)),
+          ],
+        ),
     };
   }
 
   Widget _buildSinglePlayer(RoomState state) {
     final focusedId = state.show.focusedPlayerId;
-    final player = focusedId == null
-        ? null
-        : state.challengerById(focusedId);
+    final player = focusedId == null ? null : state.challengerById(focusedId);
     if (player == null) {
       return const Center(
         child: Text(

@@ -24,12 +24,12 @@ enum ViewMode {
   /// Short labels — the admin audience-view selector packs all five into one
   /// row, including on narrow (mobile) widths.
   String get label => switch (this) {
-    allWithChallenge => 'Ch. + all',
-    allPlayers => 'All players',
-    singlePlayer => 'Single',
-    singleWithChallenge => 'Ch. + single',
-    challengeOnly => 'Ch. only',
-  };
+        allWithChallenge => 'Ch. + all',
+        allPlayers => 'All players',
+        singlePlayer => 'Single',
+        singleWithChallenge => 'Ch. + single',
+        challengeOnly => 'Ch. only',
+      };
 }
 
 enum DisplayContent {
@@ -38,10 +38,10 @@ enum DisplayContent {
   widget;
 
   String get label => switch (this) {
-    prompt => 'Prompt',
-    code => 'Code',
-    widget => 'Widget',
-  };
+        prompt => 'Prompt',
+        code => 'Code',
+        widget => 'Widget',
+      };
 }
 
 /// Splits [ViewMode.values] into rows for the admin audience-view selector:
@@ -60,7 +60,6 @@ class Challenger {
   Challenger({
     required this.id,
     required this.name,
-    required this.status,
     required this.prompt,
     required this.genState,
     this.generatedCode,
@@ -71,7 +70,6 @@ class Challenger {
 
   final String id;
   final String name;
-  final ChallengerStatus status;
   final String prompt;
   final GenState genState;
   final String? generatedCode;
@@ -80,18 +78,15 @@ class Challenger {
   final int fixAttempts;
 
   static Challenger fromJson(Map<String, dynamic> json) => Challenger(
-    id: json['id'] as String,
-    name: json['name'] as String,
-    status: ChallengerStatus.values.byName(
-      json['status'] as String? ?? 'active',
-    ),
-    prompt: json['prompt'] as String? ?? '',
-    genState: GenState.values.byName(json['genState'] as String? ?? 'idle'),
-    generatedCode: json['generatedCode'] as String?,
-    compiledUrl: json['compiledUrl'] as String?,
-    error: json['error'] as String?,
-    fixAttempts: json['fixAttempts'] as int? ?? 0,
-  );
+        id: json['id'] as String,
+        name: json['name'] as String,
+        prompt: json['prompt'] as String? ?? '',
+        genState: GenState.values.byName(json['genState'] as String? ?? 'idle'),
+        generatedCode: json['generatedCode'] as String?,
+        compiledUrl: json['compiledUrl'] as String?,
+        error: json['error'] as String?,
+        fixAttempts: json['fixAttempts'] as int? ?? 0,
+      );
 }
 
 class Challenge {
@@ -115,15 +110,15 @@ class Challenge {
   bool get isFinished => DateTime.now().isAfter(endTime);
 
   static Challenge fromJson(Map<String, dynamic> json) => Challenge(
-    id: json['id'] as String,
-    name: json['name'] as String,
-    startTime: parseWireTime(json['startTime'] as String),
-    endTime: parseWireTime(json['endTime'] as String),
-    widgetUrl: json['widgetUrl'] as String,
-    assets:
-        (json['assets'] as Map<String, dynamic>?)?.cast<String, String>() ??
-        const {},
-  );
+        id: json['id'] as String,
+        name: json['name'] as String,
+        startTime: parseWireTime(json['startTime'] as String),
+        endTime: parseWireTime(json['endTime'] as String),
+        widgetUrl: json['widgetUrl'] as String,
+        assets:
+            (json['assets'] as Map<String, dynamic>?)?.cast<String, String>() ??
+                const {},
+      );
 }
 
 /// One entry in the server-side challenge catalog
@@ -142,12 +137,12 @@ class ChallengeInfo {
   final String? widgetUrl;
 
   static ChallengeInfo fromJson(Map<String, dynamic> json) => ChallengeInfo(
-    name: json['name'] as String,
-    assets:
-        (json['assets'] as Map<String, dynamic>?)?.cast<String, String>() ??
-        const {},
-    widgetUrl: json['widgetUrl'] as String?,
-  );
+        name: json['name'] as String,
+        assets:
+            (json['assets'] as Map<String, dynamic>?)?.cast<String, String>() ??
+                const {},
+        widgetUrl: json['widgetUrl'] as String?,
+      );
 }
 
 class ShowState {
@@ -157,11 +152,11 @@ class ShowState {
   final String? focusedPlayerId;
 
   static ShowState fromJson(Map<String, dynamic> json) => ShowState(
-    viewMode: ViewMode.values.byName(
-      json['viewMode'] as String? ?? 'allWithChallenge',
-    ),
-    focusedPlayerId: json['focusedPlayerId'] as String?,
-  );
+        viewMode: ViewMode.values.byName(
+          json['viewMode'] as String? ?? 'allWithChallenge',
+        ),
+        focusedPlayerId: json['focusedPlayerId'] as String?,
+      );
 }
 
 /// One selectable generation model + its realistic-prompt reliability numbers,
@@ -209,20 +204,21 @@ class ModelCandidate {
   String get shortName => id.contains('/') ? id.split('/').last : id;
 
   static ModelCandidate fromJson(Map<String, dynamic> json) => ModelCandidate(
-    id: json['id'] as String,
-    active: json['active'] as bool? ?? false,
-    successPct: (json['successPct'] as num?)?.toDouble(),
-    meanLatencyS: (json['meanLatencyS'] as num?)?.toDouble(),
-    proseLeakPct: (json['proseLeakPct'] as num?)?.toDouble(),
-    quality: (json['quality'] as num?)?.toDouble(),
-    runs: json['runs'] as int? ?? 0,
-    isChat: json['isChat'] as bool? ?? true,
-    concurrentSuccessPct: (json['concurrentSuccessPct'] as num?)?.toDouble(),
-    concurrentLatencyS: (json['concurrentLatencyS'] as num?)?.toDouble(),
-    concurrentWallS: (json['concurrentWallS'] as num?)?.toDouble(),
-    concurrentRuns: json['concurrentRuns'] as int? ?? 0,
-    effort: json['effort'] as String?,
-  );
+        id: json['id'] as String,
+        active: json['active'] as bool? ?? false,
+        successPct: (json['successPct'] as num?)?.toDouble(),
+        meanLatencyS: (json['meanLatencyS'] as num?)?.toDouble(),
+        proseLeakPct: (json['proseLeakPct'] as num?)?.toDouble(),
+        quality: (json['quality'] as num?)?.toDouble(),
+        runs: json['runs'] as int? ?? 0,
+        isChat: json['isChat'] as bool? ?? true,
+        concurrentSuccessPct:
+            (json['concurrentSuccessPct'] as num?)?.toDouble(),
+        concurrentLatencyS: (json['concurrentLatencyS'] as num?)?.toDouble(),
+        concurrentWallS: (json['concurrentWallS'] as num?)?.toDouble(),
+        concurrentRuns: json['concurrentRuns'] as int? ?? 0,
+        effort: json['effort'] as String?,
+      );
 }
 
 /// Operator-selectable LLM provider routing (WI-027 follow-up), mirrored
@@ -240,17 +236,17 @@ enum ProviderMode {
 
   /// Short labels for the admin provider segmented button.
   String get label => switch (this) {
-    auto => 'Auto',
-    berget => 'Berget',
-    gemini => 'Gemini',
-  };
+        auto => 'Auto',
+        berget => 'Berget',
+        gemini => 'Gemini',
+      };
 
   /// One-line explanation shown under the picker for the active mode.
   String get description => switch (this) {
-    auto => 'Berget primary, Gemini fallback on error',
-    berget => 'Berget only — no fallback',
-    gemini => 'Gemini only — Berget is never touched',
-  };
+        auto => 'Berget primary, Gemini fallback on error',
+        berget => 'Berget only — no fallback',
+        gemini => 'Gemini only — Berget is never touched',
+      };
 }
 
 /// The admin provider-picker state, from `GET /api/admin/provider`:
@@ -267,10 +263,11 @@ class ProviderState {
   final bool geminiAvailable;
 
   static ProviderState fromJson(Map<String, dynamic> json) => ProviderState(
-    mode: ProviderMode.values.byName(json['provider'] as String? ?? 'auto'),
-    geminiAvailable:
-        ((json['available'] as Map? ?? const {})['gemini'] as bool?) ?? false,
-  );
+        mode: ProviderMode.values.byName(json['provider'] as String? ?? 'auto'),
+        geminiAvailable:
+            ((json['available'] as Map? ?? const {})['gemini'] as bool?) ??
+                false,
+      );
 }
 
 /// The admin model-picker state: live model + candidates with benchmark data.
@@ -280,8 +277,7 @@ class GenerationState {
   final String activeModel;
   final List<ModelCandidate> candidates;
 
-  static GenerationState fromJson(Map<String, dynamic> json) =>
-      GenerationState(
+  static GenerationState fromJson(Map<String, dynamic> json) => GenerationState(
         activeModel: json['activeModel'] as String? ?? '',
         candidates: [
           for (final c in (json['candidates'] as List? ?? const []))
@@ -328,31 +324,30 @@ class RoomState {
   }
 
   static RoomState fromJson(Map<String, dynamic> json) => RoomState(
-    revision: json['revision'] as int? ?? 0,
-    roundId: json['roundId'] as String? ?? '',
-    challenge: switch (json['challenge']) {
-      final Map<String, dynamic> c => Challenge.fromJson(c),
-      _ => null,
-    },
-    challengers: [
-      for (final c in (json['challengers'] as List? ?? const []))
-        Challenger.fromJson((c as Map).cast<String, dynamic>()),
-    ],
-    show: ShowState.fromJson(
-      (json['show'] as Map? ?? const {}).cast<String, dynamic>(),
-    ),
-    generation: GenerationState.fromJson(
-      (json['generation'] as Map? ?? const {}).cast<String, dynamic>(),
-    ),
-    globalContent: DisplayContent.values.byName(
-      json['globalContent'] as String? ?? 'prompt',
-    ),
-    playerContent: {
-      for (final e
-          in ((json['playerContent'] as Map? ?? const {})
+        revision: json['revision'] as int? ?? 0,
+        roundId: json['roundId'] as String? ?? '',
+        challenge: switch (json['challenge']) {
+          final Map<String, dynamic> c => Challenge.fromJson(c),
+          _ => null,
+        },
+        challengers: [
+          for (final c in (json['challengers'] as List? ?? const []))
+            Challenger.fromJson((c as Map).cast<String, dynamic>()),
+        ],
+        show: ShowState.fromJson(
+          (json['show'] as Map? ?? const {}).cast<String, dynamic>(),
+        ),
+        generation: GenerationState.fromJson(
+          (json['generation'] as Map? ?? const {}).cast<String, dynamic>(),
+        ),
+        globalContent: DisplayContent.values.byName(
+          json['globalContent'] as String? ?? 'prompt',
+        ),
+        playerContent: {
+          for (final e in ((json['playerContent'] as Map? ?? const {})
               .cast<String, dynamic>()
               .entries))
-        e.key: DisplayContent.values.byName(e.value as String),
-    },
-  );
+            e.key: DisplayContent.values.byName(e.value as String),
+        },
+      );
 }
