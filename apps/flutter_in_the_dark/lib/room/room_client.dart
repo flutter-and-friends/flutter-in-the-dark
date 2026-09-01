@@ -56,7 +56,6 @@ class RoomClient {
       web.window.location.hostname.endsWith('.ts.net');
 
   static String get defaultBaseUrl {
-    return backendUrl;
     if (_onTailnetAlias) return web.window.location.origin;
     if (_envBaseUrl == _sameOrigin) return web.window.location.origin;
     if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
@@ -73,7 +72,6 @@ class RoomClient {
   /// dart_services URLs, and loading them cross-origin from the apex is
   /// allowed (no X-Frame-Options; ACAO `*` on the responses).
   static String get compileBaseUrl {
-    return backendUrl;
     const env = String.fromEnvironment('DART_SERVICES_URL');
     if (_onTailnetAlias) return web.window.location.origin;
     if (env == _sameOrigin) return web.window.location.origin;
