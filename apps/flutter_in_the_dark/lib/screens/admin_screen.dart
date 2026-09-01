@@ -6,6 +6,7 @@ import 'package:flutter_in_the_dark/helpers/challenge_window.dart';
 import 'package:flutter_in_the_dark/room/room_client.dart';
 import 'package:flutter_in_the_dark/room/room_models.dart';
 import 'package:flutter_in_the_dark/room/room_sync.dart';
+import 'package:flutter_in_the_dark/widgets/challenge_countdown.dart';
 import 'package:flutter_in_the_dark/widgets/challenge_picker.dart';
 
 /// The host's control screen. Reached ONLY via the Tailscale-facing listener
@@ -694,6 +695,11 @@ class _ChallengeCardState extends State<_ChallengeCard> {
                 '"${challenge.name}" — ends '
                 '${challenge.endTime.toLocal().toString().substring(11, 19)}',
               ),
+              const SizedBox(height: 8),
+              // Live remaining-time readout, inline with the challenge it
+              // belongs to (the AppBar is too narrow when hosting from a
+              // phone). Self-ticking — see the widget's doc.
+              ChallengeCountdown(challenge: challenge),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -775,15 +781,22 @@ class _ChallengeCardState extends State<_ChallengeCard> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                FilledButton.icon(
-                  onPressed: _setChallenge,
-                  icon: const Icon(Icons.play_arrow),
-                  label: Text(
-                    challenge == null ? 'Start challenge' : 'Restart challenge',
-                  ),
-                ),
               ],
+            ),
+            const SizedBox(height: 8),
+            // Below the time boxes, full width: in the fields' Row this
+            // button overflowed phone-width viewports, and a full-width
+            // primary action is the easier thumb target when hosting from
+            // a phone.
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _setChallenge,
+                icon: const Icon(Icons.play_arrow),
+                label: Text(
+                  challenge == null ? 'Start challenge' : 'Restart challenge',
+                ),
+              ),
             ),
           ],
         ),
