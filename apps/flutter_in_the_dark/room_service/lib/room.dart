@@ -104,11 +104,9 @@ class RoomState {
     // Resolve the effective model: a persisted active selection wins; else a
     // persisted activeModel string; else the pipeline's boot default. If the
     // persisted selection is somehow a non-chat model, fall back to default.
-    var effective = gen.candidates
-        .where((c) => c.active)
-        .map((c) => c.id)
-        .firstOrNull ??
-        (gen.activeModel.isNotEmpty ? gen.activeModel : pipeline.model);
+    var effective =
+        gen.candidates.where((c) => c.active).map((c) => c.id).firstOrNull ??
+            (gen.activeModel.isNotEmpty ? gen.activeModel : pipeline.model);
     if (!isChatModel(effective)) effective = pipeline.model;
     if (!isChatModel(effective)) effective = Pipeline.defaultModel;
     pipeline.model = effective;
@@ -192,19 +190,18 @@ class RoomState {
     }
     gen.candidates[gen.candidates.indexWhere((c) => c.id == model)] =
         ModelCandidate(
-          id: model,
-          active: cand.active,
-          successPct: successPct ?? cand.successPct,
-          meanLatencyS: meanLatencyS ?? cand.meanLatencyS,
-          proseLeakPct: proseLeakPct ?? cand.proseLeakPct,
-          quality: quality ?? cand.quality,
-          runs: runs ?? cand.runs,
-          concurrentSuccessPct:
-              concurrentSuccessPct ?? cand.concurrentSuccessPct,
-          concurrentLatencyS: concurrentLatencyS ?? cand.concurrentLatencyS,
-          concurrentWallS: concurrentWallS ?? cand.concurrentWallS,
-          concurrentRuns: concurrentRuns ?? cand.concurrentRuns,
-        );
+      id: model,
+      active: cand.active,
+      successPct: successPct ?? cand.successPct,
+      meanLatencyS: meanLatencyS ?? cand.meanLatencyS,
+      proseLeakPct: proseLeakPct ?? cand.proseLeakPct,
+      quality: quality ?? cand.quality,
+      runs: runs ?? cand.runs,
+      concurrentSuccessPct: concurrentSuccessPct ?? cand.concurrentSuccessPct,
+      concurrentLatencyS: concurrentLatencyS ?? cand.concurrentLatencyS,
+      concurrentWallS: concurrentWallS ?? cand.concurrentWallS,
+      concurrentRuns: concurrentRuns ?? cand.concurrentRuns,
+    );
     print('[room] modelStats: $model -> ok=${successPct ?? cand.successPct} '
         'lat=${meanLatencyS ?? cand.meanLatencyS} runs=${runs ?? cand.runs} '
         'conc=${concurrentSuccessPct ?? cand.concurrentSuccessPct}@'
@@ -226,8 +223,7 @@ class RoomState {
   void _changed() {
     _room.revision++;
     _persist();
-    final frame =
-        'id: ${_room.revision}\nevent: state\n'
+    final frame = 'id: ${_room.revision}\nevent: state\n'
         'data: ${jsonEncode(_room.toJson())}\n\n';
     for (final sub in _subscribers.toList()) {
       sub.add(frame);
@@ -474,28 +470,24 @@ class RoomState {
     // single hung generation can never wedge a challenger on `queued`
     // indefinitely. The state machine surfaces it as `failed` and the admin
     // can regenerate.
-    final future = pipeline
-        .run(c, _changed)
-        .timeout(
-          const Duration(minutes: 4),
-          onTimeout: () {
-            c
-              ..generatedCode = null
-              ..genState = GenState.failed
-              ..error = 'generation timed out';
-            _changed();
-          },
-        );
+    final future = pipeline.run(c, _changed).timeout(
+      const Duration(minutes: 4),
+      onTimeout: () {
+        c
+          ..generatedCode = null
+          ..genState = GenState.failed
+          ..error = 'generation timed out';
+        _changed();
+      },
+    );
     _pipelines[c.id] = future;
-    future
-        .then((_) {
-          _pipelines.remove(c.id);
-          print('[room] pipeline settled for ${c.name} -> ${c.genState.name}');
-        })
-        .catchError((Object e) {
-          _pipelines.remove(c.id);
-          print('[room] pipeline error for ${c.name}: $e');
-        });
+    future.then((_) {
+      _pipelines.remove(c.id);
+      print('[room] pipeline settled for ${c.name} -> ${c.genState.name}');
+    }).catchError((Object e) {
+      _pipelines.remove(c.id);
+      print('[room] pipeline error for ${c.name}: $e');
+    });
   }
 
   /// Re-run every challenger whose pipeline is not already in flight and
@@ -505,7 +497,8 @@ class RoomState {
     for (final c in _room.challengers.values) {
       if (_pipelines.containsKey(c.id)) continue;
       if (c.genState == GenState.queued ||
-          (c.genState == GenState.failed && c.status == ChallengerStatus.blocked)) {
+          (c.genState == GenState.failed &&
+              c.status == ChallengerStatus.blocked)) {
         c.genState = GenState.queued;
         _startPipeline(c);
       }

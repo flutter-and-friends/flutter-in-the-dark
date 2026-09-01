@@ -37,21 +37,21 @@ class ChallengerContent extends StatelessWidget {
     final fontSize = expanded ? 24.0 : 14.0;
     return switch (content) {
       DisplayContent.prompt => _PromptPane(
-        prompt: challenger.prompt,
-        fontSize: fontSize,
-      ),
-      DisplayContent.code => _readyOrLoading(
-        challenger,
-        (code) => _CodePane(
-          code: code,
+          prompt: challenger.prompt,
           fontSize: fontSize,
-          autoScroll: autoScroll,
         ),
-      ),
+      DisplayContent.code => _readyOrLoading(
+          challenger,
+          (code) => _CodePane(
+            code: code,
+            fontSize: fontSize,
+            autoScroll: autoScroll,
+          ),
+        ),
       DisplayContent.widget => _readyOrLoading(
-        challenger,
-        (_) => _WidgetPane(challenger: challenger),
-      ),
+          challenger,
+          (_) => _WidgetPane(challenger: challenger),
+        ),
     };
   }
 
@@ -63,13 +63,13 @@ class ChallengerContent extends StatelessWidget {
       GenState.ready => builder(challenger.generatedCode ?? ''),
       GenState.failed => _FailedPane(error: challenger.error),
       _ => PlasmaLoader(
-        label: switch (challenger.genState) {
-          GenState.queued => 'Queued for generation…',
-          GenState.generating => 'Generating code…',
-          GenState.compiling => 'Compiling…',
-          _ => 'Waiting…',
-        },
-      ),
+          label: switch (challenger.genState) {
+            GenState.queued => 'Queued for generation…',
+            GenState.generating => 'Generating code…',
+            GenState.compiling => 'Compiling…',
+            _ => 'Waiting…',
+          },
+        ),
     };
   }
 }
@@ -146,7 +146,8 @@ class _CodePaneState extends State<_CodePane> {
   /// use. 20 ticks/s keeps the drift smooth on a projector.
   static const _tick = Duration(milliseconds: 50);
   static const _startupDwellTicks = 90; // 4.5s at the top before first drift
-  static const _extremeDwellTicks = 120; // 6s pause at each end before reversing
+  static const _extremeDwellTicks =
+      120; // 6s pause at each end before reversing
 
   /// Logical px per tick — 36px/s, projector-slow, tens of seconds for a
   /// full traverse of typical generated code.

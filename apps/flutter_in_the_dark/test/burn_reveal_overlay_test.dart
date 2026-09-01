@@ -47,7 +47,8 @@ void main() {
   }
 
   group('blocking gate (phase machine)', () {
-    testWidgets('non-blocking while the challenge is live, blocking from the '
+    testWidgets(
+        'non-blocking while the challenge is live, blocking from the '
         'burn window, revealed at zero', (tester) async {
       final controller = BurnRevealController(vsync: tester);
       addTearDown(controller.dispose);
@@ -86,7 +87,8 @@ void main() {
       expect(controller.isBlocking, isFalse);
     });
 
-    testWidgets('a first paint inside the countdown never blocks before the '
+    testWidgets(
+        'a first paint inside the countdown never blocks before the '
         'burn window', (tester) async {
       final controller = BurnRevealController(vsync: tester);
       addTearDown(controller.dispose);
@@ -96,7 +98,8 @@ void main() {
       expect(controller.isBlocking, isFalse);
     });
 
-    testWidgets('a jump straight past the window (backgrounded tab, W-017) '
+    testWidgets(
+        'a jump straight past the window (backgrounded tab, W-017) '
         'snaps to revealed without a blocking interval', (tester) async {
       final controller = BurnRevealController(vsync: tester);
       addTearDown(controller.dispose);
@@ -106,7 +109,8 @@ void main() {
       expect(controller.isBlocking, isFalse);
     });
 
-    testWidgets('burn progress tracks the pumped wall clock through the '
+    testWidgets(
+        'burn progress tracks the pumped wall clock through the '
         'window', (tester) async {
       final controller = BurnRevealController(vsync: tester);
       addTearDown(controller.dispose);
@@ -135,7 +139,8 @@ void main() {
   });
 
   group('debug knobs', () {
-    testWidgets('?burnSeconds moves the burn (and the blocking gate) off '
+    testWidgets(
+        '?burnSeconds moves the burn (and the blocking gate) off '
         'the wall-clock end', (tester) async {
       BurnDebug.burnSeconds = 5;
       final controller = BurnRevealController(vsync: tester);
@@ -184,7 +189,8 @@ void main() {
   });
 
   group('non-blocking shell (overlay shape while live)', () {
-    testWidgets('the text field underneath keeps focus and accepts input '
+    testWidgets(
+        'the text field underneath keeps focus and accepts input '
         'through the visible overlay', (tester) async {
       await tester.pumpWidget(overlayShell(blocking: false));
 

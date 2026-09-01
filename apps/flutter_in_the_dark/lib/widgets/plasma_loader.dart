@@ -80,31 +80,29 @@ class _PlasmaPainter extends CustomPainter {
         center.dx + baseRadius * 0.25 * math.cos(phase),
         center.dy + baseRadius * 0.25 * math.sin(phase * 1.3),
       );
-      paint.shader =
-          RadialGradient(
-            colors: [
-              const Color(0xFF58A6FF).withValues(alpha: 0.85 - i * 0.2),
-              const Color(0xFFBC8CF8).withValues(alpha: 0.35 - i * 0.08),
-              Colors.transparent,
-            ],
-            stops: const [0.0, 0.55, 1.0],
-          ).createShader(
-            Rect.fromCircle(center: offset, radius: radius),
-          );
+      paint.shader = RadialGradient(
+        colors: [
+          const Color(0xFF58A6FF).withValues(alpha: 0.85 - i * 0.2),
+          const Color(0xFFBC8CF8).withValues(alpha: 0.35 - i * 0.08),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.55, 1.0],
+      ).createShader(
+        Rect.fromCircle(center: offset, radius: radius),
+      );
       canvas.drawCircle(offset, radius, paint);
     }
 
     // Core.
-    paint.shader =
-        RadialGradient(
-          colors: [
-            Colors.white.withValues(alpha: 0.9),
-            const Color(0xFF58A6FF).withValues(alpha: 0.4),
-            Colors.transparent,
-          ],
-        ).createShader(
-          Rect.fromCircle(center: center, radius: baseRadius * 0.45),
-        );
+    paint.shader = RadialGradient(
+      colors: [
+        Colors.white.withValues(alpha: 0.9),
+        const Color(0xFF58A6FF).withValues(alpha: 0.4),
+        Colors.transparent,
+      ],
+    ).createShader(
+      Rect.fromCircle(center: center, radius: baseRadius * 0.45),
+    );
     canvas.drawCircle(center, baseRadius * 0.45, paint);
   }
 

@@ -77,10 +77,10 @@ class _BuildMarkerChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.bodySmall?.copyWith(
-      color: Theme.of(context).colorScheme.outline,
-      fontFamily: 'monospace',
-      fontSize: 11,
-    );
+          color: Theme.of(context).colorScheme.outline,
+          fontFamily: 'monospace',
+          fontSize: 11,
+        );
     return Tooltip(
       message: buildMarker,
       child: Center(
@@ -206,22 +206,20 @@ class _ProviderPickerCardState extends State<_ProviderPickerCard> {
                     ButtonSegment(
                       value: mode,
                       label: Text(mode.label),
-                      enabled:
-                          mode != ProviderMode.gemini ||
+                      enabled: mode != ProviderMode.gemini ||
                           provider.geminiAvailable,
                     ),
                 ],
                 selected: {provider.mode},
-                onSelectionChanged: _busy
-                    ? null
-                    : (selection) => _select(selection.first),
+                onSelectionChanged:
+                    _busy ? null : (selection) => _select(selection.first),
               ),
               const SizedBox(height: 8),
               Text(
                 provider.geminiAvailable
                     ? provider.mode.description
                     : '${provider.mode.description} · Gemini unavailable '
-                          '(GEMINI_API_KEY not set)',
+                        '(GEMINI_API_KEY not set)',
                 style: const TextStyle(color: Colors.white24, fontSize: 12),
               ),
             ],
@@ -249,8 +247,7 @@ class _ModelPickerCard extends StatelessWidget {
     // always at the top. Non-chat models (embeddings/whisper) are hidden.
     double scoreFor(ModelCandidate c) =>
         c.concurrentSuccessPct ?? c.successPct ?? -1;
-    final sorted = [...gen.candidates.where((c) => c.isChat)]
-      ..sort((a, b) {
+    final sorted = [...gen.candidates.where((c) => c.isChat)]..sort((a, b) {
         final sa = scoreFor(a);
         final sb = scoreFor(b);
         if (sa != sb) return sb.compareTo(sa);
@@ -303,10 +300,10 @@ class _ModelPickerCard extends StatelessWidget {
     final successColor = !hasNumbers
         ? Colors.white38
         : headlinePct! >= 90
-        ? Colors.greenAccent
-        : headlinePct >= 60
-        ? Colors.orangeAccent
-        : Colors.redAccent;
+            ? Colors.greenAccent
+            : headlinePct >= 60
+                ? Colors.orangeAccent
+                : Colors.redAccent;
 
     return InkWell(
       onTap: c.active ? null : () => roomSync.client.setModel(model: c.id),
@@ -360,7 +357,8 @@ class _ModelPickerCard extends StatelessWidget {
                             color: Colors.blueAccent.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(
-                                color: Colors.blueAccent.withValues(alpha: 0.4)),
+                                color:
+                                    Colors.blueAccent.withValues(alpha: 0.4)),
                           ),
                           child: Text(
                             '${c.effort} effort',
@@ -460,7 +458,8 @@ class _ModelPickerCard extends StatelessWidget {
             fontSize: 14,
           ),
         ),
-        Text(label, style: const TextStyle(color: Colors.white38, fontSize: 10)),
+        Text(label,
+            style: const TextStyle(color: Colors.white38, fontSize: 10)),
       ],
     );
   }
@@ -747,7 +746,7 @@ class _ChallengeCardState extends State<_ChallengeCard> {
                 _pickedAssets.isEmpty
                     ? 'Pick from catalog'
                     : 'Pick from catalog · ${_pickedAssets.length} assets '
-                          'attached',
+                        'attached',
               ),
             ),
             const SizedBox(height: 8),
@@ -872,13 +871,14 @@ class _PlayersCard extends StatelessWidget {
   }
 
   Widget _stateIcon(GenState state) => switch (state) {
-    GenState.idle => const Icon(Icons.edit, color: Colors.white38),
-    GenState.queued => const Icon(Icons.schedule, color: Colors.orange),
-    GenState.generating => const Icon(Icons.auto_awesome, color: Colors.blue),
-    GenState.compiling => const Icon(Icons.build, color: Colors.purple),
-    GenState.ready => const Icon(Icons.check_circle, color: Colors.green),
-    GenState.failed => const Icon(Icons.error, color: Colors.red),
-  };
+        GenState.idle => const Icon(Icons.edit, color: Colors.white38),
+        GenState.queued => const Icon(Icons.schedule, color: Colors.orange),
+        GenState.generating =>
+          const Icon(Icons.auto_awesome, color: Colors.blue),
+        GenState.compiling => const Icon(Icons.build, color: Colors.purple),
+        GenState.ready => const Icon(Icons.check_circle, color: Colors.green),
+        GenState.failed => const Icon(Icons.error, color: Colors.red),
+      };
 
   void _confirmRemoveAll(BuildContext context) {
     showDialog(

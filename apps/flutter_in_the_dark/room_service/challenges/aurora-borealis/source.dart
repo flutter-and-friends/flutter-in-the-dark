@@ -116,8 +116,7 @@ class _AuroraPainter extends CustomPainter {
       final s = _stars[i];
       if (s.dy > 0.62) continue;
       final mag = (i * 7919) % 100 / 100.0;
-      final twinkle =
-          0.55 + 0.45 * math.sin(2 * math.pi * (time + mag * 3.7));
+      final twinkle = 0.55 + 0.45 * math.sin(2 * math.pi * (time + mag * 3.7));
       final alpha = (0.25 + 0.75 * mag) * twinkle * (1.0 - s.dy);
       starPaint.color = Color.lerp(
         const Color(0xFF9FB8FF),

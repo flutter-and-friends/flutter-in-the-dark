@@ -266,7 +266,8 @@ class HelloDarkScreen extends StatelessWidget {
       final firstBreak = source.indexOf('\n');
       final firstLine =
           firstBreak == -1 ? source : source.substring(0, firstBreak);
-      final directive = RegExp(r'^//\s*name:\s*(.*?)\s*$').firstMatch(firstLine);
+      final directive =
+          RegExp(r'^//\s*name:\s*(.*?)\s*$').firstMatch(firstLine);
       if (directive != null && directive.group(1)!.isNotEmpty) {
         name = directive.group(1)!;
         // Strip the directive line: the compile input must stay byte-identical
@@ -309,9 +310,9 @@ class HelloDarkScreen extends StatelessWidget {
   /// All catalog entries as picker JSON, each with `widgetUrl` set from the
   /// compile cache (null when not yet compiled this process lifetime).
   List<Map<String, dynamic>> list() => [
-    for (final entry in _entries)
-      {...entry.toJson(), 'widgetUrl': compiledUrlFor(entry.name)},
-  ];
+        for (final entry in _entries)
+          {...entry.toJson(), 'widgetUrl': compiledUrlFor(entry.name)},
+      ];
 
   /// Every catalog entry (disk-loaded or seed-fallback), in catalog order.
   /// Used by the server's startup log and warm-all loop — the seed constant

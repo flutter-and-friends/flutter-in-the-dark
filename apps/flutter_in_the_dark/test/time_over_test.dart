@@ -25,7 +25,8 @@ void main() {
     test('auto-dismisses after the banner duration', () {
       expect(shouldShowTimeOver(-kTimeOverBannerDuration), isFalse);
       expect(
-        shouldShowTimeOver(-kTimeOverBannerDuration - const Duration(seconds: 1)),
+        shouldShowTimeOver(
+            -kTimeOverBannerDuration - const Duration(seconds: 1)),
         isFalse,
       );
       // A challenge that has been over for minutes must not re-show the

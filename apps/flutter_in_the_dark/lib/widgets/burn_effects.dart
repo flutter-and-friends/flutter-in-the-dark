@@ -212,8 +212,7 @@ class BurnPainter extends CustomPainter {
           ..strokeWidth = flameWidth
           ..strokeJoin = StrokeJoin.round
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, flameWidth / 2)
-          ..color =
-              const Color(0xFFFF3C00).withValues(alpha: rim * 0.35),
+          ..color = const Color(0xFFFF3C00).withValues(alpha: rim * 0.35),
       );
       // …a mid orange band…
       canvas.drawPath(
@@ -223,8 +222,7 @@ class BurnPainter extends CustomPainter {
           ..strokeWidth = charWidth * 1.2
           ..strokeJoin = StrokeJoin.round
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, charWidth / 2)
-          ..color =
-              const Color(0xFFFF6D00).withValues(alpha: rim * 0.85),
+          ..color = const Color(0xFFFF6D00).withValues(alpha: rim * 0.85),
       );
       // …and the hot yellow-white core hugging the hole's edge, drawn as a
       // drop shadow toward the unburned side so it doesn't bleed into the

@@ -37,14 +37,12 @@ void main() {
   ) async {
     await tester.pumpWidget(mask());
 
-    final masks = tester
-        .widgetList<ShaderMask>(find.byType(ShaderMask))
-        .toList();
+    final masks =
+        tester.widgetList<ShaderMask>(find.byType(ShaderMask)).toList();
     expect(
       masks,
       hasLength(1),
-      reason:
-          'a nested dstIn/dstOut pair cancels out and loses the reveal '
+      reason: 'a nested dstIn/dstOut pair cancels out and loses the reveal '
           '(see test doc); the mask must stay a single ShaderMask',
     );
     expect(
@@ -69,8 +67,7 @@ void main() {
     expect(
       shader,
       isA<ImageShader>(),
-      reason:
-          'the jagged soft hole is rasterized into an ImageShader; a '
+      reason: 'the jagged soft hole is rasterized into an ImageShader; a '
           'radial gradient could only cut a circle',
     );
   });

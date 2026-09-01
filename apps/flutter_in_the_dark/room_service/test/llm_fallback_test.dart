@@ -64,7 +64,8 @@ class FakeGenerator implements CodeGenerator {
 
 void main() {
   group('FallbackGenerator', () {
-    test('serves from primary when primary succeeds; fallback untouched', () async {
+    test('serves from primary when primary succeeds; fallback untouched',
+        () async {
       final primary = FakeGenerator('primary', ['code-from-primary']);
       final fallback = FakeGenerator('fallback', ['code-from-fallback']);
       final chain = FallbackGenerator(primary: primary, fallback: fallback);
@@ -149,7 +150,8 @@ void main() {
         throwsA(isA<GenerationException>()),
       );
       expect(primary.calls, ['generateCode:p']);
-      expect(fallback.calls, isEmpty, reason: 'berget mode never touches Gemini');
+      expect(fallback.calls, isEmpty,
+          reason: 'berget mode never touches Gemini');
     });
 
     test('forced gemini serves only fallback, primary untouched', () async {
@@ -161,7 +163,8 @@ void main() {
       final result = await chain.generateCode(prompt: 'p', model: 'm');
 
       expect(result, 'gemini-code');
-      expect(primary.calls, isEmpty, reason: 'gemini mode never touches Berget');
+      expect(primary.calls, isEmpty,
+          reason: 'gemini mode never touches Berget');
       expect(fallback.calls, ['generateCode:p']);
     });
 
@@ -210,7 +213,8 @@ void main() {
           ),
         ),
       );
-      expect(chain.mode, ProviderMode.auto, reason: 'failed setMode must not stick');
+      expect(chain.mode, ProviderMode.auto,
+          reason: 'failed setMode must not stick');
     });
 
     test('setMode is a no-op when mode is unchanged', () async {
@@ -225,7 +229,8 @@ void main() {
       expect(result, 'p-code');
     });
 
-    test('auto mode with no fallback propagates primary failure (no retry)', () async {
+    test('auto mode with no fallback propagates primary failure (no retry)',
+        () async {
       final primary = FakeGenerator('primary', [
         GenerationException('primary', 'HTTP 503'),
       ]);
@@ -235,7 +240,8 @@ void main() {
         () => chain.generateCode(prompt: 'p', model: 'm'),
         throwsA(isA<GenerationException>()),
       );
-      expect(primary.calls, ['generateCode:p'], reason: 'no fallback → single attempt');
+      expect(primary.calls, ['generateCode:p'],
+          reason: 'no fallback → single attempt');
     });
   });
 
@@ -257,7 +263,8 @@ void main() {
   });
 
   group('buildGeneratorFromEnv gating', () {
-    test('GEMINI_API_KEY unset → chain with no fallback, gemini unavailable', () {
+    test('GEMINI_API_KEY unset → chain with no fallback, gemini unavailable',
+        () {
       final result = buildGeneratorFromEnv(
         backendBase: 'http://unused',
         env: const {},

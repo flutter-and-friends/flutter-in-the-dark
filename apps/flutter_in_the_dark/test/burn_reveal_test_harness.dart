@@ -82,8 +82,7 @@ class BurnRevealController extends ChangeNotifier {
     }
 
     if (seconds <= burnStart && seconds > burnEnd) {
-      final target =
-          1.0 - ((seconds - burnEnd) / kBurnSeconds).clamp(0.0, 1.0);
+      final target = 1.0 - ((seconds - burnEnd) / kBurnSeconds).clamp(0.0, 1.0);
       final burn = _burn!;
       if (!burn.isAnimating) {
         burn.forward();

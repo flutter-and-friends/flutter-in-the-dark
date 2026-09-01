@@ -69,8 +69,7 @@ import 'package:web/web.dart' as web;
 class BurnDebug {
   BurnDebug._();
 
-  static final BurnKnobs _knobs =
-      BurnKnobs.parse(web.window.location.search);
+  static final BurnKnobs _knobs = BurnKnobs.parse(web.window.location.search);
 
   static bool get enabled => _knobs.debug;
 
@@ -170,8 +169,7 @@ class BurnRevealController extends ChangeNotifier {
     // direct value assignment keeps the END STATE exact when frames are
     // dropped (backgrounded-tab throttling — W-017).
     if (seconds <= burnStart && seconds > burnEnd) {
-      final target =
-          1.0 - ((seconds - burnEnd) / kBurnSeconds).clamp(0.0, 1.0);
+      final target = 1.0 - ((seconds - burnEnd) / kBurnSeconds).clamp(0.0, 1.0);
       final burn = _burn!;
       if (!burn.isAnimating) {
         burn.forward();
@@ -332,9 +330,7 @@ class BurnRevealOverlay extends StatelessWidget {
         );
         return IgnorePointer(
           ignoring: !blocking,
-          child: blocking
-              ? PointerInterceptor(child: overlay)
-              : overlay,
+          child: blocking ? PointerInterceptor(child: overlay) : overlay,
         );
       },
     );

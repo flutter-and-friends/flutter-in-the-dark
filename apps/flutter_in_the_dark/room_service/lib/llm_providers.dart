@@ -111,7 +111,7 @@ Output ONLY the corrected Dart code, wrapped in a Markdown ```dart``` fence.
 /// so the fallback wrapper can sit in front of it.
 class DartServicesGenerator implements CodeGenerator {
   DartServicesGenerator({required this.backendBase, http.Client? client})
-    : _client = client ?? http.Client();
+      : _client = client ?? http.Client();
 
   final String backendBase;
   final http.Client _client;
@@ -165,9 +165,8 @@ class DartServicesGenerator implements CodeGenerator {
   Future<String> _streamText(http.Request request, String label) async {
     final http.StreamedResponse response;
     try {
-      response = await _client
-          .send(request)
-          .timeout(const Duration(minutes: 3));
+      response =
+          await _client.send(request).timeout(const Duration(minutes: 3));
     } on TimeoutException {
       throw GenerationException(name, '$label: connect/stream timed out');
     } on io.SocketException catch (e) {
@@ -199,11 +198,11 @@ class GeminiGenerator implements CodeGenerator {
     String? model,
     String? apiBase,
     http.Client? client,
-  }) : model = (model == null || model.isEmpty) ? defaultModel : model,
-       apiBase = (apiBase == null || apiBase.isEmpty)
-           ? 'https://generativelanguage.googleapis.com/v1beta'
-           : apiBase,
-       _client = client ?? http.Client();
+  })  : model = (model == null || model.isEmpty) ? defaultModel : model,
+        apiBase = (apiBase == null || apiBase.isEmpty)
+            ? 'https://generativelanguage.googleapis.com/v1beta'
+            : apiBase,
+        _client = client ?? http.Client();
 
   final String apiKey;
   final String model;
@@ -222,17 +221,19 @@ class GeminiGenerator implements CodeGenerator {
     required String prompt,
     required String model,
     String? reasoningEffort,
-  }) => _generate(system: geminiGenerateSystem, user: prompt);
+  }) =>
+      _generate(system: geminiGenerateSystem, user: prompt);
 
   @override
   Future<String> suggestFix({
     required String source,
     required String errorMessage,
     required String model,
-  }) => _generate(
-    system: geminiFixSystem,
-    user: 'ERROR MESSAGE: $errorMessage\nSOURCE CODE:\n$source\n',
-  );
+  }) =>
+      _generate(
+        system: geminiFixSystem,
+        user: 'ERROR MESSAGE: $errorMessage\nSOURCE CODE:\n$source\n',
+      );
 
   Future<String> _generate({
     required String system,
@@ -477,7 +478,8 @@ class FallbackGenerator implements CodeGenerator {
 /// Returns the generator plus a boot log line naming the active providers,
 /// so a stale/missing key is visible at startup rather than hiding behind a
 /// 'log and skip' branch (W-022).
-({FallbackGenerator generator, String providersDescription}) buildGeneratorFromEnv({
+({FallbackGenerator generator, String providersDescription})
+    buildGeneratorFromEnv({
   required String backendBase,
   Map<String, String>? env,
 }) {

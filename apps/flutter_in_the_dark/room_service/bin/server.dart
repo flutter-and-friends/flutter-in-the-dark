@@ -55,9 +55,8 @@ Future<void> main(List<String> args) async {
   );
   final pipeline = gen.Pipeline(
     backendBase: results['backend'] as String,
-    initialModel: (initialModel != null && initialModel.isNotEmpty)
-        ? initialModel
-        : null,
+    initialModel:
+        (initialModel != null && initialModel.isNotEmpty) ? initialModel : null,
     generator: providers.generator,
   );
   stdout.writeln('LLM providers: ${providers.providersDescription}');
@@ -204,7 +203,9 @@ Future<void> main(List<String> args) async {
     return Response.badRequest(
       body: jsonEncode({
         'error': 'compile_failed',
-        'problems': ['recompile of cached-but-dead URL failed; see service log'],
+        'problems': [
+          'recompile of cached-but-dead URL failed; see service log'
+        ],
       }),
       headers: {'Content-Type': 'application/json; charset=utf-8'},
     );
@@ -226,7 +227,7 @@ Future<void> main(List<String> args) async {
         endTime: DateTime.fromMillisecondsSinceEpoch(endMs, isUtc: true),
         assets:
             (body['assets'] as Map<String, dynamic>?)?.cast<String, String>() ??
-            const {},
+                const {},
       );
       // Fire-and-forget re-warm of the picked challenge's compiled URL — a
       // long countdown can outlive the backend's 2 h TTL, and a cache hit
@@ -456,7 +457,8 @@ Future<void> _warm(
       return;
     }
     challenges.cacheCompiled(name, url);
-    stdout.writeln('warm "$name": compiled → $url (${sw.elapsedMilliseconds} ms)');
+    stdout.writeln(
+        'warm "$name": compiled → $url (${sw.elapsedMilliseconds} ms)');
   } catch (e) {
     // Paranoia: _compile already swallows, but a warm must NEVER propagate.
     stdout.writeln('warm "$name": unexpected error: $e — skipped');
@@ -523,14 +525,14 @@ Future<Map<String, dynamic>> _readJson(Request request) async {
 }
 
 Response _json(Map<String, dynamic> body) => Response.ok(
-  jsonEncode(body),
-  headers: {'Content-Type': 'application/json; charset=utf-8'},
-);
+      jsonEncode(body),
+      headers: {'Content-Type': 'application/json; charset=utf-8'},
+    );
 
 Response _badRequest(String message) => Response.badRequest(
-  body: jsonEncode({'error': message}),
-  headers: {'Content-Type': 'application/json; charset=utf-8'},
-);
+      body: jsonEncode({'error': message}),
+      headers: {'Content-Type': 'application/json; charset=utf-8'},
+    );
 
 /// Permissive CORS (the app is served from a different origin). Also answers
 /// preflights; admin bearer is the only protection.

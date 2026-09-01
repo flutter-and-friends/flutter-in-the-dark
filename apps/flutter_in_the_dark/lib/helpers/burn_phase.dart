@@ -58,8 +58,7 @@ const int kCountdownSeconds = 10;
 const double kBlockingSeconds = kBurnSeconds;
 
 /// Whether the burn should be playing at [remaining] seconds left.
-bool isBurning(double remaining) =>
-    remaining <= kBurnSeconds && remaining > 0;
+bool isBurning(double remaining) => remaining <= kBurnSeconds && remaining > 0;
 
 /// Animation progress (0 = just ignited, 1 = countdown over → overlay gone)
 /// at [remaining] seconds left. Callers only invoke this while

@@ -26,8 +26,8 @@ class HeartbeatCurve extends Curve {
     return fastMiddleT < 0.5
         ? (math.pow(2 * fastMiddleT, 2) * ((c2 + 1) * 2 * fastMiddleT - c2)) / 2
         : (math.pow(2 * fastMiddleT - 2, 2) *
-                      ((c2 + 1) * (fastMiddleT * 2 - 2) + c2) +
-                  2) /
-              2;
+                    ((c2 + 1) * (fastMiddleT * 2 - 2) + c2) +
+                2) /
+            2;
   }
 }

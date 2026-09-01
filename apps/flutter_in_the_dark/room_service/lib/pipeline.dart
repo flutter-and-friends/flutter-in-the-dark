@@ -29,9 +29,13 @@ class PipelineException implements Exception {
 class Pipeline {
   /// [generator] is injectable for tests; when omitted it is built from the
   /// environment (Berget primary, Gemini fallback iff `GEMINI_API_KEY`).
-  Pipeline({required this.backendBase, String? initialModel, CodeGenerator? generator})
-    : model = initialModel ?? defaultModel,
-      generator = generator ?? buildGeneratorFromEnv(backendBase: backendBase).generator;
+  Pipeline(
+      {required this.backendBase,
+      String? initialModel,
+      CodeGenerator? generator})
+      : model = initialModel ?? defaultModel,
+        generator = generator ??
+            buildGeneratorFromEnv(backendBase: backendBase).generator;
 
   /// The LLM behind generation/fix. Berget-via-dart_services is the primary;
   /// Gemini (when configured) catches primary failures.
@@ -176,8 +180,7 @@ class Pipeline {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (body['error'] == 'compile_failed') {
         return [
-          for (final p in (body['problems'] as List? ?? const []))
-            p.toString(),
+          for (final p in (body['problems'] as List? ?? const [])) p.toString(),
         ];
       }
     }
@@ -203,7 +206,8 @@ class Pipeline {
     return result;
   }
 
-  Future<String> _suggestFix(String source, List<String> problems, http.Client client) async {
+  Future<String> _suggestFix(
+      String source, List<String> problems, http.Client client) async {
     return generator.suggestFix(
       source: source,
       errorMessage: problems.join('\n'),

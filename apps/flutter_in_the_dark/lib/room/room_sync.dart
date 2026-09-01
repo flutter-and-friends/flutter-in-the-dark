@@ -65,9 +65,7 @@ class RoomSync extends ChangeNotifier {
     _connecting = true;
     _closeStream();
     try {
-      _subscription = client
-          .events(lastEventId: _state?.revision)
-          .listen(
+      _subscription = client.events(lastEventId: _state?.revision).listen(
             _apply,
             onError: (_) => _scheduleReconnect(),
             cancelOnError: false,

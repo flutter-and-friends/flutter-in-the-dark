@@ -147,8 +147,8 @@ class _BurnTestPageState extends State<BurnTestPage>
   late BurnEdge _edge;
 
   Duration get _burnDuration => Duration(
-    microseconds: (kBurnSeconds * 1000000 * widget.slowFactor).round(),
-  );
+        microseconds: (kBurnSeconds * 1000000 * widget.slowFactor).round(),
+      );
 
   @override
   void initState() {

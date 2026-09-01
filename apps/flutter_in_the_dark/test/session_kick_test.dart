@@ -8,7 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 // cannot compile under `flutter test`'s VM). See W-012 / SHADOW-003: the
 // widget flow itself is verified e2e, not via a mirror-harness widget test.
 
-RoomState _state({String roundId = '', List<String> challengerIds = const []}) =>
+RoomState _state(
+        {String roundId = '', List<String> challengerIds = const []}) =>
     RoomState(
       revision: 1,
       roundId: roundId,
@@ -103,7 +104,8 @@ void main() {
       return false;
     }
 
-    test('survives reconnect nulls and a new challenge, kicked only on '
+    test(
+        'survives reconnect nulls and a new challenge, kicked only on '
         'removal', () {
       final snapshots = <RoomState?>[
         _state(roundId: 'r1', challengerIds: ['p1']), // live

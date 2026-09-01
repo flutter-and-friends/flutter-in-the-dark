@@ -7,24 +7,24 @@ import 'package:flutter_test/flutter_test.dart';
 // transitively, so this compiles under `flutter test`'s VM.
 
 RoomState _state({List<String> challengerIds = const []}) => RoomState(
-  revision: 1,
-  roundId: 'r1',
-  challenge: null,
-  challengers: [
-    for (final id in challengerIds)
-      Challenger(
-        id: id,
-        name: 'Player $id',
-        status: ChallengerStatus.active,
-        prompt: '',
-        genState: GenState.idle,
-      ),
-  ],
-  show: ShowState(viewMode: ViewMode.allWithChallenge),
-  globalContent: DisplayContent.prompt,
-  playerContent: const {},
-  generation: GenerationState(activeModel: 'm', candidates: const []),
-);
+      revision: 1,
+      roundId: 'r1',
+      challenge: null,
+      challengers: [
+        for (final id in challengerIds)
+          Challenger(
+            id: id,
+            name: 'Player $id',
+            status: ChallengerStatus.active,
+            prompt: '',
+            genState: GenState.idle,
+          ),
+      ],
+      show: ShowState(viewMode: ViewMode.allWithChallenge),
+      globalContent: DisplayContent.prompt,
+      playerContent: const {},
+      generation: GenerationState(activeModel: 'm', candidates: const []),
+    );
 
 void main() {
   group('decideBoot', () {

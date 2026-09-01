@@ -48,32 +48,32 @@ class Challenger {
   int fixAttempts;
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'joinedAt': joinedAt.toIso8601String(),
-    'status': status.name,
-    'prompt': prompt,
-    'genState': genState.name,
-    if (generatedCode != null) 'generatedCode': generatedCode,
-    if (compiledUrl != null) 'compiledUrl': compiledUrl,
-    if (error != null) 'error': error,
-    'fixAttempts': fixAttempts,
-  };
+        'id': id,
+        'name': name,
+        'joinedAt': joinedAt.toIso8601String(),
+        'status': status.name,
+        'prompt': prompt,
+        'genState': genState.name,
+        if (generatedCode != null) 'generatedCode': generatedCode,
+        if (compiledUrl != null) 'compiledUrl': compiledUrl,
+        if (error != null) 'error': error,
+        'fixAttempts': fixAttempts,
+      };
 
   static Challenger fromJson(Map<String, dynamic> json) => Challenger(
-    id: json['id'] as String,
-    name: json['name'] as String,
-    joinedAt: DateTime.parse(json['joinedAt'] as String),
-    status: ChallengerStatus.values.byName(
-      json['status'] as String? ?? 'active',
-    ),
-    prompt: json['prompt'] as String? ?? '',
-    genState: GenState.values.byName(json['genState'] as String? ?? 'idle'),
-    generatedCode: json['generatedCode'] as String?,
-    compiledUrl: json['compiledUrl'] as String?,
-    error: json['error'] as String?,
-    fixAttempts: json['fixAttempts'] as int? ?? 0,
-  );
+        id: json['id'] as String,
+        name: json['name'] as String,
+        joinedAt: DateTime.parse(json['joinedAt'] as String),
+        status: ChallengerStatus.values.byName(
+          json['status'] as String? ?? 'active',
+        ),
+        prompt: json['prompt'] as String? ?? '',
+        genState: GenState.values.byName(json['genState'] as String? ?? 'idle'),
+        generatedCode: json['generatedCode'] as String?,
+        compiledUrl: json['compiledUrl'] as String?,
+        error: json['error'] as String?,
+        fixAttempts: json['fixAttempts'] as int? ?? 0,
+      );
 }
 
 class Challenge {
@@ -98,26 +98,26 @@ class Challenge {
   Map<String, String> assets;
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    // Always UTC ISO-8601 with an explicit 'Z': a naive no-suffix string is
-    // parsed as LOCAL time by clients, shifting the instant by their offset.
-    'startTime': startTime.toUtc().toIso8601String(),
-    'endTime': endTime.toUtc().toIso8601String(),
-    'widgetUrl': widgetUrl,
-    'assets': assets,
-  };
+        'id': id,
+        'name': name,
+        // Always UTC ISO-8601 with an explicit 'Z': a naive no-suffix string is
+        // parsed as LOCAL time by clients, shifting the instant by their offset.
+        'startTime': startTime.toUtc().toIso8601String(),
+        'endTime': endTime.toUtc().toIso8601String(),
+        'widgetUrl': widgetUrl,
+        'assets': assets,
+      };
 
   static Challenge fromJson(Map<String, dynamic> json) => Challenge(
-    id: json['id'] as String,
-    name: json['name'] as String,
-    startTime: DateTime.parse(json['startTime'] as String).toUtc(),
-    endTime: DateTime.parse(json['endTime'] as String).toUtc(),
-    widgetUrl: json['widgetUrl'] as String,
-    assets:
-        (json['assets'] as Map<String, dynamic>?)?.cast<String, String>() ??
-        const {},
-  );
+        id: json['id'] as String,
+        name: json['name'] as String,
+        startTime: DateTime.parse(json['startTime'] as String).toUtc(),
+        endTime: DateTime.parse(json['endTime'] as String).toUtc(),
+        widgetUrl: json['widgetUrl'] as String,
+        assets:
+            (json['assets'] as Map<String, dynamic>?)?.cast<String, String>() ??
+                const {},
+      );
 }
 
 class ShowState {
@@ -125,9 +125,9 @@ class ShowState {
   String? focusedPlayerId;
 
   Map<String, dynamic> toJson() => {
-    'viewMode': viewMode.name,
-    'focusedPlayerId': focusedPlayerId,
-  };
+        'viewMode': viewMode.name,
+        'focusedPlayerId': focusedPlayerId,
+      };
 
   static ShowState fromJson(Map<String, dynamic> json) {
     final s = ShowState();
@@ -196,37 +196,39 @@ class ModelCandidate {
   final bool isChat;
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'active': active,
-    if (successPct != null) 'successPct': successPct,
-    if (meanLatencyS != null) 'meanLatencyS': meanLatencyS,
-    if (proseLeakPct != null) 'proseLeakPct': proseLeakPct,
-    if (quality != null) 'quality': quality,
-    'runs': runs,
-    if (!isChat) 'isChat': isChat,
-    if (concurrentSuccessPct != null)
-      'concurrentSuccessPct': concurrentSuccessPct,
-    if (concurrentLatencyS != null) 'concurrentLatencyS': concurrentLatencyS,
-    if (concurrentWallS != null) 'concurrentWallS': concurrentWallS,
-    'concurrentRuns': concurrentRuns,
-    if (effort != null) 'effort': effort,
-  };
+        'id': id,
+        'active': active,
+        if (successPct != null) 'successPct': successPct,
+        if (meanLatencyS != null) 'meanLatencyS': meanLatencyS,
+        if (proseLeakPct != null) 'proseLeakPct': proseLeakPct,
+        if (quality != null) 'quality': quality,
+        'runs': runs,
+        if (!isChat) 'isChat': isChat,
+        if (concurrentSuccessPct != null)
+          'concurrentSuccessPct': concurrentSuccessPct,
+        if (concurrentLatencyS != null)
+          'concurrentLatencyS': concurrentLatencyS,
+        if (concurrentWallS != null) 'concurrentWallS': concurrentWallS,
+        'concurrentRuns': concurrentRuns,
+        if (effort != null) 'effort': effort,
+      };
 
   static ModelCandidate fromJson(Map<String, dynamic> json) => ModelCandidate(
-    id: json['id'] as String,
-    active: json['active'] as bool? ?? false,
-    successPct: (json['successPct'] as num?)?.toDouble(),
-    meanLatencyS: (json['meanLatencyS'] as num?)?.toDouble(),
-    proseLeakPct: (json['proseLeakPct'] as num?)?.toDouble(),
-    quality: (json['quality'] as num?)?.toDouble(),
-    runs: json['runs'] as int? ?? 0,
-    isChat: json['isChat'] as bool? ?? true,
-    concurrentSuccessPct: (json['concurrentSuccessPct'] as num?)?.toDouble(),
-    concurrentLatencyS: (json['concurrentLatencyS'] as num?)?.toDouble(),
-    concurrentWallS: (json['concurrentWallS'] as num?)?.toDouble(),
-    concurrentRuns: json['concurrentRuns'] as int? ?? 0,
-    effort: json['effort'] as String?,
-  );
+        id: json['id'] as String,
+        active: json['active'] as bool? ?? false,
+        successPct: (json['successPct'] as num?)?.toDouble(),
+        meanLatencyS: (json['meanLatencyS'] as num?)?.toDouble(),
+        proseLeakPct: (json['proseLeakPct'] as num?)?.toDouble(),
+        quality: (json['quality'] as num?)?.toDouble(),
+        runs: json['runs'] as int? ?? 0,
+        isChat: json['isChat'] as bool? ?? true,
+        concurrentSuccessPct:
+            (json['concurrentSuccessPct'] as num?)?.toDouble(),
+        concurrentLatencyS: (json['concurrentLatencyS'] as num?)?.toDouble(),
+        concurrentWallS: (json['concurrentWallS'] as num?)?.toDouble(),
+        concurrentRuns: json['concurrentRuns'] as int? ?? 0,
+        effort: json['effort'] as String?,
+      );
 }
 
 /// The admin model-picker state: which model is live + the candidate list with
@@ -237,9 +239,9 @@ class GenerationState {
   List<ModelCandidate> candidates = [];
 
   Map<String, dynamic> toJson() => {
-    'activeModel': activeModel,
-    'candidates': [for (final c in candidates) c.toJson()],
-  };
+        'activeModel': activeModel,
+        'candidates': [for (final c in candidates) c.toJson()],
+      };
 
   static GenerationState fromJson(Map<String, dynamic> json) {
     final g = GenerationState();
@@ -281,17 +283,19 @@ class Room {
       playerContent[challengerId] ?? globalContent;
 
   Map<String, dynamic> toJson() => {
-    'revision': revision,
-    'roundId': roundId,
-    'challenge': challenge?.toJson(),
-    'challengers': [
-      for (final c in challengers.values) c.toJson(),
-    ],
-    'show': show.toJson(),
-    'generation': generation.toJson(),
-    'globalContent': globalContent.name,
-    'playerContent': {for (final e in playerContent.entries) e.key: e.value.name},
-  };
+        'revision': revision,
+        'roundId': roundId,
+        'challenge': challenge?.toJson(),
+        'challengers': [
+          for (final c in challengers.values) c.toJson(),
+        ],
+        'show': show.toJson(),
+        'generation': generation.toJson(),
+        'globalContent': globalContent.name,
+        'playerContent': {
+          for (final e in playerContent.entries) e.key: e.value.name
+        },
+      };
 
   static Room fromJson(Map<String, dynamic> json) {
     final room = Room();
@@ -305,7 +309,8 @@ class Room {
       room.challenge = Challenge.fromJson(c);
     }
     for (final c in (json['challengers'] as List? ?? const [])) {
-      final challenger = Challenger.fromJson((c as Map).cast<String, dynamic>());
+      final challenger =
+          Challenger.fromJson((c as Map).cast<String, dynamic>());
       room.challengers[challenger.id] = challenger;
     }
     if (json['show'] case final Map<String, dynamic> s) {

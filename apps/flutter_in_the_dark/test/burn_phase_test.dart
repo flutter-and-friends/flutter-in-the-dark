@@ -112,7 +112,8 @@ void main() {
     });
 
     test('theta is forwarded to the scale function', () {
-      final at = sampleBurnAt(0.5, math.pi / 2, (theta) => theta == math.pi / 2 ? 1.2 : 1.0);
+      final at = sampleBurnAt(
+          0.5, math.pi / 2, (theta) => theta == math.pi / 2 ? 1.2 : 1.0);
       expect(at.holeRadius, closeTo(sampleBurn(0.5).holeRadius * 1.2, 1e-9));
     });
 
@@ -136,7 +137,8 @@ void main() {
       var min = double.infinity;
       var max = double.negativeInfinity;
       for (var j = 0; j < 64; j++) {
-        final r = sampleBurnAt(0.6, 2 * math.pi * j / 64, edge.radiusScaleAt).holeRadius;
+        final r = sampleBurnAt(0.6, 2 * math.pi * j / 64, edge.radiusScaleAt)
+            .holeRadius;
         min = math.min(min, r);
         max = math.max(max, r);
       }
