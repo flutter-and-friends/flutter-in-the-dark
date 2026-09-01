@@ -15,7 +15,6 @@ import 'package:flutter_in_the_dark/room/session_store.dart';
 import 'package:flutter_in_the_dark/screens/challenge_countdown_overlay.dart';
 import 'package:flutter_in_the_dark/screens/player_selection_screen.dart';
 import 'package:flutter_in_the_dark/screens/waiting_for_challenge_screen.dart';
-import 'package:flutter_in_the_dark/widgets/burn_reveal.dart';
 import 'package:flutter_in_the_dark/widgets/challenger_content.dart';
 import 'package:flutter_in_the_dark/widgets/compiled_widget.dart';
 import 'package:flutter_in_the_dark/widgets/plasma_loader.dart';
@@ -61,11 +60,6 @@ class _ChallengeScreenState extends State<ChallengeScreen>
   /// WaitingForChallenge (or the live screen) until the next SSE event.
   Timer? _clockTimer;
 
-  /// Countdown → burn → reveal phase machine for the end-of-challenge gate
-  /// (same instant reveal as /show — I-022: shared behavior lives in the
-  /// widget, not in route context). Fed from [_tick] and SSE rebuilds.
-  late final BurnRevealController _burn;
-
   @override
   void initState() {
     super.initState();
@@ -75,7 +69,6 @@ class _ChallengeScreenState extends State<ChallengeScreen>
     if (_session == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _goToJoin());
     }
-    _burn = BurnRevealController(vsync: this);
     _shakeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
@@ -105,11 +98,6 @@ class _ChallengeScreenState extends State<ChallengeScreen>
   void _syncClockTimer() {
     final challenge = widget.roomSync.state?.challenge;
     final waiting = shouldTickForChallenge(challenge);
-    // Feed the burn controller from the SSE-driven rebuild too, not just
-    // from the wall-clock tick — an SSE event can be the first signal that
-    // the challenge exists/ended, and the controller must see the freshest
-    // remaining time before the ticker next fires.
-    _feedBurn();
     // Fine cadence inside the end-of-challenge countdown/burn window
     // (same threshold as the BurnRevealController's 10 s countdown gate,
     // plus a small hysteresis so the cadence doesn't flap at the edge);
@@ -143,19 +131,11 @@ class _ChallengeScreenState extends State<ChallengeScreen>
   Duration? _clockInterval;
 
   void _tick() {
-    _feedBurn();
     // Note: _syncClockTimer intentionally does NOT re-evaluate the cadence
     // here — calling _feedBurn above already refreshed the controller, and
     // the cadence is only re-considered on SSE/state changes (onRoomChanged)
     // to avoid re-entry from the ticker itself.
     if (mounted) setState(() {});
-  }
-
-  void _feedBurn() {
-    final challenge = widget.roomSync.state?.challenge;
-    if (challenge != null) {
-      _burn.tick(challenge.endTime.difference(DateTime.now()));
-    }
   }
 
   void _goToJoin() {
@@ -177,7 +157,6 @@ class _ChallengeScreenState extends State<ChallengeScreen>
 
   void _onRoomChanged() {
     if (_checkKick()) return;
-    _feedBurn();
     _syncClockTimer();
     if (mounted) setState(() {});
   }
@@ -227,7 +206,6 @@ class _ChallengeScreenState extends State<ChallengeScreen>
   @override
   void dispose() {
     _clockTimer?.cancel();
-    _burn.dispose();
     widget.roomSync.removeListener(_onRoomChanged);
     _confettiController.dispose();
     _shakeController.dispose();
@@ -246,8 +224,6 @@ class _ChallengeScreenState extends State<ChallengeScreen>
     final me = state?.challengerById(session.playerId);
 
     if (challenge == null) return const WaitingForChallengeScreen();
-
-    _feedBurn();
 
     // The buzzer has fired the done screen.
     final done = challenge.isFinished;
