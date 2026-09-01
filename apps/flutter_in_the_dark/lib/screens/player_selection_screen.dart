@@ -3,6 +3,7 @@ import 'package:flutter_in_the_dark/helpers/session_identity.dart';
 import 'package:flutter_in_the_dark/room/room_sync.dart';
 import 'package:flutter_in_the_dark/room/session_store.dart';
 import 'package:flutter_in_the_dark/screens/challenge_screen.dart';
+import 'package:flutter_in_the_dark/widgets/glitch_title.dart';
 
 /// Challenger entry point. Boot flow:
 ///  - A stored session the server still knows (or can't be checked yet)
@@ -149,9 +150,7 @@ class _PlayerSelectionScreenState extends State<PlayerSelectionScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'FLUTTER IN THE DARK',
-                      textAlign: TextAlign.center,
+                    GlitchTitle(
                       style: theme.textTheme.headlineLarge?.copyWith(
                         fontWeight: FontWeight.w900,
                         letterSpacing: 3,
