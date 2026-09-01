@@ -1,4 +1,4 @@
-// name: Emberbloom Mandala
+// name: F2 - Emberbloom Mandala
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 

@@ -1,4 +1,4 @@
-// name: Nox Brew
+// name: C4 - Nox Brew
 import 'package:flutter/material.dart';
 
 void main() => runApp(const NoxApp());
