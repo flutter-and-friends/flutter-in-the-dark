@@ -193,20 +193,19 @@ class _GlitchTitleState extends State<GlitchTitle>
     // the caller baked in (e.g. the player-selection title's blue glow).
     // The default carries its own single tight white glow. ONE shadow max
     // on huge display text (I-056).
-    final baseStyle =
-        widget.style ??
+    final baseStyle = widget.style ??
         (Theme.of(context).textTheme.displaySmall ??
                 const TextStyle(fontSize: 45))
             .copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: 4,
-              shadows: [
-                Shadow(
-                  color: Colors.white.withValues(alpha: 0.35),
-                  blurRadius: 10,
-                ),
-              ],
-            );
+          fontWeight: FontWeight.w800,
+          letterSpacing: 4,
+          shadows: [
+            Shadow(
+              color: Colors.white.withValues(alpha: 0.35),
+              blurRadius: 10,
+            ),
+          ],
+        );
     // Effect layers never inherit the shadow — three blurred copies of huge
     // text is exactly the SwiftShader frame-drop pattern I-056 warns about.
     final splitStyle = baseStyle.copyWith(shadows: const []);
