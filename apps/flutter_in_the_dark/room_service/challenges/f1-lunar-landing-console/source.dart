@@ -1,4 +1,4 @@
-// name: Lunar Landing Console
+// name: F1 - Lunar Landing Console
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';

@@ -1,4 +1,4 @@
-// name: Neon Starfighter HUD
+// name: C5 - Neon Starfighter HUD
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
