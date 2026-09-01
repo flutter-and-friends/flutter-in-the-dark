@@ -19,11 +19,11 @@ RoomState freshRoom() {
 }
 
 void setSomeChallenge(RoomState room) => room.setChallenge(
-  name: 'c',
-  widgetUrl: '/compiled/x',
-  startTime: DateTime.now().toUtc(),
-  endTime: DateTime.now().toUtc().add(const Duration(minutes: 10)),
-);
+      name: 'c',
+      widgetUrl: '/compiled/x',
+      startTime: DateTime.now().toUtc(),
+      endTime: DateTime.now().toUtc().add(const Duration(minutes: 10)),
+    );
 
 void main() {
   group('roundId is the player-set generation', () {
@@ -194,7 +194,8 @@ void main() {
       final a = room.join('ada');
       setSomeChallenge(room);
       final b = room.join('grace');
-      expect(room.room.challengers.keys, unorderedEquals([a.playerId, b.playerId]));
+      expect(room.room.challengers.keys,
+          unorderedEquals([a.playerId, b.playerId]));
       expect(room.checkToken(b.playerId, b.token), isTrue);
     });
   });

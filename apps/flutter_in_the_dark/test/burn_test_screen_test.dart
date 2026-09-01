@@ -26,6 +26,19 @@ void main() {
       expect(BurnTestKnobs.parse('/burn_test?burnHold=-1').holdAt, 0.0);
     });
 
+    test('mockShow: absent by default, parses signed seconds', () {
+      expect(BurnTestKnobs.parse('/burn_test').mockShow, isNull);
+      expect(
+        BurnTestKnobs.parse('/burn_test?mockShow=272').mockShow,
+        closeTo(272, 1e-9),
+      );
+      expect(
+        BurnTestKnobs.parse('/burn_test?mockShow=-2').mockShow,
+        closeTo(-2, 1e-9),
+      );
+      expect(BurnTestKnobs.parse('/burn_test?mockShow=abc').mockShow, isNull);
+    });
+
     test('no query string is fine', () {
       expect(BurnTestKnobs.parse(null).slowFactor, 1);
     });

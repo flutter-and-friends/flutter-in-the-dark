@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-class HomeScreen extends StatelessWidget {
+class WaitingForChallengeScreen extends StatelessWidget {
   static const path = "/home";
 
-  const HomeScreen({super.key});
+  const WaitingForChallengeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

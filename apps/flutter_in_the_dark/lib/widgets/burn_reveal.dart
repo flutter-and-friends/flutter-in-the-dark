@@ -19,6 +19,14 @@
 /// burning ──(remaining ≤ 0 / controller done)──▶ revealed (overlay gone)
 /// ```
 ///
+/// Pointer-blocking is gated separately from visibility: the overlay BLOCKS
+/// input in the waiting phase (the pre-warmed iframe underneath must not be
+/// interactable before the challenge starts) and again from the burn window
+/// onward (the challenge is over by then) — but NOT while the 10→1
+/// countdown is merely visible, when the challenge underneath is still live
+/// (the player must be able to keep typing). See
+/// [BurnRevealController.isBlocking].
+///
 /// The host screen still owns its wall-clock ticker; it feeds every tick to
 /// [BurnRevealController.tick], which starts/stops the burn
 /// [AnimationController] — a Listenable, so the handoff repaints even when
@@ -49,7 +57,10 @@ import 'package:web/web.dart' as web;
 ///  - `?burnSlow=<x>` multiplies the burn duration (e.g. `burnSlow=5`),
 ///  - `?burnHold=<0..1>` freezes the burn animation at an exact fraction
 ///    (the wall-clock handoff is suspended; the overlay stays up burning at
-///    that progress forever) — for steering/screenshotting the look.
+///    that progress forever) — for steering/screenshotting the look,
+///  - `?burnSeconds=<x>` moves the burn window (and the pointer-block gate)
+///    off the wall-clock end (e.g. `burnSeconds=15` burns 15→14 s), so the
+///    non-blocking countdown can be verified on a live challenge.
 ///
 /// These exist so the ~1 s animation can be captured/screenshot; they are
 /// inert without the query params and must never be wired to real UI. The
@@ -58,8 +69,7 @@ import 'package:web/web.dart' as web;
 class BurnDebug {
   BurnDebug._();
 
-  static final BurnKnobs _knobs =
-      BurnKnobs.parse(web.window.location.search);
+  static final BurnKnobs _knobs = BurnKnobs.parse(web.window.location.search);
 
   static bool get enabled => _knobs.debug;
 
@@ -68,6 +78,10 @@ class BurnDebug {
   /// When non-null the burn is held at exactly this progress (0–1) and the
   /// countdown → reveal handoff is suspended. Debug-only.
   static double? get holdAt => _knobs.holdAt;
+
+  /// Debug-only: the burn window's position on the countdown. Defaults to
+  /// [kBurnSeconds] — anchored at the wall-clock end, as production.
+  static double get burnSeconds => _knobs.burnSeconds ?? kBurnSeconds;
 }
 
 /// The countdown → burn → revealed phase machine. Pure Listenable glue: the
@@ -90,6 +104,16 @@ class BurnRevealController extends ChangeNotifier {
   /// Whether the 10→0 countdown overlay is up (opaque or burning).
   bool get isCountingDown => _countingDown;
 
+  /// Whether the countdown overlay currently BLOCKS pointer/keyboard input
+  /// to what is beneath it. True from the burn window onward (which spans
+  /// the zero crossing — see [tick]): the challenge is over by the time the
+  /// player could react to the burn, so nothing of theirs is lost. False
+  /// during the visible 10→1 countdown: the challenge is still live there
+  /// and the player must be able to keep typing underneath the countdown.
+  bool get isBlocking => _countingDown && _blocking;
+
+  bool _blocking = false;
+
   /// Whether the burn animation is running.
   bool get isBurnAnimating => _burn?.isAnimating ?? false;
 
@@ -103,7 +127,9 @@ class BurnRevealController extends ChangeNotifier {
   /// wall-clock tick and every SSE-driven rebuild.
   void tick(Duration remaining) {
     if (_revealed) return;
-    final seconds = remaining.inMilliseconds / 1000.0;
+    // Letting this be a double to actually get milliseconds to the timer, but
+    // as decimals.
+    final secondsRemaining = remaining.inMilliseconds / 1000.0;
 
     // Debug-only hold: pretend the clock is parked at the held burn
     // fraction so the overlay stays up, burning at exactly that progress,
@@ -111,18 +137,30 @@ class BurnRevealController extends ChangeNotifier {
     // entered first (a hold implies the burn is visually active).
     final hold = BurnDebug.holdAt;
     if (hold != null) {
-      _enterCountdown(seconds <= 0 ? kBurnSeconds : seconds);
+      _enterCountdown(secondsRemaining <= 0 ? kBurnSeconds : secondsRemaining);
       _burn!.value = hold;
+      _setBlocking(true); // a held burn is by definition the blocking window
       return;
     }
 
-    if (seconds > kCountdownSeconds) return; // still waiting
+    if (secondsRemaining > kCountdownSeconds) return; // still waiting
 
-    _enterCountdown(seconds);
+    // The burn window on the countdown (normally the last kBurnSeconds
+    // before zero; the debug burnSeconds knob can move it earlier). The
+    // window's tail crosses the wall-clock end, so the overlay turns
+    // BLOCKING from its start: the player could not meaningfully finish an
+    // edit in the sub-second left, and the server has already closed the
+    // round by the time the burn reads as started (W-017).
+    final burnStart = BurnDebug.burnSeconds;
+    final burnEnd = burnStart - kBurnSeconds;
+
+    _enterCountdown(secondsRemaining);
+    _setBlocking(secondsRemaining <= burnStart);
 
     // Countdown over: snap to done even if the animation never ran (a fully
-    // backgrounded tab can jump straight past the burn window — W-017).
-    if (seconds <= 0) {
+    // backgrounded tab — or a debug-steered `?burnSeconds=` burn that
+    // already played early — can jump straight past the window; W-017).
+    if (secondsRemaining <= 0) {
       _burn!.value = 1;
       _completeBurn();
       return;
@@ -132,8 +170,9 @@ class BurnRevealController extends ChangeNotifier {
     // The controller gives smooth 60 fps motion in the foreground; the
     // direct value assignment keeps the END STATE exact when frames are
     // dropped (backgrounded-tab throttling — W-017).
-    if (isBurning(seconds)) {
-      final target = burnProgress(seconds);
+    if (secondsRemaining <= burnStart && secondsRemaining > burnEnd) {
+      final target =
+          1.0 - ((secondsRemaining - burnEnd) / kBurnSeconds).clamp(0.0, 1.0);
       final burn = _burn!;
       if (!burn.isAnimating) {
         burn.forward();
@@ -142,6 +181,12 @@ class BurnRevealController extends ChangeNotifier {
         burn.value = target;
       }
     }
+  }
+
+  void _setBlocking(bool value) {
+    if (_blocking == value) return;
+    _blocking = value;
+    notifyListeners();
   }
 
   /// Enter the countdown phase (idempotent): create the burn controller
@@ -178,6 +223,7 @@ class BurnRevealController extends ChangeNotifier {
     if (_burn == null) return;
     _revealed = false;
     _countingDown = true;
+    _blocking = true; // a replayed burn is the blocking window
     // Re-seed so every replay burns a different silhouette.
     burnEdge = BurnEdge(seed: math.Random().nextInt(1 << 31));
     _burn!.forward(from: 0);
@@ -242,39 +288,52 @@ class BurnRevealOverlay extends StatelessWidget {
         // countdown phase started (a burn implies a seed exists).
         final edge = controller.burnEdge ??
             BurnEdge(seed: math.Random().nextInt(1 << 31));
-        return PointerInterceptor(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // The shader overlay IS the "paper" that burns: it draws the
-              // opaque background + the jagged hole + char + flame in ONE
-              // fragment-shader pass (no dstOut saveLayer, no per-frame
-              // rasterization). The countdown display is stacked ABOVE it
-              // inside BurnShaderOverlay and faded out as ignition starts
-              // (a shader can't draw widget text — see that class). The
-              // layer keeps blocking pointer input until it is gone — the
-              // countdown is not over yet.
-              AbsorbPointer(
-                child: BurnShaderOverlay(
-                  progress: progress,
-                  edge: edge,
-                  countdownBuilder: countdownBuilder,
+        // Pointer-blocking is gated separately from visibility: while the
+        // 10→1 countdown is merely VISIBLE the challenge is still live, so
+        // the layer beneath (on the player's screen, the live PromptEditor)
+        // must keep focus and accept input — the overlay ignores pointers
+        // and hit-tests transparent so it neither swallows clicks nor keeps
+        // pointer_interceptor's invisible platform view alive (that view
+        // would blur the text field on web). Only from the burn window
+        // onward (which spans the zero crossing) does the overlay block —
+        // the challenge is over by then.
+        final blocking = controller.isBlocking;
+        final overlay = Stack(
+          fit: StackFit.expand,
+          children: [
+            // The shader overlay IS the "paper" that burns: it draws the
+            // opaque background + the jagged hole + char + flame in ONE
+            // fragment-shader pass (no dstOut saveLayer, no per-frame
+            // rasterization). The countdown display is stacked ABOVE it
+            // inside BurnShaderOverlay and faded out as ignition starts
+            // (a shader can't draw widget text — see that class). The
+            // layer blocks pointer input only once the burn window is up —
+            // before that the countdown underneath is still live.
+            AbsorbPointer(
+              absorbing: blocking,
+              child: BurnShaderOverlay(
+                progress: progress,
+                edge: edge,
+                countdownBuilder: countdownBuilder,
+              ),
+            ),
+            if (BurnDebug.enabled)
+              Positioned(
+                top: 8,
+                right: 8,
+                // Debug-only: outside the AbsorbPointer so the replay
+                // button stays clickable.
+                child: FloatingActionButton.small(
+                  heroTag: 'burn-debug-replay',
+                  onPressed: controller.debugReplay,
+                  child: const Icon(Icons.replay),
                 ),
               ),
-              if (BurnDebug.enabled)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  // Debug-only: outside the AbsorbPointer so the replay
-                  // button stays clickable.
-                  child: FloatingActionButton.small(
-                    heroTag: 'burn-debug-replay',
-                    onPressed: controller.debugReplay,
-                    child: const Icon(Icons.replay),
-                  ),
-                ),
-            ],
-          ),
+          ],
+        );
+        return IgnorePointer(
+          ignoring: !blocking,
+          child: blocking ? PointerInterceptor(child: overlay) : overlay,
         );
       },
     );

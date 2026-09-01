@@ -21,5 +21,4 @@ import 'package:flutter_in_the_dark/room/room_models.dart';
 /// (![Challenge.isFinished]). Once the challenge is finished — or null —
 /// there is nothing time-dependent left, so the ticker should stop.
 bool shouldTickForChallenge(Challenge? challenge) =>
-    challenge != null &&
-    (challenge.isInTheFuture || !challenge.isFinished);
+    challenge != null && (challenge.isInTheFuture || !challenge.isFinished);

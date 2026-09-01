@@ -24,7 +24,8 @@ typedef ChallengePick = ({
 ///
 /// Uses the root navigator so the sheet is not clipped by a nested
 /// [Scaffold]; it is safe to call from anywhere under the admin screen.
-Future<ChallengePick?> showChallengePicker(BuildContext context, RoomClient client) =>
+Future<ChallengePick?> showChallengePicker(
+        BuildContext context, RoomClient client) =>
     showModalBottomSheet<ChallengePick>(
       context: context,
       isScrollControlled: true,
@@ -232,8 +233,8 @@ class _ChallengePickerSheetState extends State<ChallengePickerSheet> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : info.widgetUrl == null
-              ? const Icon(Icons.build_outlined)
-              : null,
+                  ? const Icon(Icons.build_outlined)
+                  : null,
           onTap: _compilingName == null ? () => _onTap(info) : null,
         );
       },

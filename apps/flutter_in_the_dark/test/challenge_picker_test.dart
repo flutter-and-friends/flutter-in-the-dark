@@ -45,10 +45,10 @@ void main() {
 
   group('filterChallenges', () {
     ChallengeInfo info(String name, {String? widgetUrl}) => ChallengeInfo(
-      name: name,
-      assets: const {'a.png': 'asset:0'},
-      widgetUrl: widgetUrl,
-    );
+          name: name,
+          assets: const {'a.png': 'asset:0'},
+          widgetUrl: widgetUrl,
+        );
 
     final catalog = [
       info('Emoji Quiz', widgetUrl: '/compiled/emoji-quiz'),
@@ -112,7 +112,8 @@ void main() {
       expect(first, ['Alph x', 'Beta x', 'Zeta x']);
     });
 
-    test('deterministic full-tie (identical lowercase names) falls back to '
+    test(
+        'deterministic full-tie (identical lowercase names) falls back to '
         'exact name order', () {
       final ties = [info('Beta'), info('beta'), info('BETA')];
       final first = filterChallenges('beta', ties).map((c) => c.name).toList();

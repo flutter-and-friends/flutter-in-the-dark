@@ -74,13 +74,14 @@ void main() {
     Map<String, dynamic> challengeJson({
       required String startTime,
       required String endTime,
-    }) => {
-      'id': 'c1',
-      'name': 'Five minutes',
-      'startTime': startTime,
-      'endTime': endTime,
-      'widgetUrl': '/compiled/c1',
-    };
+    }) =>
+        {
+          'id': 'c1',
+          'name': 'Five minutes',
+          'startTime': startTime,
+          'endTime': endTime,
+          'widgetUrl': '/compiled/c1',
+        };
 
     test(
       'Z-suffixed wire: challenge starting now is live and not finished',

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_in_the_dark/room/room_client.dart';
 import 'package:flutter_in_the_dark/room/room_models.dart';
 import 'package:flutter_in_the_dark/widgets/burn_reveal.dart';
-import 'package:flutter_in_the_dark/widgets/compiled_widget.dart';
 import 'package:flutter_in_the_dark/widgets/countdown_overlay.dart';
 import 'package:timeago_flutter/timeago_flutter.dart';
 
@@ -17,16 +15,17 @@ import 'package:timeago_flutter/timeago_flutter.dart';
 /// Timeago below re-runs its builder every second and feeds
 /// [BurnRevealController.tick], so the countdown → burn → reveal handoff is
 /// Listenable-driven, never a bare `DateTime.now()` gate in `build`.
-class WaitingForChallenge extends StatefulWidget {
+class ChallengeCountdownOverlay extends StatefulWidget {
   final Challenge challenge;
 
-  const WaitingForChallenge({super.key, required this.challenge});
+  const ChallengeCountdownOverlay({super.key, required this.challenge});
 
   @override
-  State<WaitingForChallenge> createState() => _WaitingForChallengeState();
+  State<ChallengeCountdownOverlay> createState() =>
+      _ChallengeCountdownOverlayState();
 }
 
-class _WaitingForChallengeState extends State<WaitingForChallenge>
+class _ChallengeCountdownOverlayState extends State<ChallengeCountdownOverlay>
     with SingleTickerProviderStateMixin {
   late final BurnRevealController _burn;
 
@@ -57,21 +56,6 @@ class _WaitingForChallengeState extends State<WaitingForChallenge>
           return Stack(
             fit: StackFit.expand,
             children: [
-              // Pre-warmed challenge iframe — mounted from the moment the
-              // challenge is known, hidden behind the overlay until the burn
-              // reveals it. An empty widgetUrl (uncompiled challenge)
-              // renders the same placeholder the live screens use.
-              if (challenge.widgetUrl.isNotEmpty)
-                CompiledWidget(
-                  url: '${RoomClient.compileBaseUrl}${challenge.widgetUrl}',
-                )
-              else
-                const Center(
-                  child: Text(
-                    'Challenge widget coming soon…',
-                    style: TextStyle(color: Colors.white38),
-                  ),
-                ),
               // Opaque until the reveal: the >10 s "Starting in N" text,
               // then the 10→0 countdown, then the burn itself. The overlay
               // self-blocks pointer input (PointerInterceptor inside

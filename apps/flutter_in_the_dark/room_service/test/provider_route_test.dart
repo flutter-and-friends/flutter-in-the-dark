@@ -86,7 +86,8 @@ void main() {
     test('POST switches mode and GET reflects it', () async {
       for (final mode in ['gemini', 'berget', 'auto']) {
         final response = await postRaw(port, {'provider': mode});
-        expect(response.statusCode, 200, reason: 'mode $mode should be accepted');
+        expect(response.statusCode, 200,
+            reason: 'mode $mode should be accepted');
         final body = (jsonDecode(response.body) as Map).cast<String, dynamic>();
         expect(body, {'ok': true, 'provider': mode});
         expect((await getMode(port))['provider'], mode);

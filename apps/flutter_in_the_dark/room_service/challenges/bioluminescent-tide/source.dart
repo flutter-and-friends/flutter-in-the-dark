@@ -68,7 +68,8 @@ class _TideScreenState extends State<TideScreen>
 }
 
 class _Organism {
-  const _Organism(this.x, this.y, this.radius, this.hue, this.phase, this.drift);
+  const _Organism(
+      this.x, this.y, this.radius, this.hue, this.phase, this.drift);
 
   final double x; // base horizontal position, fraction of width
   final double y; // vertical position, fraction of height
@@ -154,7 +155,8 @@ class _TidePainter extends CustomPainter {
     // 3. Organisms: glowing bells with trailing tendrils, pulsing.
     for (final o in _organisms) {
       final pulse = 0.72 + 0.28 * math.sin(2 * math.pi * (time + o.phase));
-      final cx = (o.x + o.drift * math.sin(2 * math.pi * (time * 1.3 + o.phase))) * w;
+      final cx =
+          (o.x + o.drift * math.sin(2 * math.pi * (time * 1.3 + o.phase))) * w;
       final cy = o.y * h + 10 * math.sin(2 * math.pi * (time + o.phase * 2));
       final r = o.radius * m * pulse;
 
@@ -236,10 +238,10 @@ class _TidePainter extends CustomPainter {
       final px = rng.nextDouble();
       final py = rng.nextDouble();
       final size = 0.8 + rng.nextDouble() * 1.6;
-      final glow = 0.25 +
-          0.30 * math.sin(2 * math.pi * (time * 2 + px * 5 + py * 3));
-      motePaint.color = const Color(0xFF7FE8DC)
-          .withOpacity(glow.clamp(0.0, 1.0));
+      final glow =
+          0.25 + 0.30 * math.sin(2 * math.pi * (time * 2 + px * 5 + py * 3));
+      motePaint.color =
+          const Color(0xFF7FE8DC).withOpacity(glow.clamp(0.0, 1.0));
       final driftX = 8 * math.sin(2 * math.pi * (time + py));
       canvas.drawCircle(
         Offset(px * w + driftX, py * h),

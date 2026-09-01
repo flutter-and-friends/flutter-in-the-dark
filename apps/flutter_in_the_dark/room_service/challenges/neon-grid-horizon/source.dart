@@ -158,8 +158,8 @@ class _NeonGridPainter extends CustomPainter {
     }
     // The top portion above the gaps is drawn whole.
     canvas.save();
-    canvas.clipRect(Rect.fromLTWH(
-        0, 0, w, sunCenter.dy + (gapStart - 0.02) * sunR));
+    canvas.clipRect(
+        Rect.fromLTWH(0, 0, w, sunCenter.dy + (gapStart - 0.02) * sunR));
     canvas.drawCircle(sunCenter, sunR, sunGradient);
     canvas.restore();
     canvas.restore();

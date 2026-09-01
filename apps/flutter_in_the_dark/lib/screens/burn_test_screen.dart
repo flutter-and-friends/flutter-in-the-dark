@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_in_the_dark/helpers/burn_knobs.dart';
 import 'package:flutter_in_the_dark/helpers/burn_phase.dart';
 import 'package:flutter_in_the_dark/widgets/burn_effects.dart';
 import 'package:flutter_in_the_dark/widgets/burn_shader.dart';
+import 'package:flutter_in_the_dark/widgets/show_overlay.dart';
 
 /// Debug knobs for [/burn_test], parsed from the route's query string by
 /// [BurnTestPage.fromSettings]. This is a thin typed view over the SHARED
@@ -17,12 +19,18 @@ import 'package:flutter_in_the_dark/widgets/burn_shader.dart';
 ///    parks the loop there — for steering/screenshotting the look,
 ///  - `?burnMode=mask|shader` selects the implementation under test:
 ///    `shader` (default) = production `BurnShaderOverlay`;
-///    `mask` = the old `BurnHoleMask`+`BurnPainter` A/B baseline.
+///    `mask` = the old `BurnHoleMask`+`BurnPainter` A/B baseline,
+///  - `?mockShow=<remainingSeconds>` renders the /show overlay widgets
+///    ([ShowTimerPill], and [TimeOverBanner] when the value is negative)
+///    over the dummy challenge so they can be screenshot without a
+///    backend: `mockShow=272` = mid-challenge pill, `mockShow=-2` =
+///    time-over banner.
 class BurnTestKnobs {
   const BurnTestKnobs({
     this.slowFactor = 1,
     this.holdAt,
     this.mode = BurnMode.shader,
+    this.mockShow,
   });
 
   /// Parses the knobs from a route name's query string
@@ -33,6 +41,9 @@ class BurnTestKnobs {
       slowFactor: knobs.slowFactor,
       holdAt: knobs.holdAt,
       mode: knobs.mode,
+      mockShow: double.tryParse(
+        Uri.parse(routeName ?? '/').queryParameters['mockShow'] ?? '',
+      ),
     );
   }
 
@@ -43,6 +54,11 @@ class BurnTestKnobs {
 
   /// Which burn implementation to render.
   final BurnMode mode;
+
+  /// When non-null, mock the /show overlay state: the pill/banner see an
+  /// endTime exactly this many seconds from first build (negative = the
+  /// challenge is already over → the time-over banner).
+  final double? mockShow;
 }
 
 /// Looping burn-reveal demo phases: the "paper" (countdown display) burns
@@ -94,6 +110,7 @@ class BurnTestPage extends StatefulWidget {
     this.slowFactor = 1,
     this.holdAt,
     this.mode = BurnMode.shader,
+    this.mockShow,
   });
 
   /// Convenience constructor for `onGenerateRoute`: parses the knobs from
@@ -104,12 +121,16 @@ class BurnTestPage extends StatefulWidget {
       slowFactor: knobs.slowFactor,
       holdAt: knobs.holdAt,
       mode: knobs.mode,
+      mockShow: knobs.mockShow,
     );
   }
 
   final double slowFactor;
   final double? holdAt;
   final BurnMode mode;
+
+  /// Debug-only /show overlay mock (see [BurnTestKnobs.mockShow]).
+  final double? mockShow;
 
   @override
   State<BurnTestPage> createState() => _BurnTestPageState();
@@ -126,8 +147,8 @@ class _BurnTestPageState extends State<BurnTestPage>
   late BurnEdge _edge;
 
   Duration get _burnDuration => Duration(
-    microseconds: (kBurnSeconds * 1000000 * widget.slowFactor).round(),
-  );
+        microseconds: (kBurnSeconds * 1000000 * widget.slowFactor).round(),
+      );
 
   @override
   void initState() {
@@ -175,6 +196,13 @@ class _BurnTestPageState extends State<BurnTestPage>
         fit: StackFit.expand,
         children: [
           const _DummyChallenge(),
+          // Debug-only /show overlay mock (?mockShow=<remainingSeconds>):
+          // the REAL widgets moved out of show_screen.dart — ShowTimerPill
+          // and TimeOverBanner from show_overlay.dart — pinned to a fake
+          // endTime so the projector overlay states can be screenshot
+          // without room_service.
+          if (widget.mockShow case final mockShow?)
+            _MockShowOverlay(remainingSeconds: mockShow),
           if (!_holding)
             AnimatedBuilder(
               animation: _burn,
@@ -224,6 +252,153 @@ class _BurnTestPageState extends State<BurnTestPage>
   }
 }
 
+/// Debug-only mock of the /show overlay states (?mockShow=<seconds>): pins
+/// the REAL [ShowTimerPill] / [TimeOverBanner] from
+/// `widgets/show_overlay.dart` to an endTime offset from first build, so
+/// the projector overlay (mid-challenge pill, end-of-challenge flash) can
+/// be steered and screenshot without room_service. Positive values render
+/// the pill; negative values the time-over banner. No production UI
+/// references this.
+class _MockShowOverlay extends StatefulWidget {
+  const _MockShowOverlay({required this.remainingSeconds});
+
+  final double remainingSeconds;
+
+  @override
+  State<_MockShowOverlay> createState() => _MockShowOverlayState();
+}
+
+class _MockShowOverlayState extends State<_MockShowOverlay> {
+  late DateTime _endTime;
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _endTime = _fresh();
+    // 1 Hz ticker: drives the banner's visibility window (the banner
+    // itself carries NO ticker — the host drives rebuilds, so the mock
+    // supplies the cadence show_screen's _clockTimer would). For a
+    // NEGATIVE mockShow (time-over) it also RE-ARMS the window each tick
+    // so the banner stays catchable for a screenshot no matter when it
+    // lands — production /show never re-arms, the 5 s window is real.
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {
+        if (widget.remainingSeconds < 0) _endTime = _fresh();
+      });
+    });
+  }
+
+  DateTime _fresh() => DateTime.now().add(
+        Duration(milliseconds: (widget.remainingSeconds * 1000).round()),
+      );
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned(
+          top: 12,
+          left: 0,
+          right: 0,
+          child: Center(child: ShowTimerPill(endTime: _endTime)),
+        ),
+        Positioned.fill(child: TimeOverBanner(endTime: _endTime)),
+      ],
+    );
+  }
+}
+
+/// A burn-FREE steering harness for the /show overlay widgets (no
+/// ShaderMask, no looping burn): a static code-pane-like backdrop with the
+/// REAL [ShowTimerPill] / [TimeOverBanner] pinned to a fake endTime. This
+/// exists because the looping burn's dstOut ShaderMask is too heavy to
+/// screenshot under headless SwiftShader, and freezing it at full progress
+/// (burnHold=1.0) makes the erase layer wipe sibling overlays (I-033).
+/// Route: `/show_mock?mockShow=<remainingSeconds>` (positive = pill,
+/// negative = time-over banner).
+class ShowMockPage extends StatelessWidget {
+  const ShowMockPage({super.key, required this.remainingSeconds});
+
+  factory ShowMockPage.fromSettings(RouteSettings settings) {
+    final query = Uri.parse(settings.name ?? '/').queryParameters;
+    final seconds = double.tryParse(query['mockShow'] ?? '') ?? 272;
+    return ShowMockPage(remainingSeconds: seconds);
+  }
+
+  final double remainingSeconds;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const _CodePaneBackdrop(),
+          _MockShowOverlay(remainingSeconds: remainingSeconds),
+        ],
+      ),
+    );
+  }
+}
+
+/// A static stand-in for the /show code pane: dark editor surface with
+/// mono "code" lines, so the overlay's collision (or lack of it) with the
+/// content underneath reads exactly like the projector complaint.
+class _CodePaneBackdrop extends StatelessWidget {
+  const _CodePaneBackdrop();
+
+  @override
+  Widget build(BuildContext context) {
+    const lines = [
+      'import \'package:flutter/material.dart\';',
+      '',
+      'class AuroraBorealis extends StatelessWidget {',
+      '  const AuroraBorealis({super.key});',
+      '',
+      '  @override',
+      '  Widget build(BuildContext context) {',
+      '    return CustomPaint(',
+      '      painter: _AuroraPainter(',
+      '        colors: const [Color(0xFF00E5A0), Color(0xFF7C4DFF)],',
+      '        bands: 5,',
+      '      ),',
+      '      child: const SizedBox.expand(),',
+      '    );',
+      '  }',
+      '}',
+      '',
+      'class _AuroraPainter extends CustomPainter {',
+      '  // …',
+      '}',
+    ];
+    return Container(
+      color: const Color(0xFF0D1117),
+      padding: const EdgeInsets.all(32),
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: Text(
+          lines.join('\n'),
+          style: const TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 20,
+            height: 1.5,
+            color: Color(0xFFC9D1D9),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// The "paper" that burns away: a big countdown-style display standing in
 /// for the production `CountdownOverlay` (no wall clock here — I-008).
 class _CountdownPaper extends StatelessWidget {
@@ -266,48 +441,19 @@ class _DummyChallenge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          radius: 1.2,
-          colors: [Color(0xFF283593), Color(0xFF101323)],
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0D47A1), Color(0xFF311B92)],
         ),
       ),
-      child: CustomPaint(
-        painter: _GridPainter(),
-        child: const Center(
-          child: Text(
-            'THE CHALLENGE',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 56,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 4,
-              color: Colors.white,
-              shadows: [Shadow(blurRadius: 24, color: Colors.indigoAccent)],
-            ),
-          ),
+      child: Center(
+        child: Icon(
+          Icons.emoji_events,
+          size: 180,
+          color: Colors.amber.shade400,
         ),
       ),
     );
   }
-}
-
-/// Faint crosshatch over the gradient so the reveal has texture to show
-/// against — a hole in black paper over flat black is hard to read.
-class _GridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0x14FFFFFF)
-      ..strokeWidth = 1;
-    const step = 48.0;
-    for (var x = 0.0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (var y = 0.0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_GridPainter oldDelegate) => false;
 }

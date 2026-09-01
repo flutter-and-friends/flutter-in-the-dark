@@ -79,31 +79,40 @@ void main() {
     expect(before['name'], 'ada');
 
     // Start a challenge: roundId stays, the session keeps validating.
-    await post('/api/admin/challenge', {
-      'name': 'hello-dark',
-      'widgetUrl': '/compiled/x',
-      'startTime': DateTime.now().toUtc().millisecondsSinceEpoch,
-      'endTime': DateTime.now()
-          .toUtc()
-          .add(const Duration(minutes: 10))
-          .millisecondsSinceEpoch,
-    }, expectStatus: 200);
+    await post(
+        '/api/admin/challenge',
+        {
+          'name': 'hello-dark',
+          'widgetUrl': '/compiled/x',
+          'startTime': DateTime.now().toUtc().millisecondsSinceEpoch,
+          'endTime': DateTime.now()
+              .toUtc()
+              .add(const Duration(minutes: 10))
+              .millisecondsSinceEpoch,
+        },
+        expectStatus: 200);
     expect((await state())['roundId'], join['roundId']);
-    await post('/api/prompt', {
-      'playerId': join['playerId'],
-      'token': join['token'],
-      'prompt': 'a red button',
-    }, expectStatus: 200);
+    await post(
+        '/api/prompt',
+        {
+          'playerId': join['playerId'],
+          'token': join['token'],
+          'prompt': 'a red button',
+        },
+        expectStatus: 200);
 
     // Clear the challenge: still known, still writable.
     await post('/api/admin/clear', {}, expectStatus: 200);
     expect((await state())['roundId'], join['roundId']);
     expect((await get(sessionQuery))['known'], isTrue);
-    await post('/api/prompt', {
-      'playerId': join['playerId'],
-      'token': join['token'],
-      'prompt': 'still here',
-    }, expectStatus: 200);
+    await post(
+        '/api/prompt',
+        {
+          'playerId': join['playerId'],
+          'token': join['token'],
+          'prompt': 'still here',
+        },
+        expectStatus: 200);
   });
 
   test('admin Remove kicks just that player; removeAll kicks everyone',
@@ -116,8 +125,8 @@ void main() {
         expectStatus: 200);
     expect((await get('/api/session?playerId=${a['playerId']}'))['known'],
         isFalse);
-    expect((await get('/api/session?playerId=${b['playerId']}'))['known'],
-        isTrue);
+    expect(
+        (await get('/api/session?playerId=${b['playerId']}'))['known'], isTrue);
     final kicked = await client.post(
       Uri.parse('http://127.0.0.1:$port/api/prompt'),
       headers: {'Content-Type': 'application/json'},
@@ -151,11 +160,14 @@ void main() {
     final session = await get('/api/session?playerId=${rejoin['playerId']}');
     expect(session['known'], isTrue);
     expect(session['name'], 'ada');
-    await post('/api/prompt', {
-      'playerId': rejoin['playerId'],
-      'token': rejoin['token'],
-      'prompt': 'back in',
-    }, expectStatus: 200);
+    await post(
+        '/api/prompt',
+        {
+          'playerId': rejoin['playerId'],
+          'token': rejoin['token'],
+          'prompt': 'back in',
+        },
+        expectStatus: 200);
   });
 
   test('unknown / missing playerId on /api/session → known:false', () async {
