@@ -107,7 +107,12 @@ class Challenge {
   final Map<String, String> assets;
 
   bool get isInTheFuture => startTime.isAfter(DateTime.now());
+
   bool get isFinished => DateTime.now().isAfter(endTime);
+
+  bool get isWithinTenSecondsFromEnd =>
+      !isFinished &&
+      DateTime.now().add(const Duration(seconds: 10)).isAfter(endTime);
 
   static Challenge fromJson(Map<String, dynamic> json) => Challenge(
         id: json['id'] as String,

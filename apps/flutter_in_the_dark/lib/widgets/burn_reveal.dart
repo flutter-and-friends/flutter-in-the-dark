@@ -127,7 +127,9 @@ class BurnRevealController extends ChangeNotifier {
   /// wall-clock tick and every SSE-driven rebuild.
   void tick(Duration remaining) {
     if (_revealed) return;
-    final seconds = remaining.inMilliseconds / 1000.0;
+    // Letting this be a double to actually get milliseconds to the timer, but
+    // as decimals.
+    final secondsRemaining = remaining.inMilliseconds / 1000.0;
 
     // Debug-only hold: pretend the clock is parked at the held burn
     // fraction so the overlay stays up, burning at exactly that progress,
@@ -135,13 +137,13 @@ class BurnRevealController extends ChangeNotifier {
     // entered first (a hold implies the burn is visually active).
     final hold = BurnDebug.holdAt;
     if (hold != null) {
-      _enterCountdown(seconds <= 0 ? kBurnSeconds : seconds);
+      _enterCountdown(secondsRemaining <= 0 ? kBurnSeconds : secondsRemaining);
       _burn!.value = hold;
       _setBlocking(true); // a held burn is by definition the blocking window
       return;
     }
 
-    if (seconds > kCountdownSeconds) return; // still waiting
+    if (secondsRemaining > kCountdownSeconds) return; // still waiting
 
     // The burn window on the countdown (normally the last kBurnSeconds
     // before zero; the debug burnSeconds knob can move it earlier). The
@@ -152,13 +154,13 @@ class BurnRevealController extends ChangeNotifier {
     final burnStart = BurnDebug.burnSeconds;
     final burnEnd = burnStart - kBurnSeconds;
 
-    _enterCountdown(seconds);
-    _setBlocking(seconds <= burnStart);
+    _enterCountdown(secondsRemaining);
+    _setBlocking(secondsRemaining <= burnStart);
 
     // Countdown over: snap to done even if the animation never ran (a fully
     // backgrounded tab — or a debug-steered `?burnSeconds=` burn that
     // already played early — can jump straight past the window; W-017).
-    if (seconds <= 0) {
+    if (secondsRemaining <= 0) {
       _burn!.value = 1;
       _completeBurn();
       return;
@@ -168,8 +170,9 @@ class BurnRevealController extends ChangeNotifier {
     // The controller gives smooth 60 fps motion in the foreground; the
     // direct value assignment keeps the END STATE exact when frames are
     // dropped (backgrounded-tab throttling — W-017).
-    if (seconds <= burnStart && seconds > burnEnd) {
-      final target = 1.0 - ((seconds - burnEnd) / kBurnSeconds).clamp(0.0, 1.0);
+    if (secondsRemaining <= burnStart && secondsRemaining > burnEnd) {
+      final target =
+          1.0 - ((secondsRemaining - burnEnd) / kBurnSeconds).clamp(0.0, 1.0);
       final burn = _burn!;
       if (!burn.isAnimating) {
         burn.forward();

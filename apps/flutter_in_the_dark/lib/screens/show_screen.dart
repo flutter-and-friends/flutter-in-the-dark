@@ -2,23 +2,23 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:confetti/confetti.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_in_the_dark/helpers/challenge_ticker.dart';
 import 'package:flutter_in_the_dark/room/room_client.dart';
 import 'package:flutter_in_the_dark/room/room_models.dart';
 import 'package:flutter_in_the_dark/room/room_sync.dart';
-import 'package:flutter_in_the_dark/screens/waiting_for_challenge_screen.dart';
 import 'package:flutter_in_the_dark/screens/challenge_countdown_overlay.dart';
-import 'package:flutter_in_the_dark/widgets/burn_reveal.dart';
+import 'package:flutter_in_the_dark/screens/waiting_for_challenge_screen.dart';
 import 'package:flutter_in_the_dark/widgets/challenger_content.dart';
 import 'package:flutter_in_the_dark/widgets/compiled_widget.dart';
 import 'package:flutter_in_the_dark/widgets/countdown_overlay.dart';
 import 'package:flutter_in_the_dark/widgets/show_overlay.dart';
-import 'package:flutter/material.dart';
 
 /// The audience screen. Renders the challenge plus one box per challenger;
 /// each box shows Prompt | Code | compiled Widget per the admin's tri-state
 /// selection (§6.D). Same render as the contestant's own done screen.
-class ShowScreen extends StatefulWidget {
+class ShowScreen extends StatefulHookWidget {
   const ShowScreen({super.key, required this.roomSync});
 
   final RoomSync roomSync;
@@ -34,11 +34,6 @@ class _ShowScreenState extends State<ShowScreen>
   /// events, and no SSE event fires when wall-clock time crosses startTime.
   Timer? _clockTimer;
 
-  /// Countdown → burn → reveal phase machine for the end-of-challenge gate.
-  /// Fed from [_tick] (and SSE rebuilds) — never a bare DateTime.now()
-  /// gate in build (I-008).
-  late final BurnRevealController _burn;
-
   // End-of-challenge celebration (mirrors challenge_screen._onChallengeEnd):
   // 5 staggered elastic shakes + one explosive confetti burst. Fires once
   // per challenge via the [_endHandled] latch.
@@ -50,17 +45,9 @@ class _ShowScreenState extends State<ShowScreen>
   late Animation<Offset> _shakeAnimation;
   final _random = Random();
 
-  RoomState? _lastState;
-  bool _endHandled = false;
-
   @override
   void initState() {
     super.initState();
-    // WI-012 / I-022: the audience screen NEVER joins and holds NO session.
-    // It only listens to the shared room state, so round rolls (roundId
-    // bumps) do not affect it and it is exempt from the player kick by
-    // construction. It deliberately never reads the player SessionStore.
-    _burn = BurnRevealController(vsync: this);
     _shakeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
@@ -74,36 +61,12 @@ class _ShowScreenState extends State<ShowScreen>
       CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
     );
     widget.roomSync.addListener(_onChanged);
-    _lastState = widget.roomSync.state;
     _syncClockTimer();
   }
 
   void _onChanged() {
-    _checkBuzzerEdge();
-    _feedBurn();
     _syncClockTimer();
     if (mounted) setState(() {});
-  }
-
-  /// Buzzer edge: fire the celebration exactly once when the challenge
-  /// transitions to finished, whether observed via an SSE event or via the
-  /// wall-clock ticker crossing endTime (no SSE event fires at that
-  /// moment). The [_endHandled] latch guards against re-firing on every
-  /// tick; it resets when the challenge goes away.
-  void _checkBuzzerEdge() {
-    final state = widget.roomSync.state;
-    final challenge = state?.challenge;
-    final wasLive = _lastState?.challenge?.isFinished == false;
-    _lastState = state;
-
-    if (!_endHandled &&
-        challenge != null &&
-        challenge.isFinished &&
-        wasLive != false) {
-      _endHandled = true;
-      _onChallengeEnd();
-    }
-    if (challenge == null) _endHandled = false;
   }
 
   void _onChallengeEnd() {
@@ -160,24 +123,14 @@ class _ShowScreenState extends State<ShowScreen>
   Duration? _clockInterval;
 
   void _tick() {
-    _checkBuzzerEdge();
-    _feedBurn();
     // Cadence is re-considered on SSE-driven _onChanged, not from the tick
-    // itself, to avoid re-entrancy from the ticker.
+    // itself, to avoid re-entry from the ticker.
     if (mounted) setState(() {});
-  }
-
-  void _feedBurn() {
-    final challenge = widget.roomSync.state?.challenge;
-    if (challenge != null) {
-      _burn.tick(challenge.endTime.difference(DateTime.now()));
-    }
   }
 
   @override
   void dispose() {
     _clockTimer?.cancel();
-    _burn.dispose();
     _confettiController.dispose();
     _shakeController.dispose();
     widget.roomSync.removeListener(_onChanged);
@@ -190,11 +143,19 @@ class _ShowScreenState extends State<ShowScreen>
     final challenge = state?.challenge;
 
     if (challenge == null) return const WaitingForChallengeScreen();
-    if (challenge.isInTheFuture) {
-      return ChallengeCountdownOverlay(challenge: challenge);
-    }
 
-    _feedBurn();
+    useEffect(
+      () {
+        /// Buzzer edge: fire the celebration + blur exactly once, whether the
+        /// finish is observed via an SSE event or via the wall-clock ticker
+        /// crossing endTime (no SSE event fires at that moment).
+        if (challenge.isFinished) {
+          _onChallengeEnd();
+        }
+        return null;
+      },
+      [challenge.isFinished],
+    );
 
     return Scaffold(
       body: Stack(
@@ -231,15 +192,14 @@ class _ShowScreenState extends State<ShowScreen>
               strokeWidth: 2,
             ),
           ),
-          Positioned.fill(
-            child: BurnRevealOverlay(
-              controller: _burn,
-              remaining: challenge.endTime.difference(DateTime.now()),
-              countdownBuilder: (context) => CountdownOverlay(
+          if (challenge.isInTheFuture)
+            ChallengeCountdownOverlay(challenge: challenge),
+          if (challenge.isWithinTenSecondsFromEnd)
+            Positioned.fill(
+              child: CountdownOverlay(
                 duration: challenge.endTime.difference(DateTime.now()),
               ),
             ),
-          ),
           // "Time over!" pops big for a few seconds, then dismisses itself
           // (a ticker drives the window — never a build-time DateTime gate,
           // I-008) so the finished content underneath is readable again.
