@@ -61,16 +61,16 @@ class Pipeline {
 
   /// Per-model preferred `reasoning_effort`, sent alongside the per-request
   /// `model` override. Data-driven so a future model carries its own setting.
-  /// Kimi-K3/K2.6 MUST be served at `low`: at their default effort they are
-  /// slow reasoning models prone to intermittent throughput collapse (the
-  /// WI-098 "hang" — 7645 reasoning tokens), whereas `low` collapses the
-  /// reasoning bloat (measured: 49 vs 295 tokens) and yields fast, stable,
-  /// compilable code (~9s). Models absent from this map send NO effort param
-  /// and use the provider's own default (the right choice for gpt-oss/gemma/
-  /// GLM/Mistral — overriding only adds risk).
+  /// Kimi-K3 MUST be served at `low`: at its default effort it is a slow
+  /// reasoning model prone to intermittent throughput collapse (the WI-098
+  /// "hang" — 7645 reasoning tokens), whereas `low` collapses the reasoning
+  /// bloat (measured: 49 vs 295 tokens) and yields fast, stable, compilable
+  /// code (~9s). Models absent from this map send NO effort param and use the
+  /// provider's own default (the right choice for gemma/GLM/Mistral/Qwen —
+  /// overriding only adds risk; GLM-5.3-Flash's thinking behavior is still
+  /// being benchmarked, so it stays absent until measured).
   static const Map<String, String> preferredEffort = {
     'moonshotai/Kimi-K3': 'low',
-    'moonshotai/Kimi-K2.6': 'low',
   };
 
   /// The preferred `reasoning_effort` for [model], or null to send none.

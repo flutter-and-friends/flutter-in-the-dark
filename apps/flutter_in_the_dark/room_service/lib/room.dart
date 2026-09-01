@@ -124,12 +124,10 @@ class RoomState {
   /// (embeddings, whisper) are deliberately excluded — they can never serve
   /// generateCode.
   static const knownModels = [
-    'google/gemma-4-31B-it',
-    'moonshotai/Kimi-K2.6',
     'moonshotai/Kimi-K3',
-    'zai-org/GLM-4.7-FP8',
-    'openai/gpt-oss-120b',
-    'meta-llama/Llama-3.3-70B-Instruct',
+    'google/gemma-4-31B-it',
+    'zai-org/GLM-5.2',
+    'zai-org/GLM-5.3-Flash',
     'Qwen/Qwen3.8-27B-FP8',
     'mistralai/Mistral-Small-3.2-24B-Instruct-2506',
   ];
