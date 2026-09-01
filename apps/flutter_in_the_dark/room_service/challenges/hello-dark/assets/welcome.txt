@@ -1,1 +1,0 @@
-Welcome to Flutter in the Dark! The lights are off — happy prompting.
