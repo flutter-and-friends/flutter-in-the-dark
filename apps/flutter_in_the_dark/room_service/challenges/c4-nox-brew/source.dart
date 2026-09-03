@@ -1,4 +1,6 @@
 // name: C4 - Nox Brew
+import 'dart:math' show pi, sin;
+
 import 'package:flutter/material.dart';
 
 void main() => runApp(const NoxApp());
@@ -33,7 +35,8 @@ class NoxPage extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: 440),
             child: Column(
               children: [
-                _header(), const SizedBox(height: 48),
+                _header(), const SizedBox(height: 30),
+                const _HeroCup(), const SizedBox(height: 30),
                 _eyebrow(), const SizedBox(height: 16),
                 const Text(
                   'Coffee for the\nquiet hours.',
@@ -142,6 +145,35 @@ class NoxPage extends StatelessWidget {
       );
 }
 
+/// The hero cup with gently wobbling steam. Owns the controller so the rest
+/// of the page stays static; only this 150x168 region repaints per tick.
+class _HeroCup extends StatefulWidget {
+  const _HeroCup();
+
+  @override
+  State<_HeroCup> createState() => _HeroCupState();
+}
+
+class _HeroCupState extends State<_HeroCup> with SingleTickerProviderStateMixin {
+  late final AnimationController _steam = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 6),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _steam.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: 150,
+        height: 168,
+        child: CustomPaint(painter: _CupPainter(_steam)),
+      );
+}
+
 enum _Glyph { moon, drop, box }
 
 class NoxFeatureCard extends StatelessWidget {
@@ -217,4 +249,117 @@ class _GlyphPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GlyphPainter oldDelegate) => false;
+}
+
+class _CupPainter extends CustomPainter {
+  final Animation<double> steam;
+  _CupPainter(this.steam) : super(repaint: steam);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final amber = Paint()..color = kAmber;
+
+    // One tight glow behind the cup, echoing the CTA shadow.
+    final glowCenter = Offset(w * 0.5, h * 0.60);
+    canvas.drawCircle(
+      glowCenter,
+      w * 0.60,
+      Paint()
+        ..shader = RadialGradient(
+          colors: const [Color(0x24E8A33D), Color(0x00E8A33D)],
+        ).createShader(Rect.fromCircle(center: glowCenter, radius: w * 0.60)),
+    );
+
+    // Steam: three tall, gentle S-curves rising from the coffee, wobbling
+    // slowly. Integer cycles per controller loop keep the 6s repeat seamless;
+    // phases and amplitudes differ so the wisps never move in lockstep.
+    final t = steam.value;
+    final steamPaint = Paint()
+      ..color = kAmber
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.026
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(_wisp(w * 0.40, h * 0.30, h * 0.10, w * 0.030, t, 1, 0.00, w * 0.020), steamPaint);
+    canvas.drawPath(_wisp(w * 0.50, h * 0.31, h * 0.04, w * 0.030, t, 2, 0.40, w * 0.024), steamPaint);
+    canvas.drawPath(_wisp(w * 0.60, h * 0.30, h * 0.10, w * 0.030, t, 1, 0.75, w * 0.018), steamPaint);
+
+    // Saucer: a flat pill the cup sits on.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset(w * 0.5, h * 0.845), width: w * 0.80, height: h * 0.045),
+        Radius.circular(h * 0.0225),
+      ),
+      amber,
+    );
+
+    // Cup body: flat top, generously rounded bottom — a mug silhouette.
+    canvas.drawRRect(
+      RRect.fromRectAndCorners(
+        Rect.fromLTRB(w * 0.24, h * 0.34, w * 0.76, h * 0.82),
+        topLeft: Radius.circular(h * 0.03),
+        topRight: Radius.circular(h * 0.03),
+        bottomLeft: Radius.circular(h * 0.16),
+        bottomRight: Radius.circular(h * 0.16),
+      ),
+      amber,
+    );
+
+    // Coffee: a dark ellipse inset just below the rim.
+    canvas.drawOval(
+      Rect.fromLTWH(w * 0.29, h * 0.355, w * 0.42, h * 0.055),
+      Paint()..color = kBg,
+    );
+
+    // Handle: the right half of an oval, stroked.
+    canvas.drawArc(
+      Rect.fromCenter(center: Offset(w * 0.78, h * 0.58), width: w * 0.20, height: h * 0.24),
+      -pi / 2,
+      pi,
+      false,
+      Paint()
+        ..color = kAmber
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.034
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  // dx(p) is the wobble offset at relative height p (0 = base, 1 = tip):
+  // anchored at the coffee, widest at the tip — a slow travelling sway.
+  Path _wisp(
+    double x,
+    double yBottom,
+    double yTop,
+    double sway,
+    double t,
+    int cycles,
+    double phase,
+    double wobble,
+  ) {
+    final yMid = (yBottom + yTop) / 2;
+    double dx(double p) => wobble * p * sin(2 * pi * (cycles * t + phase) + 2.0 * p);
+    return Path()
+      ..moveTo(x + dx(0), yBottom)
+      ..cubicTo(
+        x - sway + dx(0.17),
+        yBottom - (yBottom - yMid) * 0.55,
+        x + sway + dx(0.33),
+        yMid + (yBottom - yMid) * 0.45,
+        x + dx(0.5),
+        yMid,
+      )
+      ..cubicTo(
+        x - sway + dx(0.67),
+        yMid - (yMid - yTop) * 0.55,
+        x + sway + dx(0.83),
+        yTop + (yMid - yTop) * 0.45,
+        x + dx(1),
+        yTop,
+      );
+  }
+
+  @override
+  bool shouldRepaint(_CupPainter oldDelegate) => false;
 }
