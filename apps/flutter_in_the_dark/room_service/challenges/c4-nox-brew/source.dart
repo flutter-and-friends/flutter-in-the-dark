@@ -272,18 +272,20 @@ class _CupPainter extends CustomPainter {
         ).createShader(Rect.fromCircle(center: glowCenter, radius: w * 0.60)),
     );
 
-    // Steam: three tall, gentle S-curves rising from the coffee, wobbling
-    // slowly. Integer cycles per controller loop keep the 6s repeat seamless;
-    // phases and amplitudes differ so the wisps never move in lockstep.
+    // Steam: three tall, gentle S-curves rising from the coffee, drifting
+    // side to side as whole lines (the base sways with the tip — no worm
+    // wriggle). Integer cycles per controller loop keep the 6s repeat
+    // seamless; phases and amplitudes differ so the wisps never move in
+    // lockstep.
     final t = steam.value;
     final steamPaint = Paint()
       ..color = kAmber
       ..style = PaintingStyle.stroke
       ..strokeWidth = w * 0.026
       ..strokeCap = StrokeCap.round;
-    canvas.drawPath(_wisp(w * 0.40, h * 0.30, h * 0.10, w * 0.030, t, 1, 0.00, w * 0.020), steamPaint);
-    canvas.drawPath(_wisp(w * 0.50, h * 0.31, h * 0.04, w * 0.030, t, 2, 0.40, w * 0.024), steamPaint);
-    canvas.drawPath(_wisp(w * 0.60, h * 0.30, h * 0.10, w * 0.030, t, 1, 0.75, w * 0.018), steamPaint);
+    canvas.drawPath(_wisp(w * 0.40, h * 0.30, h * 0.10, w * 0.030, t, 1, 0.00, w * 0.028, w * 0.010), steamPaint);
+    canvas.drawPath(_wisp(w * 0.50, h * 0.31, h * 0.04, w * 0.030, t, 2, 0.40, w * 0.024, w * 0.012), steamPaint);
+    canvas.drawPath(_wisp(w * 0.60, h * 0.30, h * 0.10, w * 0.030, t, 1, 0.75, w * 0.026, w * 0.010), steamPaint);
 
     // Saucer: a flat pill the cup sits on.
     canvas.drawRRect(
@@ -326,8 +328,10 @@ class _CupPainter extends CustomPainter {
     );
   }
 
-  // dx(p) is the wobble offset at relative height p (0 = base, 1 = tip):
-  // anchored at the coffee, widest at the tip — a slow travelling sway.
+  // dx(p) is the lateral offset at relative height p (0 = base, 1 = tip).
+  // The dominant term is a uniform drift — the whole line, base included,
+  // translates with sin(theta). A much smaller p-scaled wave rides on top so
+  // the tip exaggerates the sway slightly and the line never reads rigid.
   Path _wisp(
     double x,
     double yBottom,
@@ -336,10 +340,12 @@ class _CupPainter extends CustomPainter {
     double t,
     int cycles,
     double phase,
-    double wobble,
+    double drift,
+    double wave,
   ) {
     final yMid = (yBottom + yTop) / 2;
-    double dx(double p) => wobble * p * sin(2 * pi * (cycles * t + phase) + 2.0 * p);
+    final theta = 2 * pi * (cycles * t + phase);
+    double dx(double p) => drift * sin(theta) + wave * p * sin(theta + 2.0 * p);
     return Path()
       ..moveTo(x + dx(0), yBottom)
       ..cubicTo(
